@@ -31,6 +31,6 @@ struct GeneralPane: View {
   }
 
   private var launchAtLoginBinding: Binding<Bool> {
-    Binding(get: { launchAtLogin.isEnabled }, set: launchAtLogin.set)
+    Binding(get: { launchAtLogin.isEnabled }, set: { launchAtLogin.set($0) })
   }
 }
