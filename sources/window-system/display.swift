@@ -11,7 +11,7 @@ public struct Display: Equatable, Sendable {
 
   public enum Side: Sendable { case left, right, below }
 
-  public init(
+  nonisolated public init(
     id: CGDirectDisplayID, uuid: String, name: String, frame: CGRect, visibleFrame: CGRect,
     isMain: Bool
   ) {
