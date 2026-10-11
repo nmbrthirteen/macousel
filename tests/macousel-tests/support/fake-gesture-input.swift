@@ -4,8 +4,8 @@ import WindowSystem
 
 @MainActor
 final class FakeGestureInput: GestureInput {
-  var onScroll: ((_ deltaX: Double, _ phase: ScrollGestureTap.Phase) -> Void)?
-  var onSwipe: ((_ share: Double, _ phase: ScrollGestureTap.Phase) -> Void)?
+  var onScroll: ((_ deltaX: Double, _ phase: ScrollGesturePhase) -> Void)?
+  var onSwipe: ((_ share: Double, _ phase: ScrollGesturePhase) -> Void)?
   private(set) var isScrolling = false
   private(set) var swipeFingerCount: Int?
 

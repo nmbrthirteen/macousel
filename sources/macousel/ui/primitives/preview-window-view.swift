@@ -12,6 +12,7 @@ struct PreviewWindowView: View {
   var body: some View {
     shape
       .fill(fill)
+      .transaction(value: window.isFocused) { $0.animation = nil }
       .overlay { dimming }
       .overlay { focusBorder }
       .frame(width: window.rect.width, height: window.rect.height)

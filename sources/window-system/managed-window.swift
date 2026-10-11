@@ -1,10 +1,12 @@
 import AppKit
 import ApplicationServices
+import os
 
 public final class ManagedWindow {
   private static let focusQueue = DispatchQueue(
     label: "dev.macousel.focus", qos: .userInteractive)
   private static let focusRequests = FocusRequests()
+  private nonisolated static let logger = Logger(subsystem: "dev.macousel.app", category: "focus")
   private static let windowServerSettleDelay = 0.15
 
   public let id: CGWindowID
@@ -71,6 +73,9 @@ public final class ManagedWindow {
           ? WindowServerFocus.shared.bringToFront(id, of: pid)
           : WindowServerFocus.shared.focusWithoutRaising(
             id, of: pid, replacing: FocusedWindowReader.current()))
+      Self.logger.info(
+        "focus request: window \(id, privacy: .public) raising \(raising, privacy: .public) window server \(usedWindowServer, privacy: .public)"
+      )
       if raising || !usedWindowServer {
         AXUIElementPerformAction(target.element, kAXRaiseAction as CFString)
       }
@@ -84,6 +89,8 @@ public final class ManagedWindow {
           return
         }
         if usedWindowServer { requests.recordMiss() }
+        Self.logger.info(
+          "focus verification failed: window \(id, privacy: .public), activating the app")
         NSRunningApplication(processIdentifier: pid)?.activate()
       }
     }

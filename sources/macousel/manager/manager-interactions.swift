@@ -11,7 +11,9 @@ final class ManagerInteractions {
     state: TilingState, source: any WindowSource, presenter: LayoutPresenter, focus: FocusDriver,
     store: PreferencesStore, ports: ManagerPorts
   ) {
-    let drag = DragInteraction(state: state, presenter: presenter, pointer: ports.pointer)
+    let drag = DragInteraction(
+      state: state, source: source, presenter: presenter, pointer: ports.pointer,
+      clock: ports.clock)
     let scrolling = ScrollInteraction(
       state: state, presenter: presenter, focus: focus, store: store, gestures: ports.gestures,
       now: { ports.clock.now })

@@ -14,6 +14,7 @@ final class ControllerFixture {
   let environment: FakeDesktopEnvironment
   let source: FakeWindowSource
   let probe: FakeWindowProbe
+  let sequence = EventSequence()
   let placer = FakeFramePlacer()
   let clock = ManualClock()
   let pointer = FakePointerDevice()
@@ -40,6 +41,7 @@ final class ControllerFixture {
     self.environment = environment
     self.source = source
     probe = FakeWindowProbe(source: source)
+    placer.sequence = sequence
     pointer.serverBoundsProvider = { source.fakeWindow($0)?.serverFrame }
     manager = WindowManager(
       store: store,
@@ -81,6 +83,7 @@ final class ControllerFixture {
     let window = FakeWindow(
       id: id, app: app, title: title ?? "Window \(id)",
       frame: CGRect(x: x, y: 100, width: 400, height: 300))
+    window.sequence = sequence
     source.add(window, activating: activating)
     return window
   }

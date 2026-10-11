@@ -13,7 +13,7 @@ struct DisplaysPreview: View {
     PreviewSection(description: PreviewDescription.displays(displays, disabled: disabled)) {
       DisplayDrawing(
         displays: displays, disabled: disabled, config: config,
-        animation: PreviewAnimation.spring(for: animationSpeed, reduceMotion: reduceMotion))
+        animation: PreviewAnimation.curve(for: animationSpeed, reduceMotion: reduceMotion))
     }
   }
 }

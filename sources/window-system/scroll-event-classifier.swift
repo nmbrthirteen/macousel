@@ -4,7 +4,7 @@ import CoreGraphics
 nonisolated enum ScrollEventDecision: Equatable {
   case passThrough
   case swallow
-  case deliver(deltaX: Double, phase: ScrollGestureTap.Phase)
+  case deliver(deltaX: Double, phase: ScrollGesturePhase)
 }
 
 nonisolated struct ScrollEventClassifier {
@@ -17,7 +17,7 @@ nonisolated struct ScrollEventClassifier {
     guard !modifiers.isEmpty, Self.modifiers(of: flags) == modifiers else { return .passThrough }
     if momentumPhase != 0 { return .swallow }
 
-    let phase: ScrollGestureTap.Phase
+    let phase: ScrollGesturePhase
     switch NSEvent.Phase(rawValue: UInt(scrollPhase)) {
     case .began: phase = .began
     case .ended, .cancelled: phase = .ended

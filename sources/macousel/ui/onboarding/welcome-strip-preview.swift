@@ -16,7 +16,7 @@ struct WelcomeStripPreview: View {
             PreviewMetrics.Sample.motionLeadingColumns,
             width: .fraction(PreviewMetrics.Sample.motionColumnWidth)),
           config: LayoutConfig(),
-          animation: PreviewAnimation.spring(for: .fast, reduceMotion: reduceMotion))
+          animation: PreviewAnimation.curve(for: .fast, reduceMotion: reduceMotion))
           .onAppear { loop.start(reduceMotion: reduceMotion) }
           .onDisappear(perform: loop.stop)
           .onChange(of: reduceMotion) { loop.start(reduceMotion: reduceMotion) }

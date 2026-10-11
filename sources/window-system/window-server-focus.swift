@@ -3,12 +3,11 @@ import Foundation
 
 nonisolated struct WindowServerFocus: Sendable {
   private static let userGeneratedMode: UInt32 = 0x200
-  private static let noWindowsMode: UInt32 = 0x400
   private static let focusChangeKind: UInt8 = 0x0d
   private static let focusChangeFlagOffset = 0x8a
   private static let deactivateFlag: UInt8 = 0x02
   private static let activateFlag: UInt8 = 0x01
-  private static let focusChangeSettleMicroseconds: UInt32 = 10_000
+  private static let focusChangeSettleMicroseconds: UInt32 = 20_000
   private static let eventRecordLength = 0xf8
   private static let lengthOffset = 0x04
   private static let phaseOffset = 0x08
@@ -69,7 +68,7 @@ nonisolated struct WindowServerFocus: Sendable {
       record = focusChangeRecord(for: window, flag: Self.activateFlag)
       guard postEventRecord(&process, &record) == .success else { return false }
     }
-    guard setFrontProcess(&process, window, Self.noWindowsMode) == .success else { return false }
+    guard setFrontProcess(&process, window, Self.userGeneratedMode) == .success else { return false }
     return [Self.pressPhase, Self.releasePhase].allSatisfy { phase in
       var record = keyWindowRecord(for: window, phase: phase)
       return postEventRecord(&process, &record) == .success

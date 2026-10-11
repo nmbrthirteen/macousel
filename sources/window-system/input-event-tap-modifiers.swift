@@ -1,6 +1,6 @@
 import os
 
-nonisolated final class ScrollTapModifiers: Sendable {
+nonisolated final class InputEventTapModifiers: Sendable {
   private let storage = OSAllocatedUnfairLock(initialState: Hotkey.Modifiers.RawValue())
 
   var value: Hotkey.Modifiers {

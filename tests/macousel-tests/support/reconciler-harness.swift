@@ -21,11 +21,11 @@ struct ReconcilerHarness {
     probe = FakeWindowProbe(source: source)
     let pointer = FakePointerDevice()
     state = TilingState(store: store, environment: environment, pointer: pointer)
+    let placer = FakeFramePlacer()
     let focus = FocusDriver(
-      state: state, source: source, store: store, pointer: pointer,
+      state: state, source: source, store: store, pointer: pointer, placer: placer,
       now: { ContinuousClock.now })
-    let scratchpad = Scratchpad(
-      state: state, source: source, placer: FakeFramePlacer(), focus: focus)
+    let scratchpad = Scratchpad(state: state, source: source, placer: placer, focus: focus)
     self.scratchpad = scratchpad
     reconciler = WindowReconciler(
       state: state, source: source, environment: environment, store: store,

@@ -59,8 +59,7 @@ final class CommandRouter {
     guard let key = state.activeKey(containing: window) else { return }
     state.workspaces[key]?.strip.focus(window)
     state.scrollToFocus(key)
-    focus.activate(window, in: key, from: .pointer)
-    presenter.relayout()
+    focus.activate(window, in: key, from: .pointer) { presenter.relayout() }
   }
 
   private func performOnFocusedStrip(_ action: Action) {
@@ -159,13 +158,16 @@ final class CommandRouter {
   }
 
   private func present(_ key: Workspace.Key, activating window: WindowID?) {
+    let layOut: () -> Void = { [presenter] in
+      presenter.overlays.readMissingTitles()
+      presenter.relayout()
+    }
     if let window {
-      focus.activate(window, in: key, from: .command)
+      focus.activate(window, in: key, from: .command, layingOut: layOut)
     } else {
       state.focusedKey = key
+      layOut()
     }
-    presenter.overlays.readMissingTitles()
-    presenter.relayout()
     presenter.overlays.flashMinimap(for: key, update: .animated)
   }
 }

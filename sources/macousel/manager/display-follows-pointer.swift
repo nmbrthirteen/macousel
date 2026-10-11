@@ -54,10 +54,10 @@ final class DisplayFollowsPointer {
       presenter.isSettled
     else { return }
     if let window = state.workspaces[key]?.strip.focusedWindow {
-      focus.activate(window, in: key, from: .pointer)
+      focus.activate(window, in: key, from: .pointer) { presenter.render() }
     } else {
       state.focusedKey = key
+      presenter.render()
     }
-    presenter.render()
   }
 }

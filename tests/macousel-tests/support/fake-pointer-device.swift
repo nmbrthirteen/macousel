@@ -12,6 +12,7 @@ final class FakePointerDevice: PointerDevice {
   var isObservingEscape: Bool { escapeHandler != nil }
   var isObservingPrimaryButton: Bool { buttonHandler != nil }
   private(set) var warps: [CGPoint] = []
+  private(set) var serverBoundsReadCount = 0
   private var serverBoundsOverrides: [CGWindowID: CGRect] = [:]
   private var movementHandler: ((CGPoint) -> Void)?
   private var buttonHandler: ((PrimaryButtonEvent) -> Void)?
@@ -27,7 +28,8 @@ final class FakePointerDevice: PointerDevice {
   }
 
   func serverBounds(of window: CGWindowID) -> CGRect? {
-    serverBoundsOverrides[window] ?? serverBoundsProvider(window)
+    serverBoundsReadCount += 1
+    return serverBoundsOverrides[window] ?? serverBoundsProvider(window)
   }
 
   func setServerBounds(_ bounds: CGRect?, of window: CGWindowID) {
@@ -66,7 +68,7 @@ final class FakePointerDevice: PointerDevice {
   func pressPrimary(at point: CGPoint) {
     location = point
     isPrimaryButtonDown = true
-    buttonHandler?(.pressed)
+    buttonHandler?(.pressed(at: point))
   }
 
   func dragPrimary(to point: CGPoint) {
@@ -74,9 +76,13 @@ final class FakePointerDevice: PointerDevice {
     buttonHandler?(.dragged)
   }
 
-  func releasePrimary() {
+  func releasePrimary(sendingEvent: Bool = true) {
     isPrimaryButtonDown = false
-    buttonHandler?(.released)
+    if sendingEvent { buttonHandler?(.released) }
+  }
+
+  func movePrimarySilently(to point: CGPoint) {
+    location = point
   }
 
   func pressEscape() {

@@ -44,6 +44,18 @@ nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
     state.withLock { $0.running.isEmpty && $0.pending.isEmpty }
   }
 
+  func hasWork(for pid: pid_t) -> Bool {
+    state.withLock { $0.running.contains(pid) }
+  }
+
+  func afterPending(_ pid: pid_t, _ work: @escaping @Sendable () -> Void) {
+    guard let queue = state.withLock({ $0.queues[pid] }) else {
+      work()
+      return
+    }
+    queue.async(execute: work)
+  }
+
   func submit(_ request: Request, window: CGWindowID, pid: pid_t) {
     let queue = state.withLock { state -> DispatchQueue? in
       state.pending[pid, default: [:]][window] = request

@@ -47,7 +47,7 @@ enum PreviewMetrics {
 
   enum Timing {
     static let layoutInterval = Duration.seconds(2)
-    static let motionInterval = Duration.milliseconds(800)
+    static let motionInterval = Duration.seconds(2)
     static let swipeDebounce = Duration.milliseconds(350)
     static let swipeRestPause = Duration.milliseconds(150)
     static let swipeHold = Duration.milliseconds(1400)

@@ -3,14 +3,13 @@ import Carbon.HIToolbox
 import WindowSystem
 
 final class SystemPointerDevice: PointerDevice {
-  private static let draggedInterval: TimeInterval = 1.0 / 60
-
+  private let tap: InputEventTap
   private let movement = PointerMonitor()
-  private let buttonDown = GlobalEventMonitor(matching: .leftMouseDown)
-  private let buttonDragged = GlobalEventMonitor(
-    matching: .leftMouseDragged, minimumInterval: SystemPointerDevice.draggedInterval)
-  private let buttonUp = GlobalEventMonitor(matching: .leftMouseUp)
   private let keys = GlobalEventMonitor(matching: .keyDown)
+
+  init(tap: InputEventTap) {
+    self.tap = tap
+  }
 
   var location: CGPoint { Pointer.location }
 
@@ -38,15 +37,19 @@ final class SystemPointerDevice: PointerDevice {
   }
 
   func startObservingPrimaryButton(_ handler: @escaping (PrimaryButtonEvent) -> Void) {
-    buttonDown.start { _ in handler(.pressed) }
-    buttonDragged.start { _ in handler(.dragged) }
-    buttonUp.start { _ in handler(.released) }
+    tap.onMouse = { event in
+      switch event.kind {
+      case .pressed: handler(.pressed(at: event.location))
+      case .dragged: handler(.dragged)
+      case .released: handler(.released)
+      }
+    }
+    _ = tap.start()
   }
 
   func stopObservingPrimaryButton() {
-    buttonDown.stop()
-    buttonDragged.stop()
-    buttonUp.stop()
+    tap.onMouse = nil
+    tap.stop()
   }
 
   func startObservingEscape(_ handler: @escaping () -> Void) {

@@ -1,4 +1,3 @@
-import AppKit
 import ApplicationServices
 import CoreGraphics
 import Foundation
@@ -9,8 +8,7 @@ private nonisolated let logger = Logger(subsystem: "dev.macousel.app", category:
 nonisolated final class PlacementWorker: Sendable {
   private let sizes = OSAllocatedUnfairLock(initialState: [CGWindowID: CGSize]())
   private let timings = OSAllocatedUnfairLock(initialState: [pid_t: BurstTiming]())
-  private let responsiveness = OSAllocatedUnfairLock(
-    initialState: [pid_t: AppResponsiveness]())
+  private let responsiveness = AppResponsivenessBook()
   private let enhancedInterface: EnhancedInterfaceSuspender
 
   init(messagingTimeout: Float) {
@@ -22,26 +20,29 @@ nonisolated final class PlacementWorker: Sendable {
     place(window, placement)
     let milliseconds = started.duration(to: .now).fractionalMilliseconds
     timings.withLock { $0[placement.pid, default: BurstTiming()].record(milliseconds: milliseconds) }
-    classify(placement.pid, afterSetTaking: milliseconds)
+    classify(placement, afterSetTaking: milliseconds)
   }
 
-  func isSlow(_ pid: pid_t) -> Bool {
-    responsiveness.withLock { $0[pid]?.isSlow ?? false }
+  func isSlow(_ pid: pid_t, bundleIdentifier: String?) -> Bool {
+    responsiveness.isSlow(pid, bundleIdentifier: bundleIdentifier)
   }
 
-  private func classify(_ pid: pid_t, afterSetTaking milliseconds: Double) {
-    let change = responsiveness.withLock { all -> Bool? in
-      var app = all[pid, default: AppResponsiveness()]
-      let wasSlow = app.isSlow
-      app.record(milliseconds: milliseconds)
-      all[pid] = app
-      return app.isSlow == wasSlow ? nil : app.isSlow
-    }
-    guard let isSlow = change else { return }
-    let state = isSlow ? "slow" : "responsive"
-    let bundle = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "unknown"
+  func seedSlowApps(_ bundleIdentifiers: Set<String>) {
+    responsiveness.seed(bundleIdentifiers)
+  }
+
+  func observeSlowChanges(_ observer: @escaping @Sendable (String, Bool) -> Void) {
+    responsiveness.observe(observer)
+  }
+
+  private func classify(_ placement: PlacementRequest, afterSetTaking milliseconds: Double) {
+    let change = responsiveness.record(
+      placement.pid, bundleIdentifier: placement.bundleIdentifier, milliseconds: milliseconds)
+    guard let change else { return }
+    let state = change.isSlow ? "slow" : "responsive"
+    let bundle = change.bundleIdentifier ?? "unknown"
     logger.info(
-      "pid \(pid, privacy: .public) is now \(state, privacy: .public) bundle \(bundle, privacy: .public)"
+      "pid \(placement.pid, privacy: .public) is now \(state, privacy: .public) bundle \(bundle, privacy: .public)"
     )
   }
 

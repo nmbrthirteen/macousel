@@ -7,6 +7,7 @@ enum FocusSource {
 }
 
 final class FocusDriver {
+  static let placementWait = Duration.milliseconds(30)
   private static let echoPeriod = Duration.milliseconds(250)
 
   private struct PendingActivation {
@@ -22,21 +23,24 @@ final class FocusDriver {
   private var lastCommandActivation: ContinuousClock.Instant?
   private var pendingActivation: PendingActivation?
   private var echoExpiry: Task<Void, Never>?
+  private var focusRequestCount = 0
 
   private let state: TilingState
   private let windowSource: any WindowSource
   private let store: PreferencesStore
   private let pointer: any PointerDevice
+  private let placer: any FramePlacer
   private let now: () -> ContinuousClock.Instant
 
   init(
     state: TilingState, source: any WindowSource, store: PreferencesStore,
-    pointer: any PointerDevice, now: @escaping () -> ContinuousClock.Instant
+    pointer: any PointerDevice, placer: any FramePlacer, now: @escaping () -> ContinuousClock.Instant
   ) {
     self.state = state
     self.windowSource = source
     self.store = store
     self.pointer = pointer
+    self.placer = placer
     self.now = now
     recents = RecentAppWindows(source: source)
   }
@@ -45,13 +49,18 @@ final class FocusDriver {
     recents.note(window)
   }
 
-  func activate(_ window: WindowID, in key: Workspace.Key, from source: FocusSource) {
+  func activate(
+    _ window: WindowID, in key: Workspace.Key, from source: FocusSource,
+    layingOut layout: () -> Void = {}
+  ) {
     state.focusedKey = key
     recents.note(window)
     let requestedAt = now()
     pendingActivation = PendingActivation(window: window, requestedAt: requestedAt)
     scheduleEchoExpiry(of: window)
-    windowSource.window(window.rawValue)?.focus(raising: needsRaise(window))
+    let raising = needsRaise(window)
+    layout()
+    requestFocus(of: window, raising: raising)
     onActivated?(window)
     guard source == .command else { return }
     lastCommandActivation = requestedAt
@@ -78,6 +87,16 @@ final class FocusDriver {
   func stop() {
     echoExpiry?.cancel()
     echoExpiry = nil
+  }
+
+  private func requestFocus(of window: WindowID, raising: Bool) {
+    guard let handle = windowSource.window(window.rawValue) else { return }
+    focusRequestCount += 1
+    let request = focusRequestCount
+    placer.afterPlacement(of: handle, within: Self.placementWait) { [weak self] in
+      guard let self, request == focusRequestCount else { return }
+      windowSource.window(window.rawValue)?.focus(raising: raising)
+    }
   }
 
   private func scheduleEchoExpiry(of window: WindowID) {

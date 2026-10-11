@@ -68,6 +68,19 @@ struct MenuBarPagesGeometryTests {
     #expect(result.pages[0].rows.count == 1)
   }
 
+  @Test(arguments: [(13.0, 2.5), (4.0, 1.0), (2.5, 0.625), (0.0, 0.0), (40.0, 2.5)])
+  func aRowCornerRadiusIsCappedAtAQuarterOfItsHeight(height: Double, radius: Double) {
+    #expect(MenuBarPagesGeometry.cornerRadius(forRowHeight: height) == radius)
+  }
+
+  @Test func everyRowOfAStackedColumnHasAtMostAQuarterHeightRadius() throws {
+    let result = try #require(geometry(shares: [0.3], focused: 0, rows: [0: 4]))
+    for row in result.pages[0].rows {
+      let radius = MenuBarPagesGeometry.cornerRadius(forRowHeight: Double(row.height))
+      #expect(radius <= Double(row.height) / 4)
+    }
+  }
+
   @Test func rowsAreCappedAtFour() throws {
     let result = try #require(geometry(shares: [0.3], focused: 0, rows: [0: 9]))
     #expect(result.pages[0].rows.count == 4)

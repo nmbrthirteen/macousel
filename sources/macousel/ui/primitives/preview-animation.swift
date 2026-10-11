@@ -1,8 +1,10 @@
 import SwiftUI
 
 enum PreviewAnimation {
-  static func spring(for speed: AnimationSpeed, reduceMotion: Bool) -> Animation? {
+  static let durationPerResponse = 1.5
+
+  static func curve(for speed: AnimationSpeed, reduceMotion: Bool) -> Animation? {
     guard !reduceMotion, let response = speed.springResponse else { return nil }
-    return .spring(response: response, dampingFraction: 1)
+    return .easeOut(duration: response * durationPerResponse)
   }
 }

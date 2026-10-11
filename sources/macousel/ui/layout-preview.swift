@@ -20,7 +20,7 @@ struct LayoutPreview: View {
           StripPreviewScenario.leadingColumnCount(forWidth: config.defaultWidth),
           width: .fraction(config.defaultWidth)),
         config: config,
-        animation: PreviewAnimation.spring(for: animationSpeed, reduceMotion: reduceMotion))
+        animation: PreviewAnimation.curve(for: animationSpeed, reduceMotion: reduceMotion))
         .onAppear { loop.start(reduceMotion: reduceMotion) }
         .onDisappear(perform: loop.stop)
         .onChange(of: reduceMotion) { loop.start(reduceMotion: reduceMotion) }

@@ -38,6 +38,7 @@ final class FakeWindow: WindowHandle {
     set { storedFullScreen = newValue }
   }
   var timesOutReads = false
+  var sequence: EventSequence?
   var onFocus: ((FakeWindow) -> Void)?
   var onComesForward: ((FakeWindow) -> Void)?
   private(set) var framesSet: [CGRect] = []
@@ -71,6 +72,7 @@ final class FakeWindow: WindowHandle {
 
   func focus(raising: Bool) {
     focusCount += 1
+    sequence?.record(.focused(id))
     if raising {
       onComesForward?(self)
     } else {

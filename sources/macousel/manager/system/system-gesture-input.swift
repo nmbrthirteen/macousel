@@ -1,26 +1,30 @@
 import WindowSystem
 
 final class SystemGestureInput: GestureInput {
-  private let scrollTap = ScrollGestureTap()
+  private let tap: InputEventTap
   private let swipes = SwipeGestureMonitor()
 
-  var onScroll: ((_ deltaX: Double, _ phase: ScrollGestureTap.Phase) -> Void)? {
-    get { scrollTap.onScroll }
-    set { scrollTap.onScroll = newValue }
+  init(tap: InputEventTap) {
+    self.tap = tap
   }
 
-  var onSwipe: ((_ share: Double, _ phase: ScrollGestureTap.Phase) -> Void)? {
+  var onScroll: ((_ deltaX: Double, _ phase: ScrollGesturePhase) -> Void)? {
+    get { tap.onScroll }
+    set { tap.onScroll = newValue }
+  }
+
+  var onSwipe: ((_ share: Double, _ phase: ScrollGesturePhase) -> Void)? {
     get { swipes.onSwipe }
     set { swipes.onSwipe = newValue }
   }
 
   func startScrolling(modifiers: Hotkey.Modifiers) {
-    scrollTap.modifiers = modifiers
-    _ = scrollTap.start()
+    tap.scrollModifiers = modifiers
+    _ = tap.start()
   }
 
   func stopScrolling() {
-    scrollTap.stop()
+    tap.scrollModifiers = []
   }
 
   func startSwiping(fingerCount: Int) {

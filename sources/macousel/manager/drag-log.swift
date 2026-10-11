@@ -4,10 +4,19 @@ import os
 struct DragLog {
   private static let logger = Logger(subsystem: "dev.macousel.app", category: "drag")
 
-  func recognised(_ window: CGWindowID, as kind: LiveDrag.Kind) {
+  func pressed(_ window: CGWindowID, isTiled: Bool) {
+    Self.logger.info(
+      "drag press: window \(window, privacy: .public) tiled \(isTiled, privacy: .public) source tap"
+    )
+  }
+
+  func recognised(_ window: CGWindowID, as kind: LiveDrag.Kind, noticedBy notice: DragNotice) {
     let name = kind == .move ? "move" : "resize"
     Self.logger.info(
-      "drag recognised: window \(window, privacy: .public) \(name, privacy: .public)")
+      """
+      drag recognised: window \(window, privacy: .public) \(name, privacy: .public), \
+      noticed by \(notice.logName, privacy: .public)
+      """)
   }
 
   func ended(_ window: CGWindowID, as branch: DragBranch) {

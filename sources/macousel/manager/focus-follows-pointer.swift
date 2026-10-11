@@ -40,7 +40,6 @@ final class FocusFollowsPointer {
       state.focusedKey != key || state.workspaces[key]?.strip.focusedWindow != window
     else { return }
     state.workspaces[key]?.strip.focus(window)
-    focus.activate(window, in: key, from: .pointer)
-    presenter.render()
+    focus.activate(window, in: key, from: .pointer) { presenter.render() }
   }
 }

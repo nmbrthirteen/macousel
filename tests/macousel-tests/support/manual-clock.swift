@@ -7,6 +7,7 @@ final class ManualClock: AnimationClock {
   private(set) var now = ContinuousClock.now
   private(set) var isRunning = false
   private(set) var startCount = 0
+  var pendingScheduleCount: Int { scheduled.count }
   private var scheduled: [(due: ContinuousClock.Instant, action: () -> Void)] = []
 
   func start() {

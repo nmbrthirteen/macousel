@@ -1,7 +1,6 @@
 import AppKit
 
 enum MenuBarPagesImage {
-  private static let cornerRadius = 2.5
   private static let outlineWidth = 1.0
   private static let outlineOpacity = 0.55
   private static let numberSize = 8.5
@@ -18,7 +17,7 @@ enum MenuBarPagesImage {
   }
 
   private static func radius(for row: CGRect) -> Double {
-    min(cornerRadius, row.height / 2)
+    MenuBarPagesGeometry.cornerRadius(forRowHeight: row.height)
   }
 
   private static func fill(_ page: MenuBarPagesGeometry.Page) {

@@ -19,6 +19,8 @@ nonisolated struct MenuBarPagesGeometry: Equatable {
   static let maximumWidth = 120.0
   static let highestNumber = 9
   static let cutOffOpacity = 0.35
+  static let maximumCornerRadius = 2.5
+  static let cornerRadiusShareOfRowHeight = 0.25
 
   let size: CGSize
   let pages: [Page]
@@ -41,6 +43,10 @@ nonisolated struct MenuBarPagesGeometry: Equatable {
         opacity: isCutOff ? Self.cutOffOpacity : 1)
     }
     size = CGSize(width: max(x - Self.pageGap, 0), height: Self.pageHeight)
+  }
+
+  static func cornerRadius(forRowHeight height: Double) -> Double {
+    min(maximumCornerRadius, height * cornerRadiusShareOfRowHeight)
   }
 
   private static func width(of page: StripPosition.Page) -> Double {

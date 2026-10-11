@@ -58,7 +58,7 @@ public final class SwipeGestureMonitor {
     get { frameGate.fingerCount }
     set { frameGate.fingerCount = newValue }
   }
-  public var onSwipe: ((_ deltaX: Double, _ phase: ScrollGestureTap.Phase) -> Void)?
+  public var onSwipe: ((_ deltaX: Double, _ phase: ScrollGesturePhase) -> Void)?
 
   private var api: Api?
   private var devices: CFArray?

@@ -3,17 +3,26 @@ import StripCore
 
 final class DragInteraction {
   private let state: TilingState
+  private let source: any WindowSource
   private let presenter: LayoutPresenter
   private let pointer: any PointerDevice
   private let planner: DropPlanner
   private let resize: DragResize
+  private let poller: DragPoller
+  private let rearrangement: DragRearrangement
   private let log = DragLog()
   private var phase = DragPhase.idle
 
-  init(state: TilingState, presenter: LayoutPresenter, pointer: any PointerDevice) {
+  init(
+    state: TilingState, source: any WindowSource, presenter: LayoutPresenter,
+    pointer: any PointerDevice, clock: any AnimationClock
+  ) {
     self.state = state
+    self.source = source
     self.presenter = presenter
     self.pointer = pointer
+    poller = DragPoller(clock: clock)
+    rearrangement = DragRearrangement(state: state, presenter: presenter)
     planner = DropPlanner(state: state)
     resize = DragResize(state: state)
   }
@@ -31,39 +40,62 @@ final class DragInteraction {
 
   func stop() {
     pointer.stopObservingPrimaryButton()
-    if case .live = phase { endLiveDrag() }
+    poller.stop()
+    if case .live(let drag) = phase {
+      if drag.kind == .move { rearrangement.restore() }
+      endLiveDrag()
+    }
     phase = .idle
   }
 
   private func handle(_ event: PrimaryButtonEvent) {
     switch event {
-    case .pressed: pressed()
-    case .dragged: dragged()
+    case .pressed(let point): pressed(at: point)
+    case .dragged: dragged(noticedBy: .draggedEvent)
     case .released: released()
     }
   }
 
-  private func pressed() {
+  private func pressed(at point: CGPoint) {
     phase = .idle
-    guard presenter.isSettled, let window = pointer.windowID(at: pointer.location),
-      state.activeKey(containing: WindowID(window)) != nil,
-      let requested = presenter.requestedFrame(for: window)
+    poller.stop()
+    guard let window = pointer.windowID(at: point), source.window(window) != nil else { return }
+    let isTiled = state.activeKey(containing: WindowID(window)) != nil
+    log.pressed(window, isTiled: isTiled)
+    guard isTiled, presenter.isSettled, let requested = presenter.requestedFrame(for: window)
     else { return }
     phase = .candidate(
       DragCandidate(
         window: window, requested: requested,
         baseline: pointer.serverBounds(of: window) ?? requested))
+    poller.start { [weak self] in self?.polled() ?? false }
   }
 
-  private func dragged() {
+  private func polled() -> Bool {
+    guard pointer.isPrimaryButtonDown else {
+      released()
+      return false
+    }
+    dragged(noticedBy: .poll)
+    return isPressInProgress
+  }
+
+  private var isPressInProgress: Bool {
     switch phase {
-    case .candidate(let candidate): recognise(candidate)
+    case .idle: false
+    case .candidate, .live, .cancelled: true
+    }
+  }
+
+  private func dragged(noticedBy notice: DragNotice) {
+    switch phase {
+    case .candidate(let candidate): recognise(candidate, noticedBy: notice)
     case .live(let drag) where drag.kind == .move: showPreview(for: drag)
     default: break
     }
   }
 
-  private func recognise(_ candidate: DragCandidate) {
+  private func recognise(_ candidate: DragCandidate, noticedBy notice: DragNotice) {
     let window = candidate.window
     guard presenter.isSettled, state.activeKey(containing: WindowID(window)) != nil,
       let actual = pointer.serverBounds(of: window)
@@ -76,15 +108,17 @@ final class DragInteraction {
     let drag = LiveDrag(window: window, baseline: reference, kind: kind)
     phase = .live(drag)
     presenter.excludedWindow = window
-    log.recognised(window, as: kind)
+    log.recognised(window, as: kind, noticedBy: notice)
     guard kind == .move else { return }
+    rearrangement.begin()
     pointer.startObservingEscape { [weak self] in self?.escaped() }
     showPreview(for: drag)
   }
 
   private func showPreview(for drag: LiveDrag) {
-    let frame = plan(for: drag)?.previewFrame
-    if let frame {
+    let dropPlan = plan(for: drag)
+    rearrangement.show(dropPlan)
+    if let frame = dropPlan?.previewFrame {
       presenter.overlays.showDropPreview(at: frame)
     } else {
       presenter.overlays.hideDropPreview()
@@ -93,19 +127,24 @@ final class DragInteraction {
 
   private func plan(for drag: LiveDrag) -> DropPlan? {
     let window = WindowID(drag.window)
-    guard let key = state.activeKey(containing: window) else { return nil }
-    return planner.plan(dragging: window, from: key, pointer: pointer.location)
+    guard let key = rearrangement.startingStrips.first(where: { $0.value.contains(window) })?.key
+    else { return nil }
+    return planner.plan(
+      dragging: window, from: key, pointer: pointer.location,
+      strips: rearrangement.startingStrips)
   }
 
   private func escaped() {
     guard case .live(let drag) = phase, drag.kind == .move else { return }
     phase = .cancelled(drag.window)
+    rearrangement.restore()
     endLiveDrag()
     log.ended(drag.window, as: .cancelled)
     putBack(drag.window)
   }
 
   private func released() {
+    poller.stop()
     let ended = phase
     phase = .idle
     switch ended {

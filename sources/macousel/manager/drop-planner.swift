@@ -8,13 +8,17 @@ final class DropPlanner {
     self.state = state
   }
 
-  func plan(dragging window: WindowID, from key: Workspace.Key, pointer: CGPoint) -> DropPlan? {
-    guard let strip = state.workspaces[key]?.strip else { return nil }
+  func plan(
+    dragging window: WindowID, from key: Workspace.Key, pointer: CGPoint,
+    strips: [Workspace.Key: Strip]
+  ) -> DropPlan? {
+    guard let strip = strips[key] else { return nil }
     let destination = state.activeKey(at: pointer) ?? key
     if destination == key {
       return planWithinDisplay(window, strip: strip, key: key, pointer: pointer)
     }
-    return planAcrossDisplays(window, strip: strip, from: key, to: destination)
+    return planAcrossDisplays(
+      window, strip: strip, from: key, to: destination, arriving: strips[destination])
   }
 
   func commit(_ plan: DropPlan) {
@@ -25,9 +29,9 @@ final class DropPlanner {
   private func planWithinDisplay(
     _ window: WindowID, strip: Strip, key: Workspace.Key, pointer: CGPoint
   ) -> DropPlan? {
-    guard let display = state.display(for: key), let layout = state.targetLayout(for: key)
-    else { return nil }
+    guard let display = state.display(for: key) else { return nil }
     let viewport = display.visibleFrame
+    let layout = strip.layout(in: viewport, config: state.config)
     let rule = DropRule(strip: strip, layout: layout, viewport: viewport, dragging: window)
     let target = rule.target(at: pointer)
     guard target != .nowhere else {
@@ -42,11 +46,12 @@ final class DropPlanner {
   }
 
   private func planAcrossDisplays(
-    _ window: WindowID, strip: Strip, from source: Workspace.Key, to destination: Workspace.Key
+    _ window: WindowID, strip: Strip, from source: Workspace.Key, to destination: Workspace.Key,
+    arriving destinationStrip: Strip?
   ) -> DropPlan? {
     guard let sourceDisplay = state.display(for: source),
       let destinationDisplay = state.display(for: destination),
-      var arriving = state.workspaces[destination]?.strip
+      var arriving = destinationStrip
     else { return nil }
     var leaving = strip
     leaving.remove(window)

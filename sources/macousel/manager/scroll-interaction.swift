@@ -61,7 +61,7 @@ final class ScrollInteraction {
     gesture = nil
   }
 
-  private func swiped(byPadShare share: Double, phase: ScrollGestureTap.Phase) {
+  private func swiped(byPadShare share: Double, phase: ScrollGesturePhase) {
     guard let key = gesture?.key ?? state.pointerKey, let display = state.display(for: key)
     else { return }
     let sensitivity = min(
@@ -72,7 +72,7 @@ final class ScrollInteraction {
     scrolled(by: travel, phase: phase)
   }
 
-  private func scrolled(by rawDeltaX: Double, phase: ScrollGestureTap.Phase) {
+  private func scrolled(by rawDeltaX: Double, phase: ScrollGesturePhase) {
     let deltaX = store.preferences.reversesSwipeDirection ? -rawDeltaX : rawDeltaX
     if phase == .began || gesture == nil {
       guard begin() else { return }
@@ -159,8 +159,9 @@ final class ScrollInteraction {
     state.workspaces[key] = workspace
     state.focusedKey = key
     if let focused = workspace.strip.focusedWindow, focused != previousFocus {
-      focus.activate(focused, in: key, from: .pointer)
+      focus.activate(focused, in: key, from: .pointer) { presenter.relayout() }
+    } else {
+      presenter.relayout()
     }
-    presenter.relayout()
   }
 }

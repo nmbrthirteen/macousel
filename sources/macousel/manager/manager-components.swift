@@ -24,10 +24,16 @@ struct ManagerComponents {
       state: state, source: ports.source, environment: ports.environment, store: store,
       placer: ports.placer, clock: clock, overlays: overlays,
       indicator: indicator, admissionFrames: admissionFrames)
+    let slowApps = SlowAppStore(defaults: defaults)
+    ports.placer.seedSlowApps(slowApps.load())
+    ports.placer.onSlowAppChange = { bundleIdentifier, isSlow in
+      slowApps.record(bundleIdentifier, isSlow: isSlow)
+    }
     let restorer = WindowRestorer(
       defaults: defaults, bootSession: ports.environment.bootSessionIdentifier)
     let focus = FocusDriver(
-      state: state, source: ports.source, store: store, pointer: ports.pointer, now: { clock.now })
+      state: state, source: ports.source, store: store, pointer: ports.pointer, placer: ports.placer,
+      now: { clock.now })
     let scratchpad = Scratchpad(
       state: state, source: ports.source, placer: ports.placer, focus: focus)
     let floating = FloatingWindowKeeper(

@@ -9,7 +9,9 @@ public nonisolated struct AppResponsiveness: Sendable, Equatable {
   private var recent: [Double] = []
   private var quickStreak = 0
 
-  public init() {}
+  public init(isSlow: Bool = false) {
+    self.isSlow = isSlow
+  }
 
   public mutating func record(milliseconds: Double) {
     if isSlow {

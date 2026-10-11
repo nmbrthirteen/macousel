@@ -24,7 +24,7 @@ struct MotionPreview: View {
             width: .fraction(PreviewMetrics.Sample.motionColumnWidth)),
           config: preferences.layout,
           decoration: decoration,
-          animation: PreviewAnimation.spring(for: preferences.animationSpeed, reduceMotion: reduceMotion))
+          animation: PreviewAnimation.curve(for: preferences.animationSpeed, reduceMotion: reduceMotion))
         if reduceMotion {
           CaptionText("Reduce Motion is on, so animations are off.")
         }
