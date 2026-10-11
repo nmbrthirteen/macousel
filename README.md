@@ -37,6 +37,7 @@ Early. I wrote it on macOS 27 with two displays. The layout engine is well teste
 
 - A minimap of the strip, a focus border, and dimming for inactive windows.
 - Per-app rules: float, open at a set width, or open in a set slot.
+- When I focus a tiled window, floating windows that sit over it come back to the front.
 - A URL scheme and a command line client for scripts.
 - Quitting or pausing puts every window back where it was. If Macousel crashes, it relaunches, puts the windows back, and stays paused until you resume it.
 

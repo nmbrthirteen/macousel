@@ -30,6 +30,8 @@ final class WindowManager {
   private let inputs: InputBindings
   private let crashRecovery: any CrashRecovery
   private let indicator: StripPositionIndicator
+  private let floating: FloatingWindowKeeper
+  private let systemFocus: SystemFocusHandler
 
   @ObservationIgnored private var appliedPreferences: Preferences?
   @ObservationIgnored private let synchronization = SynchronizationScheduler()
@@ -64,6 +66,11 @@ final class WindowManager {
       appShortcuts: parts.appShortcuts)
     crashRecovery = ports.crashRecovery
     indicator = parts.indicator
+    floating = parts.floating
+    systemFocus = parts.systemFocus
+    parts.floating.isSuppressed = { [router = parts.router] in
+      router.isOverviewOpen || interactions.isGestureActive
+    }
   }
 
   var position: StripPosition? { indicator.position }
@@ -97,6 +104,7 @@ final class WindowManager {
     router.closeOverview()
     synchronization.cancel()
     reconciler.cancelPending()
+    floating.cancel()
     focus.stop()
     crashRecovery.disarm()
     inputs.release()
@@ -158,7 +166,7 @@ final class WindowManager {
     }
     focus.onUnconfirmedFocus = { [weak self] window in
       guard self?.status == .running else { return }
-      self?.focusChanged(to: window)
+      self?.systemFocus.changed(to: window)
     }
     presenter.overlays.onTabSelected = { [weak self] window in self?.router.select(window) }
     store.onChange = { [weak self] in self?.preferencesChanged() }
@@ -171,6 +179,7 @@ final class WindowManager {
     crashRecovery.disarm()
     synchronization.cancel()
     reconciler.cancelPending()
+    floating.cancel()
     release.releaseEverything()
     applyInputs()
   }
@@ -210,6 +219,7 @@ final class WindowManager {
     presenter.retain(only: Set(source.windows.keys))
     presenter.overlays.refreshTitles(using: reconciler.probedTitles)
     presenter.relayout()
+    floating.refreshFrames(probed: reconciler.probedFacts)
   }
 
   private func handle(_ event: WindowSourceEvent) {
@@ -223,27 +233,14 @@ final class WindowManager {
     case .destroyed, .minimized, .restored, .appHidden, .appShown:
       synchronization.schedule()
     case .focused(let window):
-      focusChanged(to: WindowID(window))
+      systemFocus.changed(to: WindowID(window))
     case .moved(let window):
       interactions.windowMoved(window)
+      floating.windowChanged(window)
     case .resized(let window):
       reconciler.invalidateFullScreen(window)
       interactions.windowResized(window)
+      floating.windowChanged(window)
     }
-  }
-
-  private func focusChanged(to window: WindowID) {
-    guard !focus.isEchoOfEarlierActivation(window) else { return }
-    focus.observed(window)
-    presenter.overlays.restackDim()
-    let key = state.activeKey(containing: window)
-    state.focusedKey = key
-    guard let key, state.workspaces[key]?.strip.focusedWindow != window else {
-      presenter.render()
-      return
-    }
-    state.workspaces[key]?.strip.focus(window)
-    state.scrollToFocus(key)
-    presenter.relayout()
   }
 }

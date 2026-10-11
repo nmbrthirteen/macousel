@@ -38,8 +38,11 @@ final class FakeWindow: WindowHandle {
   }
   var timesOutReads = false
   var onFocus: ((FakeWindow) -> Void)?
+  var onComesForward: ((FakeWindow) -> Void)?
   private(set) var framesSet: [CGRect] = []
   private(set) var focusCount = 0
+  private(set) var nonRaisingFocusCount = 0
+  private(set) var raiseCount = 0
   private(set) var titleReadCount = 0
   private(set) var fullScreenReadCount = 0
   private(set) var frameReadCount = 0
@@ -63,8 +66,20 @@ final class FakeWindow: WindowHandle {
     storedFrame = frame
   }
 
-  func focus() {
+  var raisingFocusCount: Int { focusCount - nonRaisingFocusCount }
+
+  func focus(raising: Bool) {
     focusCount += 1
+    if raising {
+      onComesForward?(self)
+    } else {
+      nonRaisingFocusCount += 1
+    }
     onFocus?(self)
+  }
+
+  func raise() {
+    raiseCount += 1
+    onComesForward?(self)
   }
 }

@@ -34,6 +34,7 @@ final class FakeWindowSource: WindowSource {
 
   func add(_ window: FakeWindow, activating: Bool = true) {
     tracked[window.id] = window
+    window.onComesForward = { [weak self] window in self?.environment.bringToFront(window.id) }
     window.onFocus = { [weak self] window in self?.takeSystemFocus(window) }
     environment.show(window.id)
     if activating { takeSystemFocus(window) }

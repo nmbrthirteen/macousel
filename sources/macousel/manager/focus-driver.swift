@@ -15,6 +15,8 @@ final class FocusDriver {
   }
 
   var onUnconfirmedFocus: ((WindowID) -> Void)?
+  var onActivated: ((WindowID) -> Void)?
+  var needsRaise: (WindowID) -> Bool = { _ in true }
   let recents: RecentAppWindows
 
   private var lastCommandActivation: ContinuousClock.Instant?
@@ -49,7 +51,8 @@ final class FocusDriver {
     let requestedAt = now()
     pendingActivation = PendingActivation(window: window, requestedAt: requestedAt)
     scheduleEchoExpiry(of: window)
-    windowSource.window(window.rawValue)?.focus()
+    windowSource.window(window.rawValue)?.focus(raising: needsRaise(window))
+    onActivated?(window)
     guard source == .command else { return }
     lastCommandActivation = requestedAt
     if store.preferences.mouseFollowsFocus {

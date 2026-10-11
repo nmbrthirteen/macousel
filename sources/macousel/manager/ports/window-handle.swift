@@ -8,5 +8,12 @@ protocol WindowHandle: AnyObject {
   var title: String { get }
   var frame: CGRect? { get }
   func setFrame(_ frame: CGRect)
-  func focus()
+  func focus(raising: Bool)
+  func raise()
+}
+
+extension WindowHandle {
+  func focus() {
+    focus(raising: true)
+  }
 }

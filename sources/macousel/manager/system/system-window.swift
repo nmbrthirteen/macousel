@@ -19,7 +19,11 @@ final class SystemWindow: WindowHandle {
     window.setFrame(frame)
   }
 
-  func focus() {
-    window.focus()
+  func focus(raising: Bool) {
+    window.focus(raising: raising)
+  }
+
+  func raise() {
+    window.raise()
   }
 }

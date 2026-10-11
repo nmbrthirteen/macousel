@@ -7,6 +7,13 @@ struct AppRulesPane: View {
   var body: some View {
     SettingsForm {
       Section {
+        ToggleRow(
+          title: "Keep floating windows above tiled windows",
+          isOn: $store.preferences.keepsFloatingWindowsOnTop,
+          caption: "After you focus a tiled window, floating windows it covers come back to the front.")
+      }
+
+      Section {
         if store.preferences.appRules.isEmpty {
           CaptionText("No app rules yet.")
         }

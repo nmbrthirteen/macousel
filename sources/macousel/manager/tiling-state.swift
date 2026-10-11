@@ -51,6 +51,17 @@ final class TilingState {
     activeKeys.first { $0.displayUUID == display.uuid }
   }
 
+  func isTiled(_ window: WindowID) -> Bool {
+    workspaces.values.contains { $0.strip.contains(window) }
+  }
+
+  func sharesTabbedColumn(_ window: WindowID) -> Bool {
+    guard let key = activeKey(containing: window), let strip = workspaces[key]?.strip,
+      let column = strip.columnIndex(of: window)
+    else { return false }
+    return strip.columns[column].display == .tabbed && strip.columns[column].windows.count > 1
+  }
+
   func activeKey(containing window: WindowID) -> Workspace.Key? {
     activeKeys.first { workspaces[$0]?.strip.contains(window) == true }
   }

@@ -7,6 +7,7 @@ final class ManualClock: AnimationClock {
   private(set) var now = ContinuousClock.now
   private(set) var isRunning = false
   private(set) var startCount = 0
+  private var scheduled: [(due: ContinuousClock.Instant, action: () -> Void)] = []
 
   func start() {
     guard !isRunning else { return }
@@ -18,8 +19,15 @@ final class ManualClock: AnimationClock {
     isRunning = false
   }
 
+  func schedule(after delay: Duration, _ action: @escaping () -> Void) {
+    scheduled.append((due: now.advanced(by: delay), action: action))
+  }
+
   func advance(by duration: Duration) {
     now = now.advanced(by: duration)
+    let due = scheduled.filter { $0.due <= now }
+    scheduled.removeAll { $0.due <= now }
+    for entry in due { entry.action() }
   }
 
   func tick(by deltaTime: Double = 1.0 / 60) {

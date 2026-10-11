@@ -19,6 +19,7 @@ final class FakeDesktopEnvironment: DesktopEnvironment {
   private(set) var accessibilityRequests = 0
   private(set) var isObserving = false
   private var spaces: [String: UInt64] = [:]
+  private(set) var stackingOrder: [CGWindowID] = []
   private var onScreen: Set<CGWindowID> = []
 
   init(displays: [Display]) {
@@ -35,6 +36,25 @@ final class FakeDesktopEnvironment: DesktopEnvironment {
 
   func onScreenWindowIDs() -> Set<CGWindowID> {
     onScreen
+  }
+
+  func orderedOnScreenWindowIDs() -> [CGWindowID] {
+    stackingOrder.filter { onScreen.contains($0) } + onScreen.subtracting(stackingOrder).sorted()
+  }
+
+  func stack(frontToBack order: [CGWindowID]) {
+    stackingOrder = order
+  }
+
+  func bringToFront(_ window: CGWindowID) {
+    stackingOrder = [window] + orderedOnScreenWindowIDs().filter { $0 != window }
+  }
+
+  func isInFront(of window: CGWindowID, _ other: CGWindowID) -> Bool {
+    let order = orderedOnScreenWindowIDs()
+    guard let first = order.firstIndex(of: window), let second = order.firstIndex(of: other)
+    else { return false }
+    return first < second
   }
 
   func activateOrLaunch(bundleIdentifier: String) {

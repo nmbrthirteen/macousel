@@ -9,6 +9,8 @@ struct ManagerComponents {
   let router: CommandRouter
   let appShortcuts: AppShortcutLauncher
   let indicator: StripPositionIndicator
+  let floating: FloatingWindowKeeper
+  let systemFocus: SystemFocusHandler
 
   init(store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults) {
     let state = TilingState(store: store, environment: ports.environment, pointer: ports.pointer)
@@ -28,6 +30,11 @@ struct ManagerComponents {
       state: state, source: ports.source, store: store, pointer: ports.pointer, now: { clock.now })
     let scratchpad = Scratchpad(
       state: state, source: ports.source, placer: ports.placer, focus: focus)
+    let floating = FloatingWindowKeeper(
+      state: state, source: ports.source, environment: ports.environment, store: store,
+      clock: clock, scratchpad: scratchpad, frames: FloatingFrameCache(probe: ports.probe))
+    focus.onActivated = { window in floating.focusRequested(window) }
+    focus.needsRaise = { window in !floating.canFocusWithoutRaising(window) }
     let reconciler = WindowReconciler(
       state: state, source: ports.source, environment: ports.environment, store: store,
       probe: ports.probe, restorer: restorer, sessions: SessionStore(defaults: defaults),
@@ -38,6 +45,9 @@ struct ManagerComponents {
       titles: { reconciler.capturedTitles })
     self.state = state
     self.indicator = indicator
+    self.floating = floating
+    systemFocus = SystemFocusHandler(
+      state: state, presenter: presenter, focus: focus, floating: floating)
     self.presenter = presenter
     self.reconciler = reconciler
     self.focus = focus

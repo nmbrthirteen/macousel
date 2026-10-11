@@ -41,6 +41,10 @@ final class SystemDesktopEnvironment: DesktopEnvironment {
     Spaces.onScreenWindowIDs()
   }
 
+  func orderedOnScreenWindowIDs() -> [CGWindowID] {
+    Spaces.orderedOnScreenWindowIDs()
+  }
+
   func activateOrLaunch(bundleIdentifier: String) {
     if let running = NSRunningApplication.runningApplications(
       withBundleIdentifier: bundleIdentifier

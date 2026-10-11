@@ -21,4 +21,11 @@ final class SystemAnimationClock: AnimationClock {
   func stop() {
     ticker.stop()
   }
+
+  func schedule(after delay: Duration, _ action: @escaping () -> Void) {
+    Task {
+      try? await Task.sleep(for: delay)
+      action()
+    }
+  }
 }

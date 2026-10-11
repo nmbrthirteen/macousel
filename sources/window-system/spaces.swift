@@ -6,15 +6,19 @@ public enum Spaces {
   }
 
   public static func onScreenWindowIDs() -> Set<CGWindowID> {
+    Set(orderedOnScreenWindowIDs())
+  }
+
+  public static func orderedOnScreenWindowIDs() -> [CGWindowID] {
     let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
     guard let info = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
     else { return [] }
-    var ids = Set<CGWindowID>()
+    var ids: [CGWindowID] = []
     for entry in info {
       guard entry[kCGWindowLayer as String] as? Int == 0,
         let number = entry[kCGWindowNumber as String] as? Int
       else { continue }
-      ids.insert(CGWindowID(number))
+      ids.append(CGWindowID(number))
     }
     return ids
   }

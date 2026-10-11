@@ -38,6 +38,11 @@ final class Scratchpad {
     window == candidate
   }
 
+  func isHidden(_ candidate: CGWindowID) -> Bool {
+    guard case .hidden(let hidden) = contents else { return false }
+    return hidden == candidate
+  }
+
   func send(_ incoming: CGWindowID, from key: Workspace.Key) -> Bool {
     guard let handle = source.window(incoming), let display = state.display(for: key),
       let frame = state.settledLayout(for: key)?[WindowID(incoming)]?.frame

@@ -3,7 +3,7 @@ extension Preferences {
     case layout, shortcuts, animationSpeed, showsFocusBorder, focusBorderWidth
     case dimsInactiveWindows, dimAmount, showsMinimap, menuBarIndicator, restoresSession
     case scrollGestureEnabled, swipeGestureEnabled, swipeFingers, swipeSensitivity, reversesSwipeDirection
-    case displayFollowsPointer, focusFollowsMouse, mouseFollowsFocus
+    case displayFollowsPointer, focusFollowsMouse, mouseFollowsFocus, keepsFloatingWindowsOnTop
     case appRules, appShortcuts, disabledDisplays, hasCompletedOnboarding, checksForUpdates
   }
 
@@ -37,6 +37,7 @@ extension Preferences {
     try values.encode(displayFollowsPointer, forKey: .displayFollowsPointer)
     try values.encode(focusFollowsMouse, forKey: .focusFollowsMouse)
     try values.encode(mouseFollowsFocus, forKey: .mouseFollowsFocus)
+    try values.encode(keepsFloatingWindowsOnTop, forKey: .keepsFloatingWindowsOnTop)
     try values.encode(appRules, forKey: .appRules)
     try values.encode(appShortcuts, forKey: .appShortcuts)
     if sortingUnorderedValues {

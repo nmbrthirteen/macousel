@@ -25,6 +25,8 @@ final class CommandRouter {
     overview.onChoose = { [weak self] window in self?.reveal(window) }
   }
 
+  var isOverviewOpen: Bool { overview.isOpen }
+
   func closeOverview() {
     overview.close()
   }

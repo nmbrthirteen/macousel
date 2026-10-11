@@ -4,8 +4,7 @@ import WindowSystem
 import os
 
 final class WindowReconciler {
-  private static let signposter = OSSignposter(
-    subsystem: "dev.macousel.app", category: "reconcile")
+  private static let signposter = OSSignposter(subsystem: "dev.macousel.app", category: "reconcile")
 
   private let state: TilingState
   private let source: any WindowSource
@@ -20,7 +19,7 @@ final class WindowReconciler {
   private let recents: RecentAppWindows
   private var absences = AbsenceTracker()
   private var previousActiveKeys: [Workspace.Key] = []
-  private(set) var probedTitles: [CGWindowID: String] = [:]
+  private(set) var probedFacts: [CGWindowID: WindowFacts] = [:]
 
   init(
     state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
@@ -43,6 +42,7 @@ final class WindowReconciler {
   }
 
   var capturedTitles: [CGWindowID: String] { recorder.capturedTitles }
+  var probedTitles: [CGWindowID: String] { probedFacts.mapValues(\.title) }
 
   func reconcile(
     adoptingFocus: Bool = true, refreshingTabTitles: Bool = true,
@@ -93,7 +93,7 @@ final class WindowReconciler {
   private func settle(_ request: ReconcileRequest, with result: WindowProbeResult) {
     let interval = Self.signposter.beginInterval("reconcile")
     qualifier.apply(result)
-    probedTitles = result.facts.compactMapValues { $0.timedOut ? nil : $0.title }
+    probedFacts = result.facts.filter { !$0.value.timedOut }
     updateStrips(using: result.facts)
     if request.adoptsFocus { adoptSystemFocus(result.focusedWindow) }
     state.activeKeys.forEach(state.scrollToFocus)

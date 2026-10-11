@@ -5,4 +5,5 @@ protocol AnimationClock: AnyObject {
   var isRunning: Bool { get }
   func start()
   func stop()
+  func schedule(after delay: Duration, _ action: @escaping () -> Void)
 }

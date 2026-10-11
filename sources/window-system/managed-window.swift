@@ -56,7 +56,7 @@ public final class ManagedWindow {
     element.attribute(kAXMinimizedAttribute) ?? false
   }
 
-  public func focus() {
+  public func focus(raising: Bool = true) {
     let target = ThreadSafeAXElement(element: element)
     let pid = pid
     let id = id
@@ -66,8 +66,14 @@ public final class ManagedWindow {
     Self.focusQueue.async {
       guard requests.isLatest(request) else { return }
       let usedWindowServer =
-        request.usesWindowServer && WindowServerFocus.shared.bringToFront(id, of: pid)
-      AXUIElementPerformAction(target.element, kAXRaiseAction as CFString)
+        request.usesWindowServer
+        && (raising
+          ? WindowServerFocus.shared.bringToFront(id, of: pid)
+          : WindowServerFocus.shared.focusWithoutRaising(
+            id, of: pid, replacing: FocusedWindowReader.current()))
+      if raising || !usedWindowServer {
+        AXUIElementPerformAction(target.element, kAXRaiseAction as CFString)
+      }
       target.element.set(bool: true, for: kAXMainAttribute)
       DispatchQueue.main.asyncAfter(
         deadline: .now() + (usedWindowServer ? settleDelay : 0)
@@ -80,6 +86,13 @@ public final class ManagedWindow {
         if usedWindowServer { requests.recordMiss() }
         NSRunningApplication(processIdentifier: pid)?.activate()
       }
+    }
+  }
+
+  public func raise() {
+    let target = ThreadSafeAXElement(element: element)
+    Self.focusQueue.async {
+      AXUIElementPerformAction(target.element, kAXRaiseAction as CFString)
     }
   }
 

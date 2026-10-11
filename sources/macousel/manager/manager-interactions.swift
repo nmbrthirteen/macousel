@@ -36,6 +36,8 @@ final class ManagerInteractions {
       state: state, source: source, presenter: presenter, pointer: ports.pointer)
   }
 
+  var isGestureActive: Bool { drag.isActive || scrolling.isActive }
+
   func start() {
     drag.start()
   }

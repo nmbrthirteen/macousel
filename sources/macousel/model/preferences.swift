@@ -21,6 +21,7 @@ struct Preferences: Codable, Equatable {
   var displayFollowsPointer = true
   var focusFollowsMouse = false
   var mouseFollowsFocus = false
+  var keepsFloatingWindowsOnTop = true
   var appRules: [AppRule] = AppRule.defaults
   var appShortcuts: [AppShortcut] = []
   var disabledDisplays: Set<String> = []
@@ -56,6 +57,8 @@ struct Preferences: Codable, Equatable {
     displayFollowsPointer = value(.displayFollowsPointer, or: defaults.displayFollowsPointer)
     focusFollowsMouse = value(.focusFollowsMouse, or: defaults.focusFollowsMouse)
     mouseFollowsFocus = value(.mouseFollowsFocus, or: defaults.mouseFollowsFocus)
+    keepsFloatingWindowsOnTop = value(
+      .keepsFloatingWindowsOnTop, or: defaults.keepsFloatingWindowsOnTop)
     appRules = value(.appRules, or: defaults.appRules)
     appShortcuts = value(.appShortcuts, or: defaults.appShortcuts)
     disabledDisplays = value(.disabledDisplays, or: defaults.disabledDisplays)
