@@ -14,10 +14,10 @@ struct SlowAppPresentationTests {
     columns: Int, speed: AnimationSpeed = .fast
   ) throws -> (ControllerFixture, [FakeWindow]) {
     let fixture = try ControllerFixture { $0.animationSpeed = speed }
-    let row = (0..<columns).map { index in
-      fixture.open(
-        CGWindowID(index + 1), app: Self.apps[index], atX: CGFloat(index + 1) * 200,
-        activating: index == 0)
+    let row: [FakeWindow] = (0..<columns).map { index -> FakeWindow in
+      let identifier = CGWindowID(index + 1)
+      let x = CGFloat(index + 1) * 200
+      return fixture.open(identifier, app: Self.apps[index], atX: x, activating: index == 0)
     }
     fixture.launch()
     settle(fixture)

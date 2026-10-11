@@ -4,6 +4,7 @@ import Testing
 
 @testable import Macousel
 
+@MainActor
 extension MinimapModel {
   var geometry: MinimapGeometry {
     MinimapGeometry(snapshot: snapshot)
