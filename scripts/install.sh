@@ -51,10 +51,9 @@ main() {
   rm -rf "$install_dir/Macousel.app"
   mv "$workdir/Macousel.app" "$install_dir/Macousel.app"
 
-  tccutil reset Accessibility "$expected_identifier" >/dev/null 2>&1 || true
 
   echo "Installed $install_dir/Macousel.app"
-  echo "Open it. macOS will ask for Accessibility access on first launch."
+  echo "Open it. If macOS asks for Accessibility access, allow it."
 }
 
 main "$@"
