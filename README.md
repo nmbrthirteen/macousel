@@ -52,6 +52,13 @@ Run the installer. It downloads the latest release, puts `Macousel.app` in `/App
 curl -fsSL https://github.com/nmbrthirteen/macousel/releases/latest/download/install.sh | bash
 ```
 
+With Homebrew:
+
+```sh
+brew tap nmbrthirteen/macousel https://github.com/nmbrthirteen/macousel
+brew install --cask macousel
+```
+
 Or download `Macousel.dmg` from the [releases page](https://github.com/nmbrthirteen/macousel/releases) and drag the app to Applications.
 
 Then open Macousel and grant Accessibility access when macOS asks.
@@ -64,10 +71,10 @@ Macousel only installs an update whose archive carries a valid signature from my
 
 ### The app is not notarized
 
-I do not have an Apple Developer ID, so releases are signed ad hoc. Two things follow from that:
+I do not have an Apple Developer ID. Releases are signed with a certificate of my own, which macOS does not recognise. Two things follow from that:
 
-- If you used the DMG, macOS blocks the first launch. Open System Settings > Privacy & Security and click "Open Anyway". The installer script clears the quarantine flag, so it skips this step.
-- macOS ties the Accessibility grant to the signature, and every release has a new one. After an update, Macousel resets its Accessibility entry and asks again. Grant it when macOS prompts.
+- If you used the DMG or Homebrew, macOS blocks the first launch. Open System Settings > Privacy & Security and click "Open Anyway". The installer script clears the quarantine flag, so it skips this step.
+- The Accessibility grant is tied to that certificate, so it carries over from one release to the next. Releases up to 0.1.4 were signed ad hoc, so the first update from one of them asks for access once more.
 
 Updates are verified with a signing key that I hold, and the app is not notarized. The signature proves an update came from me. It does not replace Apple's notarization.
 

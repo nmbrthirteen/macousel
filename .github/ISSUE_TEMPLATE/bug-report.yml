@@ -1,0 +1,30 @@
+name: Bug report
+description: Something moved, crashed, or did not respond the way you expected
+labels: [bug]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      description: The keys you pressed or the gesture you made, in order.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What the windows did
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics file
+      description: Choose "Save diagnostics…" from the Macousel menu bar icon and attach the file it writes to your Desktop. It holds the app log, your settings, your displays, and the names of any crash reports.
+    validations:
+      required: true

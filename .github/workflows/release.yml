@@ -18,8 +18,31 @@ jobs:
           fetch-depth: 0
       - name: Test
         run: swift test
+      - name: Import the signing certificate
+        env:
+          SIGNING_CERTIFICATE_P12: ${{ secrets.SIGNING_CERTIFICATE_P12 }}
+          SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password="$(openssl rand -hex 16)"
+          echo "$SIGNING_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
+            -P "$SIGNING_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          rm "$RUNNER_TEMP/certificate.p12"
       - name: Build the app
+        env:
+          CODESIGN_IDENTITY: Macousel Release Signing
         run: VERSION="${GITHUB_REF_NAME#v}" scripts/bundle.sh
+      - name: Check the signature
+        run: |
+          codesign --verify --deep build/Macousel.app
+          codesign -d -r- build/Macousel.app 2>&1 | grep 'certificate leaf'
       - name: Package
         run: scripts/package.sh
       - name: Sign the update archive
@@ -43,3 +66,18 @@ jobs:
           sums="$(cd build && shasum -a 256 Macousel.dmg Macousel.zip)"
           body="$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)"
           gh release edit "$GITHUB_REF_NAME" --notes "$(printf '%s\n\nSHA-256 sums\n\n```\n%s\n```\n' "$body" "$sums")"
+      - name: Update the Homebrew cask
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          checksum="$(shasum -a 256 build/Macousel.dmg | cut -d' ' -f1)"
+          git fetch origin main
+          git checkout -B main origin/main
+          sed -i '' -e "s/^  version \".*\"/  version \"$version\"/" \
+            -e "s/^  sha256 \".*\"/  sha256 \"$checksum\"/" Casks/macousel.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Update the cask to $version"
+          git push origin main
