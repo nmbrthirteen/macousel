@@ -24,7 +24,8 @@ Early. I wrote it on macOS 27 with two displays. The layout engine is well teste
 - Stack several windows in one column and resize the rows.
 - Turn a stack into tabs.
 - Cycle a column through preset widths, or nudge it wider and narrower.
-- Drag a window onto another spot to reorder.
+- Dragging a window shows where it will land. Drop it on another window to stack it, or beside a window to make it a neighbour.
+- The overview can reorder and resize columns and rows with the pointer or the keyboard.
 
 **Input**
 
@@ -98,6 +99,8 @@ CODESIGN_IDENTITY="My Certificate" scripts/bundle.sh
 ## Default shortcuts
 
 Most of them use Control-Option, including the column numbers. Plain Option plus a digit would block characters on layouts such as German, where Option-5 to Option-9 type brackets and braces. Rebind any of them in Settings > Shortcuts. A shortcut you already changed keeps its binding.
+
+Two columns of two stacked windows make a 2 by 2 grid. I build one by stacking a window into each column, or by dragging a window onto the top or bottom half of another.
 
 | Action | Keys |
 | --- | --- |

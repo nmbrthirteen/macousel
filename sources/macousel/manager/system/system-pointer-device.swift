@@ -1,9 +1,16 @@
 import AppKit
+import Carbon.HIToolbox
 import WindowSystem
 
 final class SystemPointerDevice: PointerDevice {
+  private static let draggedInterval: TimeInterval = 1.0 / 60
+
   private let movement = PointerMonitor()
-  private var releaseMonitor: Any?
+  private let buttonDown = GlobalEventMonitor(matching: .leftMouseDown)
+  private let buttonDragged = GlobalEventMonitor(
+    matching: .leftMouseDragged, minimumInterval: SystemPointerDevice.draggedInterval)
+  private let buttonUp = GlobalEventMonitor(matching: .leftMouseUp)
+  private let keys = GlobalEventMonitor(matching: .keyDown)
 
   var location: CGPoint { Pointer.location }
 
@@ -17,6 +24,10 @@ final class SystemPointerDevice: PointerDevice {
     Pointer.windowID(at: point)
   }
 
+  func serverBounds(of window: CGWindowID) -> CGRect? {
+    Pointer.bounds(ofWindow: window)
+  }
+
   func startObservingMovement(_ handler: @escaping (CGPoint) -> Void) {
     movement.onMove = handler
     movement.start()
@@ -26,13 +37,25 @@ final class SystemPointerDevice: PointerDevice {
     movement.stop()
   }
 
-  func startObservingPrimaryRelease(_ handler: @escaping () -> Void) {
-    guard releaseMonitor == nil else { return }
-    releaseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { _ in handler() }
+  func startObservingPrimaryButton(_ handler: @escaping (PrimaryButtonEvent) -> Void) {
+    buttonDown.start { _ in handler(.pressed) }
+    buttonDragged.start { _ in handler(.dragged) }
+    buttonUp.start { _ in handler(.released) }
   }
 
-  func stopObservingPrimaryRelease() {
-    if let releaseMonitor { NSEvent.removeMonitor(releaseMonitor) }
-    releaseMonitor = nil
+  func stopObservingPrimaryButton() {
+    buttonDown.stop()
+    buttonDragged.stop()
+    buttonUp.stop()
+  }
+
+  func startObservingEscape(_ handler: @escaping () -> Void) {
+    keys.start { event in
+      if event.keyCode == UInt16(kVK_Escape) { handler() }
+    }
+  }
+
+  func stopObservingEscape() {
+    keys.stop()
   }
 }

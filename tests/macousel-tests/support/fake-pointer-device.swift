@@ -7,10 +7,15 @@ final class FakePointerDevice: PointerDevice {
   var location = CGPoint.zero
   var isPrimaryButtonDown = false
   var windowAtPoint: (CGPoint) -> CGWindowID? = { _ in nil }
+  var serverBoundsProvider: (CGWindowID) -> CGRect? = { _ in nil }
   var isObservingMovement: Bool { movementHandler != nil }
+  var isObservingEscape: Bool { escapeHandler != nil }
+  var isObservingPrimaryButton: Bool { buttonHandler != nil }
   private(set) var warps: [CGPoint] = []
+  private var serverBoundsOverrides: [CGWindowID: CGRect] = [:]
   private var movementHandler: ((CGPoint) -> Void)?
-  private var releaseHandler: (() -> Void)?
+  private var buttonHandler: ((PrimaryButtonEvent) -> Void)?
+  private var escapeHandler: (() -> Void)?
 
   func warp(to point: CGPoint) {
     warps.append(point)
@@ -21,6 +26,14 @@ final class FakePointerDevice: PointerDevice {
     windowAtPoint(point)
   }
 
+  func serverBounds(of window: CGWindowID) -> CGRect? {
+    serverBoundsOverrides[window] ?? serverBoundsProvider(window)
+  }
+
+  func setServerBounds(_ bounds: CGRect?, of window: CGWindowID) {
+    serverBoundsOverrides[window] = bounds
+  }
+
   func startObservingMovement(_ handler: @escaping (CGPoint) -> Void) {
     movementHandler = handler
   }
@@ -29,12 +42,20 @@ final class FakePointerDevice: PointerDevice {
     movementHandler = nil
   }
 
-  func startObservingPrimaryRelease(_ handler: @escaping () -> Void) {
-    releaseHandler = handler
+  func startObservingPrimaryButton(_ handler: @escaping (PrimaryButtonEvent) -> Void) {
+    buttonHandler = handler
   }
 
-  func stopObservingPrimaryRelease() {
-    releaseHandler = nil
+  func stopObservingPrimaryButton() {
+    buttonHandler = nil
+  }
+
+  func startObservingEscape(_ handler: @escaping () -> Void) {
+    escapeHandler = handler
+  }
+
+  func stopObservingEscape() {
+    escapeHandler = nil
   }
 
   func moveTo(_ point: CGPoint) {
@@ -45,10 +66,20 @@ final class FakePointerDevice: PointerDevice {
   func pressPrimary(at point: CGPoint) {
     location = point
     isPrimaryButtonDown = true
+    buttonHandler?(.pressed)
+  }
+
+  func dragPrimary(to point: CGPoint) {
+    location = point
+    buttonHandler?(.dragged)
   }
 
   func releasePrimary() {
     isPrimaryButtonDown = false
-    releaseHandler?()
+    buttonHandler?(.released)
+  }
+
+  func pressEscape() {
+    escapeHandler?()
   }
 }

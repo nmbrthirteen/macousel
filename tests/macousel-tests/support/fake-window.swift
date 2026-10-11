@@ -22,6 +22,7 @@ final class FakeWindow: WindowHandle {
     }
     set { storedFrame = newValue }
   }
+  var serverFrame: CGRect? { storedFrame }
   var isTileable: Bool {
     get {
       tileableReadCount += 1

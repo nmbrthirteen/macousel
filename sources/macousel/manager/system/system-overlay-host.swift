@@ -7,11 +7,15 @@ final class SystemOverlayHost: OverlayHost {
   private var minimap: MinimapOverlay?
   private var tabBars: TabBarOverlay?
   private var overview: OverviewOverlay?
+  private var dropPreview: DropPreviewOverlay?
 
   var onTabSelected: ((WindowID) -> Void)?
   var onOverviewSelect: ((WindowID) -> Void)?
   var onOverviewKey: ((OverviewKey) -> Void)?
   var onOverviewDismiss: (() -> Void)?
+  var onOverviewMove: ((WindowID, DropTarget) -> Void)?
+  var onOverviewColumnWidth: ((WindowID, Double) -> Void)?
+  var onOverviewRowHeight: ((WindowID, Double, VerticalNeighbor) -> Void)?
 
   func showFocusBorder(around frame: CGRect, lineWidth: Double) {
     let overlay = focusBorder ?? FocusBorderOverlay()
@@ -49,6 +53,16 @@ final class SystemOverlayHost: OverlayHost {
     overlay.update(bars)
   }
 
+  func showDropPreview(at frame: CGRect) {
+    let overlay = dropPreview ?? DropPreviewOverlay()
+    dropPreview = overlay
+    overlay.show(at: frame)
+  }
+
+  func hideDropPreview() {
+    dropPreview?.hide()
+  }
+
   func showOverview(_ snapshot: OverviewSnapshot, on displayFrame: CGRect) {
     let overlay = overview ?? makeOverview()
     overview = overlay
@@ -64,6 +78,13 @@ final class SystemOverlayHost: OverlayHost {
     overlay.onSelect = { [weak self] window in self?.onOverviewSelect?(window) }
     overlay.onKey = { [weak self] key in self?.onOverviewKey?(key) }
     overlay.onDismiss = { [weak self] in self?.onOverviewDismiss?() }
+    overlay.onMove = { [weak self] window, target in self?.onOverviewMove?(window, target) }
+    overlay.onColumnWidth = { [weak self] window, fraction in
+      self?.onOverviewColumnWidth?(window, fraction)
+    }
+    overlay.onRowHeight = { [weak self] window, share, neighbor in
+      self?.onOverviewRowHeight?(window, share, neighbor)
+    }
     return overlay
   }
 

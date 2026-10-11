@@ -13,11 +13,29 @@ public struct Placement: Sendable, Equatable {
   public var row: Int
   public var isBehindTab: Bool
   public var isFocused: Bool
+
+  public init(
+    window: WindowID, frame: CGRect, visibility: Visibility, column: Int, row: Int,
+    isBehindTab: Bool = false, isFocused: Bool = false
+  ) {
+    self.window = window
+    self.frame = frame
+    self.visibility = visibility
+    self.column = column
+    self.row = row
+    self.isBehindTab = isBehindTab
+    self.isFocused = isFocused
+  }
 }
 
 public struct StripLayout: Sendable, Equatable {
   public var placements: [Placement]
   public var contentWidth: Double
+
+  public init(placements: [Placement], contentWidth: Double) {
+    self.placements = placements
+    self.contentWidth = contentWidth
+  }
 
   public subscript(window: WindowID) -> Placement? {
     placements.first { $0.window == window }

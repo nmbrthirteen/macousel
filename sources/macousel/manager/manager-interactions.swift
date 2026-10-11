@@ -11,8 +11,7 @@ final class ManagerInteractions {
     state: TilingState, source: any WindowSource, presenter: LayoutPresenter, focus: FocusDriver,
     store: PreferencesStore, ports: ManagerPorts
   ) {
-    let drag = DragInteraction(
-      state: state, source: source, presenter: presenter, pointer: ports.pointer)
+    let drag = DragInteraction(state: state, presenter: presenter, pointer: ports.pointer)
     let scrolling = ScrollInteraction(
       state: state, presenter: presenter, focus: focus, store: store, gestures: ports.gestures,
       now: { ports.clock.now })
@@ -63,12 +62,7 @@ final class ManagerInteractions {
     pointerMovement.refresh()
   }
 
-  func windowMoved(_ window: CGWindowID) {
-    drag.windowChanged(window)
-  }
-
   func windowResized(_ window: CGWindowID) {
-    drag.windowChanged(window)
     resizes.windowResized(window)
   }
 }

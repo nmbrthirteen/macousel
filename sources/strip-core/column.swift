@@ -10,7 +10,7 @@ public struct Column: Sendable, Codable, Equatable {
 
   public var activeWindow: WindowID { windows[activeRow] }
 
-  static let minimumHeightShare = 0.1
+  public static let minimumHeightShare = 0.1
 
   init(window: WindowID, width: ColumnWidth, isFullWidth: Bool = false) {
     windows = [window]

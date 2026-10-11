@@ -11,6 +11,10 @@ struct DisplaysPane: View {
         description: Text("Displays appear here once Macousel has Accessibility access."))
     } else {
       SettingsForm {
+        DisplaysPreview(
+          displays: manager.displays, disabled: store.preferences.disabledDisplays,
+          config: store.preferences.layout, animationSpeed: store.preferences.animationSpeed)
+
         ForEach(manager.displays, id: \.uuid) { display in
           Section(display.name) {
             ToggleRow(title: "Tile windows on this display", isOn: tilingBinding(for: display.uuid))

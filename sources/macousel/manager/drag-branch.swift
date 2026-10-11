@@ -5,6 +5,8 @@ enum DragBranch: Equatable {
   case stacked(above: Bool)
   case reordered(column: Int)
   case movedToDisplay
+  case returnedToSlot
+  case cancelled
 
   var logName: String {
     switch self {
@@ -14,13 +16,17 @@ enum DragBranch: Equatable {
     case .stacked(let above): above ? "stacked above a target" : "stacked below a target"
     case .reordered(let column): "reordered to column \(column)"
     case .movedToDisplay: "moved to another display"
+    case .returnedToSlot: "returned to its slot"
+    case .cancelled: "cancelled"
     }
   }
 
-  var reportsPointerPosition: Bool {
+  var targetKind: String {
     switch self {
-    case .reordered, .movedToDisplay: true
-    default: false
+    case .stacked: "stack"
+    case .reordered: "column"
+    case .movedToDisplay: "display"
+    default: "none"
     }
   }
 }

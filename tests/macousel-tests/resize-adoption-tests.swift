@@ -60,14 +60,15 @@ struct ResizeAdoptionTests {
     let (fixture, row) = try launchedRow()
     let grabbed = try #require(row[1].frame)
     let resized = try widened(row[1], to: grabbed.width + 100)
-    fixture.pointer.pressPrimary(at: CGPoint(x: grabbed.maxX - 2, y: grabbed.midY))
+    let session = try DragSession(row[1], in: fixture, atX: 0.99)
 
+    session.resize(to: resized, pointerAt: CGPoint(x: resized.maxX - 2, y: resized.midY))
     fixture.source.userResized(row[1], to: resized)
     try await Task.sleep(for: .milliseconds(450))
 
     #expect(row[1].framesSet.count == 1)
     #expect(row[1].frame == resized)
-    fixture.pointer.releasePrimary()
+    session.release()
     var expected = ExpectedStrip(columns: [1, 2, 3], fraction: 0.25)
     expected.apply { $0.setFixedWidth(resized.width, of: WindowID(2)) }
     #expect(fixture.frames(of: row) == expected.frames)
@@ -112,5 +113,52 @@ struct ResizeAdoptionTests {
     try await Task.sleep(for: .milliseconds(450))
 
     #expect(row[1].framesSet.count == 1)
+  }
+
+  @Test func aWidthDifferenceAtTheThresholdIsLeftAlone() async throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(3)
+    fixture.launch()
+    fixture.clock.advance(by: .milliseconds(300))
+    let before = fixture.frames(of: row)
+    let requested = try #require(row[0].frame).width
+
+    fixture.source.userResized(row[0], to: try widened(row[0], to: requested - 24))
+    fixture.source.userResized(row[2], to: try widened(row[2], to: try #require(row[2].frame).width + 100))
+
+    #expect(await fixture.becomes { row[2].framesSet.count > 1 })
+    #expect(row[0].framesSet.count == 1)
+    #expect(row[1].frame == before[2])
+  }
+
+  @Test func aWidthDifferenceJustPastTheThresholdIsAdopted() async throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(3)
+    fixture.launch()
+    fixture.clock.advance(by: .milliseconds(300))
+    let requested = try #require(row[0].frame).width
+    let resized = try widened(row[0], to: requested - 25)
+
+    fixture.source.userResized(row[0], to: resized)
+
+    var expected = ExpectedStrip(columns: [1, 2, 3])
+    expected.apply { $0.setFixedWidth(resized.width, of: WindowID(1)) }
+    #expect(await fixture.becomes { fixture.frames(of: row) == expected.frames })
+  }
+
+  @Test func twoHalfWidthColumnsStillFillTheUsableWidthWhenOneSnapsNarrower() async throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(3)
+    fixture.launch()
+    fixture.clock.advance(by: .milliseconds(300))
+    let usableRight = fixture.display.visibleFrame.maxX - fixture.config.outerGap
+    let requested = try #require(row[0].frame).width
+
+    fixture.source.userResized(row[0], to: try widened(row[0], to: requested - 7))
+    fixture.source.userResized(row[2], to: try widened(row[2], to: try #require(row[2].frame).width + 100))
+
+    #expect(await fixture.becomes { row[2].framesSet.count > 1 })
+    #expect(try #require(row[1].frame).maxX == usableRight)
+    #expect(row[0].framesSet.count == 1)
   }
 }

@@ -1,171 +1,169 @@
 import CoreGraphics
 import StripCore
-import WindowSystem
 
 final class DragInteraction {
-  private static let frameTolerance: CGFloat = 2
-  private static let grabMargin: CGFloat = 12
-  private static let stackZoneShare: CGFloat = 0.6
-
-  private struct Drag {
-    var window: CGWindowID
-    var startFrame: CGRect
-  }
-
   private let state: TilingState
-  private let source: any WindowSource
   private let presenter: LayoutPresenter
   private let pointer: any PointerDevice
+  private let planner: DropPlanner
+  private let resize: DragResize
   private let log = DragLog()
-  private var drag: Drag?
+  private var phase = DragPhase.idle
 
-  init(
-    state: TilingState, source: any WindowSource, presenter: LayoutPresenter,
-    pointer: any PointerDevice
-  ) {
+  init(state: TilingState, presenter: LayoutPresenter, pointer: any PointerDevice) {
     self.state = state
-    self.source = source
     self.presenter = presenter
     self.pointer = pointer
+    planner = DropPlanner(state: state)
+    resize = DragResize(state: state)
   }
 
-  var isActive: Bool { drag != nil }
+  var isActive: Bool {
+    switch phase {
+    case .live, .cancelled: true
+    case .idle, .candidate: false
+    }
+  }
 
   func start() {
-    pointer.startObservingPrimaryRelease { [weak self] in self?.finish() }
+    pointer.startObservingPrimaryButton { [weak self] event in self?.handle(event) }
   }
 
   func stop() {
-    pointer.stopObservingPrimaryRelease()
-    cancel()
+    pointer.stopObservingPrimaryButton()
+    if case .live = phase { endLiveDrag() }
+    phase = .idle
   }
 
-  func windowChanged(_ window: CGWindowID) {
-    guard drag == nil, pointer.isPrimaryButtonDown, presenter.isSettled,
-      state.activeKey(containing: WindowID(window)) != nil,
-      let requested = presenter.requestedFrame(for: window),
-      let actual = source.window(window)?.frame,
-      !actual.isClose(to: requested, within: Self.frameTolerance),
-      actual.insetBy(dx: -Self.grabMargin, dy: -Self.grabMargin).contains(pointer.location)
-    else { return }
-    drag = Drag(window: window, startFrame: requested)
-    log.recognised(window)
-    presenter.excludedWindow = window
-  }
-
-  private func cancel() {
-    drag = nil
-    presenter.excludedWindow = nil
-  }
-
-  private func finish() {
-    guard let drag else { return }
-    cancel()
-    presenter.invalidate(drag.window)
-    let window = WindowID(drag.window)
-    guard let key = state.activeKey(containing: window),
-      let actual = source.window(drag.window)?.frame
-    else { return }
-
-    if hasResized(from: drag.startFrame, to: actual) {
-      resize(window, in: key, from: drag.startFrame, to: actual)
-    } else {
-      drop(window, from: key)
+  private func handle(_ event: PrimaryButtonEvent) {
+    switch event {
+    case .pressed: pressed()
+    case .dragged: dragged()
+    case .released: released()
     }
+  }
+
+  private func pressed() {
+    phase = .idle
+    guard presenter.isSettled, let window = pointer.windowID(at: pointer.location),
+      state.activeKey(containing: WindowID(window)) != nil,
+      let requested = presenter.requestedFrame(for: window)
+    else { return }
+    phase = .candidate(
+      DragCandidate(
+        window: window, requested: requested,
+        baseline: pointer.serverBounds(of: window) ?? requested))
+  }
+
+  private func dragged() {
+    switch phase {
+    case .candidate(let candidate): recognise(candidate)
+    case .live(let drag) where drag.kind == .move: showPreview(for: drag)
+    default: break
+    }
+  }
+
+  private func recognise(_ candidate: DragCandidate) {
+    let window = candidate.window
+    guard presenter.isSettled, state.activeKey(containing: WindowID(window)) != nil,
+      let actual = pointer.serverBounds(of: window)
+    else { return }
+    let reference =
+      presenter.requestedFrame(for: window).flatMap { $0 == candidate.requested ? nil : $0 }
+      ?? candidate.baseline
+    guard !actual.isClose(to: reference, within: DragResize.tolerance) else { return }
+    let kind: LiveDrag.Kind = DragResize.hasResized(from: reference, to: actual) ? .resize : .move
+    let drag = LiveDrag(window: window, baseline: reference, kind: kind)
+    phase = .live(drag)
+    presenter.excludedWindow = window
+    log.recognised(window, as: kind)
+    guard kind == .move else { return }
+    pointer.startObservingEscape { [weak self] in self?.escaped() }
+    showPreview(for: drag)
+  }
+
+  private func showPreview(for drag: LiveDrag) {
+    let frame = plan(for: drag)?.previewFrame
+    if let frame {
+      presenter.overlays.showDropPreview(at: frame)
+    } else {
+      presenter.overlays.hideDropPreview()
+    }
+  }
+
+  private func plan(for drag: LiveDrag) -> DropPlan? {
+    let window = WindowID(drag.window)
+    guard let key = state.activeKey(containing: window) else { return nil }
+    return planner.plan(dragging: window, from: key, pointer: pointer.location)
+  }
+
+  private func escaped() {
+    guard case .live(let drag) = phase, drag.kind == .move else { return }
+    phase = .cancelled(drag.window)
+    endLiveDrag()
+    log.ended(drag.window, as: .cancelled)
+    putBack(drag.window)
+  }
+
+  private func released() {
+    let ended = phase
+    phase = .idle
+    switch ended {
+    case .live(let drag):
+      endLiveDrag()
+      finish(drag)
+    case .cancelled(let window):
+      putBack(window)
+    case .idle, .candidate:
+      break
+    }
+  }
+
+  private func endLiveDrag() {
+    presenter.excludedWindow = nil
+    presenter.overlays.hideDropPreview()
+    pointer.stopObservingEscape()
+  }
+
+  private func putBack(_ window: CGWindowID) {
+    presenter.invalidate(window)
+    presenter.relayout()
+  }
+
+  private func finish(_ drag: LiveDrag) {
+    let window = WindowID(drag.window)
+    guard let key = state.activeKey(containing: window) else { return }
+    let branch: DragBranch
+    switch drag.kind {
+    case .resize:
+      branch = commitResize(drag, of: window, in: key)
+    case .move:
+      branch = commitMove(of: window, drag: drag)
+    }
+    log.ended(drag.window, as: branch)
+    presenter.invalidate(drag.window)
     presenter.overlays.rereadTitles()
     presenter.relayout()
   }
 
-  private func hasResized(from start: CGRect, to end: CGRect) -> Bool {
-    abs(end.width - start.width) > Self.frameTolerance
-      || abs(end.height - start.height) > Self.frameTolerance
-  }
-
-  private func resize(
-    _ window: WindowID, in key: Workspace.Key, from start: CGRect, to end: CGRect
-  ) {
-    let resizedWidth = abs(end.width - start.width) > Self.frameTolerance
-    let resizedHeight = abs(end.height - start.height) > Self.frameTolerance
-    if resizedWidth {
-      state.workspaces[key]?.strip.setFixedWidth(end.width, of: window)
-    }
-    if resizedHeight, let display = state.display(for: key) {
-      let draggedTopEdge = abs(end.minY - start.minY) > Self.frameTolerance
-      state.workspaces[key]?.strip.setHeight(
-        end.height, of: window, borrowingFrom: draggedTopEdge ? .above : .below,
-        viewportHeight: display.visibleFrame.height, config: state.config)
-    }
-    state.scrollToFocus(key)
-    let branch: DragBranch =
-      resizedWidth && resizedHeight ? .resizedWidthAndHeight
-      : resizedWidth ? .resizedWidth : .resizedHeight
-    log.ended(window.rawValue, as: branch, pointerFraction: nil)
-  }
-
-  private func drop(_ window: WindowID, from key: Workspace.Key) {
-    let destination = state.pointerKey ?? key
-    let fraction = pointerFraction(over: destination, excluding: window)
-    let branch: DragBranch
-    if destination == key {
-      branch = stackOntoWindowUnderPointer(window, in: key) ?? reorder(window, in: key)
-    } else {
-      state.workspaces[key]?.strip.remove(window)
-      state.workspaces[destination]?.strip.insert(window, config: state.config)
-      state.scrollToFocus(key)
-      branch = .movedToDisplay
-    }
-    log.ended(window.rawValue, as: branch, pointerFraction: fraction)
-    state.scrollToFocus(destination)
-    state.focusedKey = destination
-  }
-
-  private func pointerFraction(over key: Workspace.Key, excluding window: WindowID) -> Double? {
-    let point = pointer.location
-    guard let target = state.targetLayout(for: key)?.placements.first(where: {
-      $0.window != window && !$0.isBehindTab && $0.frame.contains(point)
-    }), target.frame.width > 0
-    else { return nil }
-    return (point.x - target.frame.minX) / target.frame.width
-  }
-
-  private func reorder(_ window: WindowID, in key: Workspace.Key) -> DragBranch {
-    guard let layout = state.targetLayout(for: key) else { return .reordered(column: 0) }
-    let pointerX = pointer.location.x
-    let remainingColumns = Set(layout.placements.filter { $0.window != window }.map(\.column))
-    let columnsLeftOfPointer = remainingColumns.filter { column in
-      layout.placements.first { $0.column == column }.map { $0.frame.midX < pointerX } ?? false
-    }
-    state.workspaces[key]?.strip.move(window, toColumn: columnsLeftOfPointer.count)
-    let column = state.workspaces[key]?.strip.columnIndex(of: window) ?? 0
-    return .reordered(column: column + 1)
-  }
-
-  private func stackOntoWindowUnderPointer(_ window: WindowID, in key: Workspace.Key)
-    -> DragBranch?
+  private func commitResize(_ drag: LiveDrag, of window: WindowID, in key: Workspace.Key)
+    -> DragBranch
   {
-    let point = pointer.location
-    guard let layout = state.targetLayout(for: key),
-      let strip = state.workspaces[key]?.strip,
-      let target = layout.placements.first(where: {
-        $0.window != window && !$0.isBehindTab && $0.frame.contains(point)
-      }),
-      isInStackZone(point.x, of: target.frame),
-      let column = strip.columnIndex(of: target.window),
-      let targetRow = strip.columns[column].windows.firstIndex(of: target.window)
-    else { return nil }
-    let isAbove = point.y < target.frame.midY
-    var row = isAbove ? targetRow : targetRow + 1
-    if let draggedRow = strip.columns[column].windows.firstIndex(of: window),
-      draggedRow < targetRow
-    {
-      row -= 1
-    }
-    state.workspaces[key]?.strip.stack(window, ontoColumnOf: target.window, atRow: row)
-    return .stacked(above: isAbove)
+    guard let end = pointer.serverBounds(of: drag.window) else { return .returnedToSlot }
+    return resize.commit(window, in: key, from: drag.baseline, to: end)
   }
 
-  private func isInStackZone(_ x: CGFloat, of frame: CGRect) -> Bool {
-    let margin = frame.width * (1 - Self.stackZoneShare) / 2
-    return x >= frame.minX + margin && x <= frame.maxX - margin
+  private func commitMove(of window: WindowID, drag: LiveDrag) -> DragBranch {
+    guard let plan = plan(for: drag) else { return .returnedToSlot }
+    planner.commit(plan)
+    switch plan.target {
+    case .nowhere:
+      return plan.movesToAnotherDisplay ? .movedToDisplay : .returnedToSlot
+    case .stack(_, let side):
+      return .stacked(above: side == .above)
+    case .column:
+      let column = plan.strips[plan.destination]?.columnIndex(of: window) ?? 0
+      return .reordered(column: column + 1)
+    }
   }
 }

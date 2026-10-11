@@ -29,6 +29,13 @@ enum Metrics {
     static let minimapLensBorder = 0.30
     static let minimapTabDot = 0.5
     static let minimapNumber = 0.85
+    static let dropPreviewFill = 0.22
+    static let dropPreviewBorder = 0.70
+  }
+
+  enum DropPreview {
+    static let cornerRadius = 10.0
+    static let borderWidth = 1.0
   }
 
   enum Minimap {
@@ -73,6 +80,26 @@ enum Metrics {
     static let titleMinimumWidth = 72.0
     static let badgeMinimumWidth = 22.0
     static let titleLineLimit = 2
+    static let dragThreshold = 4.0
+    static let liftScale = 1.03
+    static let liftShadowRadius = 16.0
+    static let liftShadowOpacity = 0.35
+    static let liftOpacity = 0.9
+    static let edgeHitWidth = 12.0
+    static let dividerHitHeight = 12.0
+    static let presetSnapRange = 0.03
+    static let springDamping = 0.85
+    static let placeholderFill = 0.28
+    static let placeholderStroke = 0.6
+    static let placeholderDash = 5.0
+    static let labelOffset = 8.0
+    static let lastPlace = 9
+    static let widthNoise = 0.5
+    static let labelHeight = 24.0
+    static let gripThickness = 3.0
+    static let gripLength = 28.0
+    static let gripOpacity = 0.5
+    static let gripActiveOpacity = 0.9
   }
 
   enum Size {

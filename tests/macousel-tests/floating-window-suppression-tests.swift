@@ -32,10 +32,9 @@ struct FloatingWindowSuppressionTests {
     let scenario = try FloatingScenario()
     scenario.coverTheScreen()
     scenario.fixture.manager.perform(.focusRight)
-    let grabbed = try #require(scenario.row[1].frame)
+    let session = try DragSession(scenario.row[1], in: scenario.fixture)
 
-    scenario.fixture.pointer.pressPrimary(at: CGPoint(x: grabbed.midX, y: grabbed.midY))
-    scenario.fixture.source.userMoved(scenario.row[1], to: grabbed.offsetBy(dx: 40, dy: 0))
+    session.move(to: CGPoint(x: 700, y: 400))
     scenario.letRaiseDelayPass()
 
     #expect(scenario.floater.raiseCount == 0)

@@ -46,7 +46,16 @@ final class OverlayPresenter {
     host.updateTabBars(tabBarModels(for: layouts))
   }
 
+  func showDropPreview(at frame: CGRect) {
+    host.showDropPreview(at: frame)
+  }
+
+  func hideDropPreview() {
+    host.hideDropPreview()
+  }
+
   func hide() {
+    host.hideDropPreview()
     host.hideFocusBorder()
     host.hideDim()
     host.hideMinimap()

@@ -7,6 +7,8 @@ struct PointerPane: View {
 
   var body: some View {
     SettingsForm {
+      PointerPreview(preferences: store.preferences)
+
       Section("Pointer") {
         ToggleRow(
           title: "Activate the display under the pointer",

@@ -25,7 +25,12 @@ final class FakeOverlayHost: OverlayHost {
   var onOverviewSelect: ((WindowID) -> Void)?
   var onOverviewKey: ((OverviewKey) -> Void)?
   var onOverviewDismiss: (() -> Void)?
+  var onOverviewMove: ((WindowID, DropTarget) -> Void)?
+  var onOverviewColumnWidth: ((WindowID, Double) -> Void)?
+  var onOverviewRowHeight: ((WindowID, Double, VerticalNeighbor) -> Void)?
   private(set) var overview: Overview?
+  private(set) var dropPreview: CGRect?
+  private(set) var dropPreviewHistory: [CGRect?] = []
   private(set) var focusBorder: FocusBorder?
   private(set) var dim: Dim?
   private(set) var minimap: MinimapSnapshot?
@@ -62,6 +67,17 @@ final class FakeOverlayHost: OverlayHost {
     tabBars = bars
   }
 
+  func showDropPreview(at frame: CGRect) {
+    dropPreview = frame
+    dropPreviewHistory.append(frame)
+  }
+
+  func hideDropPreview() {
+    guard dropPreview != nil else { return }
+    dropPreview = nil
+    dropPreviewHistory.append(nil)
+  }
+
   func showOverview(_ snapshot: OverviewSnapshot, on displayFrame: CGRect) {
     overview = Overview(snapshot: snapshot, displayFrame: displayFrame)
   }
@@ -80,5 +96,17 @@ final class FakeOverlayHost: OverlayHost {
 
   func clickBackdrop() {
     onOverviewDismiss?()
+  }
+
+  func drop(_ window: WindowID, as target: DropTarget) {
+    onOverviewMove?(window, target)
+  }
+
+  func setColumnWidth(of window: WindowID, to fraction: Double) {
+    onOverviewColumnWidth?(window, fraction)
+  }
+
+  func setRowHeight(of window: WindowID, to share: Double, borrowingFrom neighbor: VerticalNeighbor) {
+    onOverviewRowHeight?(window, share, neighbor)
   }
 }

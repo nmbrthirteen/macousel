@@ -11,6 +11,7 @@ struct OverviewSnapshot: Equatable {
   struct Column: Equatable {
     var width: Double
     var cards: [Card]
+    var isTabbed = false
   }
 
   static let empty = OverviewSnapshot(columns: [], stripHeight: 0, selection: nil)
@@ -18,4 +19,8 @@ struct OverviewSnapshot: Equatable {
   var columns: [Column]
   var stripHeight: Double
   var selection: WindowID?
+  var usableWidth = 0.0
+  var innerGap = 0.0
+  var presetWidths: [Double] = []
+  var springResponse: Double?
 }

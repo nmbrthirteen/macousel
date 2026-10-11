@@ -40,6 +40,7 @@ final class ControllerFixture {
     self.environment = environment
     self.source = source
     probe = FakeWindowProbe(source: source)
+    pointer.serverBoundsProvider = { source.fakeWindow($0)?.serverFrame }
     manager = WindowManager(
       store: store,
       ports: ManagerPorts(

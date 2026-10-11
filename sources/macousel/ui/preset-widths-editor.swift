@@ -6,6 +6,7 @@ struct PresetWidthsEditor: View {
   private static let initialPercent = 50
 
   @Binding var widths: [Double]
+  @Binding var hoveredWidth: Double?
   @State private var newPercent = initialPercent
 
   var body: some View {
@@ -17,6 +18,16 @@ struct PresetWidthsEditor: View {
             widths.removeAll { $0 == width }
           }
           .disabled(widths.count <= 1)
+          .onHover { isInside in
+            if isInside {
+              hoveredWidth = width
+            } else if hoveredWidth == width {
+              hoveredWidth = nil
+            }
+          }
+          .onDisappear {
+            if hoveredWidth == width { hoveredWidth = nil }
+          }
         }
       }
       HStack {

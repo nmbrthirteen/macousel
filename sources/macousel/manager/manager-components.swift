@@ -42,7 +42,8 @@ struct ManagerComponents {
       now: { clock.now })
     let overview = OverviewController(
       state: state, source: ports.source, host: ports.overlays,
-      titles: { reconciler.capturedTitles })
+      titles: { reconciler.capturedTitles },
+      springResponse: { store.preferences.animationSpeed.springResponse })
     self.state = state
     self.indicator = indicator
     self.floating = floating

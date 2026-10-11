@@ -23,6 +23,10 @@ final class CommandRouter {
     self.scratchpad = scratchpad
     self.overview = overview
     overview.onChoose = { [weak self] window in self?.reveal(window) }
+    overview.onEdited = { [weak self] in
+      self?.presenter.relayout()
+      self?.reconciler.scheduleSessionSave()
+    }
   }
 
   var isOverviewOpen: Bool { overview.isOpen }

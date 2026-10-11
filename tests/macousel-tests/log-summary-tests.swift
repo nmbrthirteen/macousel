@@ -42,12 +42,16 @@ struct LogSummaryTests {
     #expect(DragBranch.stacked(above: false).logName == "stacked below a target")
     #expect(DragBranch.reordered(column: 3).logName == "reordered to column 3")
     #expect(DragBranch.movedToDisplay.logName == "moved to another display")
+    #expect(DragBranch.returnedToSlot.logName == "returned to its slot")
+    #expect(DragBranch.cancelled.logName == "cancelled")
   }
 
-  @Test func onlyDropsThatDidNotStackReportThePointerPosition() {
-    #expect(DragBranch.reordered(column: 1).reportsPointerPosition)
-    #expect(DragBranch.movedToDisplay.reportsPointerPosition)
-    #expect(!DragBranch.stacked(above: true).reportsPointerPosition)
-    #expect(!DragBranch.resizedWidth.reportsPointerPosition)
+  @Test func dragBranchesNameTheirTargetKind() {
+    #expect(DragBranch.stacked(above: true).targetKind == "stack")
+    #expect(DragBranch.reordered(column: 1).targetKind == "column")
+    #expect(DragBranch.movedToDisplay.targetKind == "display")
+    #expect(DragBranch.returnedToSlot.targetKind == "none")
+    #expect(DragBranch.resizedWidth.targetKind == "none")
+    #expect(DragBranch.cancelled.targetKind == "none")
   }
 }

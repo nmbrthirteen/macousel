@@ -4,7 +4,7 @@ import StripCore
 final class ResizeAdoption {
   private static let settleDelay = Duration.milliseconds(250)
   private static let ownRequestEchoWindow = Duration.milliseconds(300)
-  private static let widthTolerance: CGFloat = 2
+  private static let snapTolerance: CGFloat = 24
   private static let fullWidthMargin: CGFloat = 24
 
   private let state: TilingState
@@ -49,7 +49,7 @@ final class ResizeAdoption {
     guard let key = state.activeKey(containing: id), let display = state.display(for: key),
       let requested = presenter.requestedFrame(for: window),
       let actual = source.window(window)?.frame,
-      abs(actual.width - requested.width) > Self.widthTolerance
+      abs(actual.width - requested.width) > Self.snapTolerance
     else { return }
     let usableWidth = state.usableWidth(of: display)
     if abs(usableWidth - actual.width) <= Self.fullWidthMargin {

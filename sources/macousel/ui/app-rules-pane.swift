@@ -6,6 +6,10 @@ struct AppRulesPane: View {
 
   var body: some View {
     SettingsForm {
+      AppRulesPreview(
+        config: store.preferences.layout,
+        keepsFloatingOnTop: store.preferences.keepsFloatingWindowsOnTop)
+
       Section {
         ToggleRow(
           title: "Keep floating windows above tiled windows",

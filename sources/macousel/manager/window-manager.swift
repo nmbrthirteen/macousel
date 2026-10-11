@@ -235,7 +235,6 @@ final class WindowManager {
     case .focused(let window):
       systemFocus.changed(to: WindowID(window))
     case .moved(let window):
-      interactions.windowMoved(window)
       floating.windowChanged(window)
     case .resized(let window):
       reconciler.invalidateFullScreen(window)

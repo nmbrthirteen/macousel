@@ -1,7 +1,7 @@
 import Foundation
 
 extension Strip {
-  static let widthFractionRange = 0.1...1.0
+  public static let widthFractionRange = 0.1...1.0
 
   @discardableResult
   public mutating func cycleWidth(config: LayoutConfig) -> Bool {
@@ -50,6 +50,18 @@ extension Strip {
     guard let (columnIndex, _) = location(of: window) else { return }
     columns[columnIndex].width = .fixed(points)
     columns[columnIndex].isFullWidth = false
+  }
+
+  @discardableResult
+  public mutating func setWidthFraction(_ fraction: Double, ofColumnContaining window: WindowID)
+    -> Bool
+  {
+    guard let (columnIndex, _) = location(of: window) else { return false }
+    let range = Strip.widthFractionRange
+    let clamped = min(max(fraction, range.lowerBound), range.upperBound)
+    columns[columnIndex].width = .fraction(clamped)
+    columns[columnIndex].isFullWidth = false
+    return true
   }
 
   public mutating func setFullWidth(_ isFullWidth: Bool, of window: WindowID) {

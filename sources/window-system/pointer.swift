@@ -29,6 +29,15 @@ public enum Pointer {
     return nil
   }
 
+  public static func bounds(ofWindow window: CGWindowID) -> CGRect? {
+    guard
+      let list = CGWindowListCopyWindowInfo([.optionIncludingWindow], window) as? [[String: Any]],
+      let info = list.first,
+      let boundsDictionary = info[kCGWindowBounds as String] as? NSDictionary
+    else { return nil }
+    return CGRect(dictionaryRepresentation: boundsDictionary)
+  }
+
   public static var isPrimaryButtonDown: Bool {
     NSEvent.pressedMouseButtons & 1 != 0
   }

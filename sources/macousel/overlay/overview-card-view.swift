@@ -3,6 +3,7 @@ import SwiftUI
 struct OverviewCardView: View {
   let card: OverviewGeometry.Card
   let icon: NSImage?
+  var isLifted = false
 
   private var shape: RoundedRectangle {
     RoundedRectangle(cornerRadius: Metrics.Radius.panel)
@@ -24,6 +25,11 @@ struct OverviewCardView: View {
         shape.strokeBorder(Color.accentColor, lineWidth: Metrics.Overview.selectionStroke)
       }
     }
+    .opacity(isLifted ? Metrics.Overview.liftOpacity : 1)
+    .scaleEffect(isLifted ? Metrics.Overview.liftScale : 1)
+    .shadow(
+      color: .black.opacity(isLifted ? Metrics.Overview.liftShadowOpacity : 0),
+      radius: Metrics.Overview.liftShadowRadius, y: Metrics.Spacing.compact)
     .contentShape(shape)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(card.content.title)
