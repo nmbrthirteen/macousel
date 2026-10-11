@@ -8,6 +8,7 @@ import WindowSystem
 struct ReconcilerHarness {
   let environment: FakeDesktopEnvironment
   let source: FakeWindowSource
+  let probe: FakeWindowProbe
   let state: TilingState
   let reconciler: WindowReconciler
   let scratchpad: Scratchpad
@@ -17,6 +18,7 @@ struct ReconcilerHarness {
     store.preferences.restoresSession = false
     environment = FakeDesktopEnvironment(displays: [.fake()])
     source = FakeWindowSource(environment: environment)
+    probe = FakeWindowProbe(source: source)
     let pointer = FakePointerDevice()
     state = TilingState(store: store, environment: environment, pointer: pointer)
     let focus = FocusDriver(
@@ -27,7 +29,7 @@ struct ReconcilerHarness {
     self.scratchpad = scratchpad
     reconciler = WindowReconciler(
       state: state, source: source, environment: environment, store: store,
-      restorer: WindowRestorer(defaults: suite.defaults, bootSession: "boot-1"),
+      probe: probe, restorer: WindowRestorer(defaults: suite.defaults, bootSession: "boot-1"),
       sessions: SessionStore(defaults: suite.defaults), admissionFrames: AdmissionFrames(),
       scratchpad: scratchpad,
       recents: focus.recents, now: { ContinuousClock.now })

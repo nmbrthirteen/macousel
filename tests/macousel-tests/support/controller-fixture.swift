@@ -11,6 +11,7 @@ final class ControllerFixture {
   let store: PreferencesStore
   let environment: FakeDesktopEnvironment
   let source: FakeWindowSource
+  let probe: FakeWindowProbe
   let placer = FakeFramePlacer()
   let clock = ManualClock()
   let pointer = FakePointerDevice()
@@ -36,10 +37,11 @@ final class ControllerFixture {
     self.store = store
     self.environment = environment
     self.source = source
+    probe = FakeWindowProbe(source: source)
     manager = WindowManager(
       store: store,
       ports: ManagerPorts(
-        source: source, placer: placer, clock: clock, environment: environment,
+        source: source, probe: probe, placer: placer, clock: clock, environment: environment,
         pointer: pointer, shortcuts: shortcuts, gestures: gestures, overlays: overlays,
         crashRecovery: crashRecovery),
       defaults: suite.defaults,

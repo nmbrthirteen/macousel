@@ -58,10 +58,6 @@ final class FakeWindow: WindowHandle {
     storedFrame = frame
   }
 
-  func consumeReadTimeout() -> Bool {
-    timesOutReads
-  }
-
   func setFrame(_ frame: CGRect) {
     framesSet.append(frame)
     storedFrame = frame

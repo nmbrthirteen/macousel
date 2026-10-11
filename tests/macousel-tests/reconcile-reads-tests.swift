@@ -70,13 +70,13 @@ struct ReconcileReadsTests {
     #expect(slow.fullScreenReadCount > readsAfterTimeout)
   }
 
-  @Test func eachNewWindowFrameIsReadOnlyForAdmissionAndRestore() throws {
+  @Test func eachNewWindowFrameIsReadOnceByTheProbe() throws {
     let fixture = try ControllerFixture { $0.animationSpeed = .fast }
     let window = fixture.open(1, atX: 300, activating: true)
 
     fixture.launch()
 
-    #expect(window.frameReadCount == 2)
+    #expect(window.frameReadCount == 1)
   }
 
   @Test func aWindowThatIsNotTileableIsReadOncePerSecondUntilItBecomesTileable() async throws {

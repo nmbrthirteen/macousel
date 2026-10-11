@@ -24,8 +24,8 @@ final class SessionRecorder {
 
   var capturedTitles: [CGWindowID: String] { titles }
 
-  func capture(_ windows: [any WindowHandle]) {
-    windows.forEach { titles[$0.id] = $0.title }
+  func capture(_ windows: [any WindowHandle], titles read: [CGWindowID: String]) {
+    for window in windows { titles[window.id] = read[window.id] ?? "" }
   }
 
   func retain(only alive: Set<CGWindowID>) {

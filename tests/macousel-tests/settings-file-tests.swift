@@ -100,6 +100,43 @@ struct SettingsFileTests {
     #expect(preferenceKeys == preferenceKeys.sorted())
   }
 
+  @Test func exportingTheSamePreferencesTwiceGivesIdenticalBytes() throws {
+    var preferences = customized()
+    preferences.disabledDisplays = ["display-3", "display-1", "display-2", "display-9"]
+
+    let encodings = try (0..<20).map { _ in try SettingsFile.encode(preferences) }
+
+    #expect(Set(encodings).count == 1)
+  }
+
+  @Test func exportingAfterAnImportOfAnExportGivesIdenticalBytes() throws {
+    var preferences = customized()
+    preferences.disabledDisplays = ["display-3", "display-1", "display-2"]
+    let first = try SettingsFile.encode(preferences)
+
+    let imported = try SettingsFile.decode(first, keepingOnboardingFrom: preferences)
+    let second = try SettingsFile.encode(imported)
+
+    #expect(first == second)
+  }
+
+  @Test func shortcutsAreWrittenInActionRawValueOrderAndKeepTheirHotkeyOrder() throws {
+    var preferences = customized()
+    let first = Hotkey(keyCode: UInt16(kVK_ANSI_Z), modifiers: [.command])
+    let second = Hotkey(keyCode: UInt16(kVK_ANSI_X), modifiers: [.option])
+    preferences.shortcuts = [.wider: [second, first], .center: [first], .cycleWidth: [first]]
+
+    let data = try SettingsFile.encode(preferences)
+    let text = String(decoding: data, as: UTF8.self)
+    let positions = try ["center", "cycleWidth", "wider"].map { name in
+      try #require(text.range(of: "\"\(name)\"")).lowerBound
+    }
+    let loaded = try SettingsFile.decode(data, keepingOnboardingFrom: preferences)
+
+    #expect(positions == positions.sorted())
+    #expect(loaded.shortcuts[.wider] == [second, first])
+  }
+
   private func keys(in text: String, indent: Int) -> [String] {
     let prefix = String(repeating: " ", count: indent) + "\""
     return text.split(separator: "\n").compactMap { line in

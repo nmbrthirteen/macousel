@@ -26,6 +26,8 @@ final class FakeWindowSource: WindowSource {
     isStarted = false
   }
 
+  func fakeWindow(_ id: CGWindowID) -> FakeWindow? { tracked[id] }
+
   func focusedWindow() -> (any WindowHandle)? {
     focusedID.flatMap { tracked[$0] }
   }

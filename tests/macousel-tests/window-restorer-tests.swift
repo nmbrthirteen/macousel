@@ -17,7 +17,8 @@ struct WindowRestorerTests {
   @Test func originalFramesSurviveASimulatedRelaunch() throws {
     let suite = try IsolatedDefaults()
     let tracked = window(1)
-    WindowRestorer(defaults: suite.defaults, bootSession: "boot-1").remember(tracked)
+    let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
+    restorer.remember(tracked, frame: original)
     tracked.frame = moved
 
     let relaunched = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
@@ -30,10 +31,10 @@ struct WindowRestorerTests {
     let suite = try IsolatedDefaults()
     let tracked = window(1)
     let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
-    restorer.remember(tracked)
+    restorer.remember(tracked, frame: original)
     tracked.frame = moved
 
-    restorer.remember(tracked)
+    restorer.remember(tracked, frame: moved)
     restorer.restore([tracked], on: displays)
 
     #expect(tracked.frame == original)
@@ -42,11 +43,11 @@ struct WindowRestorerTests {
   @Test func recycledWindowIDFromAnotherProcessIsRememberedAgain() throws {
     let suite = try IsolatedDefaults()
     let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
-    restorer.remember(window(1, app: .editor))
+    restorer.remember(window(1, app: .editor), frame: original)
     let reused = window(1, app: .browser)
     reused.frame = moved
 
-    restorer.remember(reused)
+    restorer.remember(reused, frame: moved)
     reused.frame = original
     restorer.restore([reused], on: displays)
 
@@ -57,7 +58,7 @@ struct WindowRestorerTests {
     let suite = try IsolatedDefaults()
     let tracked = window(1)
     let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
-    restorer.remember(tracked)
+    restorer.remember(tracked, frame: original)
     tracked.frame = moved
 
     restorer.forgetAll()
@@ -71,8 +72,8 @@ struct WindowRestorerTests {
     let kept = window(1)
     let gone = window(2)
     let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
-    restorer.remember(kept)
-    restorer.remember(gone)
+    restorer.remember(kept, frame: original)
+    restorer.remember(gone, frame: original)
     kept.frame = moved
     gone.frame = moved
 
@@ -89,7 +90,7 @@ struct WindowRestorerTests {
     let stranded = window(1)
     stranded.frame = CGRect(x: 4000, y: 100, width: 400, height: 300)
     let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
-    restorer.remember(stranded)
+    restorer.remember(stranded, frame: try #require(stranded.frame))
 
     restorer.restore([stranded], on: displays)
 

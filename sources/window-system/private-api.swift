@@ -2,7 +2,7 @@ import ApplicationServices
 import CoreGraphics
 
 @_silgen_name("_AXUIElementGetWindow")
-func _AXUIElementGetWindow(
+nonisolated func _AXUIElementGetWindow(
   _ element: AXUIElement,
   _ windowID: UnsafeMutablePointer<CGWindowID>
 ) -> AXError

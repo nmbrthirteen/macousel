@@ -17,11 +17,8 @@ final class UnresponsiveApps {
     return false
   }
 
-  @discardableResult
-  func noteTimeout(of window: any WindowHandle) -> Bool {
-    guard window.consumeReadTimeout() else { return false }
-    pausedUntil[window.pid] = now().advanced(by: Self.readPause)
-    return true
+  func noteTimeout(ofApp pid: pid_t) {
+    pausedUntil[pid] = now().advanced(by: Self.readPause)
   }
 
   func pruneExpired() {

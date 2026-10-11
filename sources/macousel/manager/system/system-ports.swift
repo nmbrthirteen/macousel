@@ -5,6 +5,7 @@ extension ManagerPorts {
     let tracker = WindowTracker()
     return ManagerPorts(
       source: SystemWindowSource(tracker: tracker),
+      probe: SystemWindowProbe(tracker: tracker),
       placer: SystemFramePlacer(tracker: tracker),
       clock: SystemAnimationClock(),
       environment: SystemDesktopEnvironment(),

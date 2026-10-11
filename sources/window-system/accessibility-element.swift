@@ -5,7 +5,7 @@ extension AXUIElement {
     copyValue(name, noting: timeouts) as? T
   }
 
-  func elementAttribute(_ name: String) -> AXUIElement? {
+  nonisolated func elementAttribute(_ name: String) -> AXUIElement? {
     guard let value = copyValue(name, noting: nil), CFGetTypeID(value) == AXUIElementGetTypeID()
     else { return nil }
     return (value as! AXUIElement)
@@ -18,7 +18,9 @@ extension AXUIElement {
     }
   }
 
-  func pointAttribute(_ name: String, noting timeouts: ReadTimeoutFlag? = nil) -> CGPoint? {
+  nonisolated func pointAttribute(_ name: String, noting timeouts: ReadTimeoutFlag? = nil)
+    -> CGPoint?
+  {
     var point = CGPoint.zero
     guard let value = axValueAttribute(name, type: .cgPoint, noting: timeouts),
       AXValueGetValue(value, .cgPoint, &point)
@@ -26,7 +28,9 @@ extension AXUIElement {
     return point
   }
 
-  func sizeAttribute(_ name: String, noting timeouts: ReadTimeoutFlag? = nil) -> CGSize? {
+  nonisolated func sizeAttribute(_ name: String, noting timeouts: ReadTimeoutFlag? = nil)
+    -> CGSize?
+  {
     var size = CGSize.zero
     guard let value = axValueAttribute(name, type: .cgSize, noting: timeouts),
       AXValueGetValue(value, .cgSize, &size)
@@ -54,7 +58,7 @@ extension AXUIElement {
     return AXUIElementSetAttributeValue(self, name as CFString, value) == .success
   }
 
-  var windowID: CGWindowID? {
+  nonisolated var windowID: CGWindowID? {
     var id: CGWindowID = 0
     guard _AXUIElementGetWindow(self, &id) == .success, id != 0 else { return nil }
     return id
@@ -69,7 +73,7 @@ extension AXUIElement {
     return error == .success ? value : nil
   }
 
-  private func axValueAttribute(
+  private nonisolated func axValueAttribute(
     _ name: String, type: AXValueType, noting timeouts: ReadTimeoutFlag?
   ) -> AXValue? {
     guard let value = copyValue(name, noting: timeouts), CFGetTypeID(value) == AXValueGetTypeID()

@@ -1,5 +1,6 @@
 struct ManagerPorts {
   var source: any WindowSource
+  var probe: any WindowProbing
   var placer: any FramePlacer
   var clock: any AnimationClock
   var environment: any DesktopEnvironment

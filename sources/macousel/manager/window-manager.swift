@@ -90,6 +90,7 @@ final class WindowManager {
   private func stopSystem() {
     router.closeOverview()
     synchronization.cancel()
+    reconciler.cancelPending()
     focus.stop()
     crashRecovery.disarm()
     inputs.release()
@@ -167,6 +168,7 @@ final class WindowManager {
     router.closeOverview()
     crashRecovery.disarm()
     synchronization.cancel()
+    reconciler.cancelPending()
     release.releaseEverything()
     applyInputs()
   }
@@ -196,11 +198,15 @@ final class WindowManager {
 
   private func synchronize() {
     guard status == .running else { return }
-    reconciler.reconcile()
+    reconciler.reconcile { [weak self] in self?.finishSynchronizing() }
+  }
+
+  private func finishSynchronizing() {
+    guard status == .running else { return }
     interactions.displaysSynchronized()
     if displays != state.displays { displays = state.displays }
     presenter.retain(only: Set(source.windows.keys))
-    presenter.overlays.refreshTitles()
+    presenter.overlays.refreshTitles(using: reconciler.probedTitles)
     presenter.relayout()
   }
 

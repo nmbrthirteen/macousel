@@ -7,9 +7,6 @@ protocol WindowHandle: AnyObject {
   var appName: String { get }
   var title: String { get }
   var frame: CGRect? { get }
-  var isTileable: Bool { get }
-  var isFullScreen: Bool { get }
-  func consumeReadTimeout() -> Bool
   func setFrame(_ frame: CGRect)
   func focus()
 }

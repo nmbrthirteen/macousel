@@ -9,7 +9,8 @@ enum SettingsFile {
       let preferences: Preferences
 
       func encode(to encoder: Encoder) throws {
-        try preferences.encode(to: encoder, includingOnboarding: false)
+        try preferences.encode(
+          to: encoder, includingOnboarding: false, sortingUnorderedValues: true)
       }
     }
 

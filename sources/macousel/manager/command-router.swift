@@ -107,8 +107,9 @@ final class CommandRouter {
     let displaced = scratchpad.window
     guard scratchpad.send(window.rawValue, from: key) else { return }
     for sent in [window.rawValue, displaced].compactMap({ $0 }) { presenter.invalidate(sent) }
-    reconciler.reconcile()
-    present(key, activating: state.workspaces[key]?.strip.focusedWindow)
+    reconciler.reconcile(adoptingFocus: false, refreshingTabTitles: false) { [weak self] in
+      self?.present(key, activating: self?.state.workspaces[key]?.strip.focusedWindow)
+    }
   }
 
   func reveal(_ window: WindowID) {
@@ -123,9 +124,11 @@ final class CommandRouter {
     guard let window = source.focusedWindow() else { return }
     reconciler.toggleFloating(window.id)
     presenter.invalidate(window.id)
-    reconciler.reconcile()
-    presenter.overlays.refreshTitles()
-    presenter.relayout()
+    reconciler.reconcile { [weak self] in
+      guard let self else { return }
+      presenter.overlays.refreshTitles(using: reconciler.probedTitles)
+      presenter.relayout()
+    }
   }
 
   private func present(_ key: Workspace.Key, activating window: WindowID?) {

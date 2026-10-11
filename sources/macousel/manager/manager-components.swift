@@ -26,7 +26,7 @@ struct ManagerComponents {
       state: state, source: ports.source, placer: ports.placer, focus: focus)
     let reconciler = WindowReconciler(
       state: state, source: ports.source, environment: ports.environment, store: store,
-      restorer: restorer, sessions: SessionStore(defaults: defaults),
+      probe: ports.probe, restorer: restorer, sessions: SessionStore(defaults: defaults),
       admissionFrames: admissionFrames, scratchpad: scratchpad, recents: focus.recents,
       now: { clock.now })
     let overview = OverviewController(

@@ -13,7 +13,6 @@ public final class ManagedWindow {
   public let appName: String
 
   let element: AXUIElement
-  private let readTimeouts = ReadTimeoutFlag()
   private let applicationElement: AXUIElement
 
   init(
@@ -29,19 +28,12 @@ public final class ManagedWindow {
     AXUIElementSetMessagingTimeout(element, WindowTracker.messagingTimeout)
   }
 
-  public func takeReadTimeout() -> Bool {
-    readTimeouts.take()
-  }
-
   public var title: String {
-    element.attribute(kAXTitleAttribute, noting: readTimeouts) ?? ""
+    element.windowTitle()
   }
 
   public var frame: CGRect? {
-    guard let origin = element.pointAttribute(kAXPositionAttribute, noting: readTimeouts),
-      let size = element.sizeAttribute(kAXSizeAttribute, noting: readTimeouts)
-    else { return nil }
-    return CGRect(origin: origin, size: size)
+    element.windowFrame()
   }
 
   public func setFrame(_ frame: CGRect) {
@@ -61,22 +53,7 @@ public final class ManagedWindow {
   }
 
   public var isMinimized: Bool {
-    element.attribute(kAXMinimizedAttribute, noting: readTimeouts) ?? false
-  }
-
-  public var isFullScreen: Bool {
-    element.attribute("AXFullScreen", noting: readTimeouts) ?? false
-  }
-
-  public var isTileable: Bool {
-    guard element.attribute(kAXRoleAttribute, noting: readTimeouts) == kAXWindowRole,
-      element.attribute(kAXSubroleAttribute, noting: readTimeouts) == kAXStandardWindowSubrole
-    else { return false }
-    var settable: DarwinBoolean = false
-    guard AXUIElementIsAttributeSettable(element, kAXSizeAttribute as CFString, &settable)
-      == .success
-    else { return false }
-    return settable.boolValue
+    element.attribute(kAXMinimizedAttribute) ?? false
   }
 
   public func focus() {

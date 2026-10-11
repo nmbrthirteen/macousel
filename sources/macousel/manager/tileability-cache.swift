@@ -11,20 +11,21 @@ struct TileabilityCache {
     self.now = now
   }
 
-  mutating func isTileable(_ window: any WindowHandle) -> Bool {
-    if accepted.contains(window.id) { return true }
-    if let rejectedAt = rejections[window.id],
+  func answer(for window: CGWindowID) -> Bool? {
+    if accepted.contains(window) { return true }
+    guard let rejectedAt = rejections[window],
       rejectedAt.duration(to: now()) < Self.rejectionLifetime
-    {
-      return false
+    else { return nil }
+    return false
+  }
+
+  mutating func record(_ window: CGWindowID, isTileable: Bool) {
+    if isTileable {
+      rejections[window] = nil
+      accepted.insert(window)
+    } else {
+      rejections[window] = now()
     }
-    guard window.isTileable else {
-      rejections[window.id] = now()
-      return false
-    }
-    rejections[window.id] = nil
-    accepted.insert(window.id)
-    return true
   }
 
   mutating func retain(only alive: Set<CGWindowID>) {

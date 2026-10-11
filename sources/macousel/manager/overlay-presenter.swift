@@ -55,13 +55,25 @@ final class OverlayPresenter {
     shownDim = nil
   }
 
-  func refreshTitles() {
+  func refreshTitles(using probed: [CGWindowID: String]) {
+    let tabbed = tabbedWindows()
+    tabTitles = tabTitles.filter { tabbed.contains($0.key) }
+    for window in tabbed {
+      guard let title = probed[window.rawValue], let handle = source.window(window.rawValue)
+      else { continue }
+      tabTitles[window] = Self.tabTitle(title, of: handle)
+    }
+  }
+
+  func rereadTitles() {
     tabTitles = [:]
-    readTabTitles(onlyMissing: false)
+    readMissingTitles()
   }
 
   func readMissingTitles() {
-    readTabTitles(onlyMissing: true)
+    for window in tabbedWindows() where tabTitles[window] == nil {
+      tabTitles[window] = source.window(window.rawValue).map { Self.tabTitle($0.title, of: $0) }
+    }
   }
 
   func flashMinimap(for key: Workspace.Key) {
@@ -81,20 +93,16 @@ final class OverlayPresenter {
       on: display.visibleFrame)
   }
 
-  private func readTabTitles(onlyMissing: Bool) {
-    for key in state.activeKeys {
-      guard let strip = state.workspaces[key]?.strip else { continue }
-      for column in strip.columns where column.display == .tabbed {
-        for window in column.windows where !onlyMissing || tabTitles[window] == nil {
-          tabTitles[window] = source.window(window.rawValue).map(Self.tabTitle)
-        }
-      }
-    }
+  private func tabbedWindows() -> Set<WindowID> {
+    Set(
+      state.activeKeys.flatMap { key in
+        (state.workspaces[key]?.strip.columns ?? []).filter { $0.display == .tabbed }
+          .flatMap(\.windows)
+      })
   }
 
-  private static func tabTitle(of window: any WindowHandle) -> String {
-    let title = window.title
-    return title.isEmpty ? window.appName : title
+  private static func tabTitle(_ title: String, of window: any WindowHandle) -> String {
+    title.isEmpty ? window.appName : title
   }
 
   private func focusedPlacement(in layouts: [Workspace.Key: StripLayout]) -> Placement? {

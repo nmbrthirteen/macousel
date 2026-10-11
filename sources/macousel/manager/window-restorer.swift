@@ -27,9 +27,8 @@ final class WindowRestorer {
     originalFrames = Self.load(from: defaults, bootSession: bootSession)
   }
 
-  func remember(_ window: any WindowHandle) {
+  func remember(_ window: any WindowHandle, frame: CGRect) {
     if let saved = originalFrames[window.id], saved.pid == window.pid { return }
-    guard let frame = window.frame else { return }
     originalFrames[window.id] = SavedFrame(pid: window.pid, frame: frame)
     persist()
   }

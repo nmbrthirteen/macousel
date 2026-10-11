@@ -70,7 +70,7 @@ final class DragInteraction {
     } else {
       drop(window, from: key)
     }
-    presenter.overlays.refreshTitles()
+    presenter.overlays.rereadTitles()
     presenter.relayout()
   }
 

@@ -19,6 +19,7 @@ final class LayoutPresenter {
   private let admissionFrames: AdmissionFrames
   private var requestedFrames: [CGWindowID: CGRect] = [:]
   private var sizeRequestTimes: [CGWindowID: ContinuousClock.Instant] = [:]
+  private let growth = GrowthPlanner()
   private var cadence = SubmissionCadence()
   private var tickCount = 0
 
@@ -70,7 +71,9 @@ final class LayoutPresenter {
     for key in state.activeKeys {
       guard let display = state.display(for: key), let layout = state.animatedLayout(for: key)
       else { continue }
-      if submitting { place(layout, on: display) }
+      if submitting {
+        place(layout, on: display, holdingGrowth: state.workspaces[key]?.motion.isSettled == false)
+      }
       layouts[key] = layout
     }
     overlays.render(layouts)
@@ -159,17 +162,25 @@ final class LayoutPresenter {
     render(submitting: submitting)
   }
 
-  private func place(_ layout: StripLayout, on display: Display) {
+  private func place(_ layout: StripLayout, on display: Display, holdingGrowth: Bool) {
     let policy = state.parkingPolicy(for: display)
-    for placement in layout.placements {
+    let planned = layout.placements.compactMap { placement -> PlannedFrame? in
       let id = placement.window.rawValue
-      guard id != excludedWindow, let window = source.window(id) else { continue }
-      let frame = policy.frame(for: placement, in: display.visibleFrame)
-      let previous = requestedFrames[id]
-      guard previous != frame else { continue }
-      if previous?.size != frame.size { sizeRequestTimes[id] = clock.now }
-      requestedFrames[id] = frame
-      placer.submit(frame, for: window)
+      guard id != excludedWindow, source.window(id) != nil else { return nil }
+      let target = policy.frame(for: placement, in: display.visibleFrame)
+      return PlannedFrame(
+        window: id, placement: placement, target: target, previous: requestedFrames[id],
+        isParked: target != placement.frame)
     }
+    growth.submissions(for: planned, holdingGrowth: holdingGrowth).forEach { submit($0) }
+  }
+
+  private func submit(_ submission: FrameSubmission) {
+    let id = submission.window
+    let previous = requestedFrames[id]
+    guard previous != submission.frame, let window = source.window(id) else { return }
+    if previous?.size != submission.frame.size { sizeRequestTimes[id] = clock.now }
+    requestedFrames[id] = submission.frame
+    placer.submit(submission.frame, for: window)
   }
 }

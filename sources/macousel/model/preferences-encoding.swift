@@ -8,13 +8,19 @@ extension Preferences {
   }
 
   func encode(to encoder: Encoder) throws {
-    try encode(to: encoder, includingOnboarding: true)
+    try encode(to: encoder, includingOnboarding: true, sortingUnorderedValues: false)
   }
 
-  func encode(to encoder: Encoder, includingOnboarding: Bool) throws {
+  func encode(
+    to encoder: Encoder, includingOnboarding: Bool, sortingUnorderedValues: Bool
+  ) throws {
     var values = encoder.container(keyedBy: CodingKeys.self)
     try values.encode(layout, forKey: .layout)
-    try values.encode(shortcuts, forKey: .shortcuts)
+    if sortingUnorderedValues {
+      try values.encode(SortedShortcuts(shortcuts: shortcuts), forKey: .shortcuts)
+    } else {
+      try values.encode(shortcuts, forKey: .shortcuts)
+    }
     try values.encode(animationSpeed, forKey: .animationSpeed)
     try values.encode(showsFocusBorder, forKey: .showsFocusBorder)
     try values.encode(focusBorderWidth, forKey: .focusBorderWidth)
@@ -31,7 +37,11 @@ extension Preferences {
     try values.encode(mouseFollowsFocus, forKey: .mouseFollowsFocus)
     try values.encode(appRules, forKey: .appRules)
     try values.encode(appShortcuts, forKey: .appShortcuts)
-    try values.encode(disabledDisplays, forKey: .disabledDisplays)
+    if sortingUnorderedValues {
+      try values.encode(disabledDisplays.sorted(), forKey: .disabledDisplays)
+    } else {
+      try values.encode(disabledDisplays, forKey: .disabledDisplays)
+    }
     try values.encode(checksForUpdates, forKey: .checksForUpdates)
     if includingOnboarding {
       try values.encode(hasCompletedOnboarding, forKey: .hasCompletedOnboarding)
