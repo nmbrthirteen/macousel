@@ -1,12 +1,13 @@
 nonisolated extension Action {
   enum Group: String, CaseIterable, Sendable {
-    case navigate, size, stacks
+    case navigate, size, stacks, overview
 
     var title: String {
       switch self {
       case .navigate: "Navigate"
       case .size: "Size"
       case .stacks: "Stacks"
+      case .overview: "Overview and scratchpad"
       }
     }
   }
@@ -22,6 +23,8 @@ nonisolated extension Action {
       .size
     case .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating:
       .stacks
+    case .toggleOverview, .sendToScratchpad, .toggleScratchpad:
+      .overview
     }
   }
 }

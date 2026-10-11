@@ -62,6 +62,17 @@ struct ActionRawValueTests {
     #expect(Action.moveToLast.commandName == "move-to-last")
   }
 
+  @Test func overviewAndScratchpadActionsHaveTheirOwnGroupListedLast() {
+    let actions: [Action] = [.toggleOverview, .sendToScratchpad, .toggleScratchpad]
+    #expect(actions.allSatisfy { $0.group == .overview })
+    #expect(Action.Group.overview.title == "Overview and scratchpad")
+    #expect(Action.Group.allCases.last == .overview)
+    #expect(actions.map(\.title) == [
+      "Show or hide overview", "Send window to scratchpad", "Show or hide scratchpad",
+    ])
+    #expect(actions.map(\.rawValue) == ["toggleOverview", "sendToScratchpad", "toggleScratchpad"])
+  }
+
   @Test func numberedActionsAreNavigation() {
     #expect(Action.focusColumn(5).group == .navigate)
     #expect(Action.moveToColumn(5).group == .navigate)

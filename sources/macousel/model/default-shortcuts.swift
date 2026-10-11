@@ -47,6 +47,9 @@ extension Action {
       .popOutLeft: [Hotkey(kVK_ANSI_LeftBracket, shifted)],
       .toggleTabbed: [Hotkey(kVK_ANSI_T, shifted)],
       .toggleFloating: [Hotkey(kVK_ANSI_T, base)],
+      .toggleOverview: [Hotkey(kVK_ANSI_O, base)],
+      .sendToScratchpad: [Hotkey(kVK_ANSI_S, shifted)],
+      .toggleScratchpad: [Hotkey(kVK_ANSI_S, base)],
     ]
     for (place, key) in zip(Action.places, placeKeys) {
       shortcuts[.focusColumn(place)] = [Hotkey(key, base)]

@@ -6,8 +6,12 @@ final class SystemOverlayHost: OverlayHost {
   private var dim: DimOverlay?
   private var minimap: MinimapOverlay?
   private var tabBars: TabBarOverlay?
+  private var overview: OverviewOverlay?
 
   var onTabSelected: ((WindowID) -> Void)?
+  var onOverviewSelect: ((WindowID) -> Void)?
+  var onOverviewKey: ((OverviewKey) -> Void)?
+  var onOverviewDismiss: (() -> Void)?
 
   func showFocusBorder(around frame: CGRect, lineWidth: Double) {
     let overlay = focusBorder ?? FocusBorderOverlay()
@@ -43,6 +47,24 @@ final class SystemOverlayHost: OverlayHost {
     guard let overlay = tabBars ?? (bars.isEmpty ? nil : makeTabBars()) else { return }
     tabBars = overlay
     overlay.update(bars)
+  }
+
+  func showOverview(_ snapshot: OverviewSnapshot, on displayFrame: CGRect) {
+    let overlay = overview ?? makeOverview()
+    overview = overlay
+    overlay.show(snapshot, on: displayFrame)
+  }
+
+  func hideOverview() {
+    overview?.hide()
+  }
+
+  private func makeOverview() -> OverviewOverlay {
+    let overlay = OverviewOverlay()
+    overlay.onSelect = { [weak self] window in self?.onOverviewSelect?(window) }
+    overlay.onKey = { [weak self] key in self?.onOverviewKey?(key) }
+    overlay.onDismiss = { [weak self] in self?.onOverviewDismiss?() }
+    return overlay
   }
 
   private func makeTabBars() -> TabBarOverlay {

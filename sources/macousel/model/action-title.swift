@@ -31,6 +31,9 @@ nonisolated extension Action {
     case .popOutRight: "Pop out to the right"
     case .toggleTabbed: "Tabbed column"
     case .toggleFloating: "Float or unfloat"
+    case .toggleOverview: "Show or hide overview"
+    case .sendToScratchpad: "Send window to scratchpad"
+    case .toggleScratchpad: "Show or hide scratchpad"
     }
   }
 

@@ -12,6 +12,14 @@ struct RaycastScriptTests {
     #expect(script.contains("open -g \"macousel://focus-left\"\n"))
   }
 
+  @Test func overviewAndScratchpadScriptsUseTheirTitlesAndCommandNames() {
+    let script = RaycastScriptExporter.script(for: .sendToScratchpad)
+    #expect(script.contains("# @raycast.title Send window to scratchpad\n"))
+    #expect(script.contains("open -g \"macousel://send-to-scratchpad\"\n"))
+    #expect(RaycastScriptExporter.fileName(for: .toggleOverview) == "macousel-toggle-overview.sh")
+    #expect(RaycastScriptExporter.script(for: .toggleScratchpad).contains("Show or hide scratchpad"))
+  }
+
   @Test func exportWritesOneExecutableScriptPerAction() throws {
     let directory = FileManager.default.temporaryDirectory
       .appendingPathComponent("macousel-raycast-\(UUID().uuidString)")

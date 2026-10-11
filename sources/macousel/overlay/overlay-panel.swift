@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 final class OverlayPanel: NSPanel {
+  var keyHandler: ((NSEvent) -> Bool)?
   private var isPresented = false
 
   init<Content: View>(content: Content, interactive: Bool, level: NSWindow.Level = .floating) {
@@ -23,7 +24,7 @@ final class OverlayPanel: NSPanel {
     contentView = hostingView
   }
 
-  override var canBecomeKey: Bool { false }
+  override var canBecomeKey: Bool { keyHandler != nil }
   override var canBecomeMain: Bool { false }
 
   func present(fadeDuration: TimeInterval) {
@@ -31,7 +32,13 @@ final class OverlayPanel: NSPanel {
     isPresented = true
     if !isVisible { alphaValue = fadeDuration > 0 && !Self.reducesMotion ? 0 : 1 }
     orderFrontRegardless()
+    if keyHandler != nil { makeKey() }
     fade(to: 1, duration: fadeDuration)
+  }
+
+  override func sendEvent(_ event: NSEvent) {
+    if event.type == .keyDown, keyHandler?(event) == true { return }
+    super.sendEvent(event)
   }
 
   func dismiss(fadeDuration: TimeInterval) {

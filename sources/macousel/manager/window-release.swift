@@ -6,24 +6,28 @@ final class WindowRelease {
   private let environment: any DesktopEnvironment
   private let restorer: WindowRestorer
   private let presenter: LayoutPresenter
+  private let scratchpad: Scratchpad
 
   init(
     state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
-    restorer: WindowRestorer, presenter: LayoutPresenter
+    restorer: WindowRestorer, presenter: LayoutPresenter, scratchpad: Scratchpad
   ) {
     self.state = state
     self.source = source
     self.environment = environment
     self.restorer = restorer
     self.presenter = presenter
+    self.scratchpad = scratchpad
   }
 
   func releaseEverything() {
     presenter.halt()
+    scratchpad.reset()
     restorer.restoreSaved(Array(source.windows.values), on: state.displays)
   }
 
   func restoreEverythingSaved() {
+    scratchpad.reset()
     restorer.restoreSaved(Array(source.windows.values), on: environment.displays)
   }
 

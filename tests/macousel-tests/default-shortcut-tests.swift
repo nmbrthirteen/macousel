@@ -35,6 +35,19 @@ struct DefaultShortcutTests {
         == [Hotkey(keyCode: UInt16(kVK_RightArrow), modifiers: every)])
   }
 
+  @Test func overviewAndScratchpadUseControlOptionWithOAndS() {
+    let base: Hotkey.Modifiers = [.control, .option]
+    #expect(
+      Action.defaultShortcuts[.toggleOverview]
+        == [Hotkey(keyCode: UInt16(kVK_ANSI_O), modifiers: base)])
+    #expect(
+      Action.defaultShortcuts[.toggleScratchpad]
+        == [Hotkey(keyCode: UInt16(kVK_ANSI_S), modifiers: base)])
+    #expect(
+      Action.defaultShortcuts[.sendToScratchpad]
+        == [Hotkey(keyCode: UInt16(kVK_ANSI_S), modifiers: base.union(.shift))])
+  }
+
   @Test func everyActionHasADefaultAndNoTwoActionsShareOne() {
     let keys = Action.allCases.flatMap { Action.defaultShortcuts[$0] ?? [] }
     #expect(Action.allCases.allSatisfy { Action.defaultShortcuts[$0]?.isEmpty == false })

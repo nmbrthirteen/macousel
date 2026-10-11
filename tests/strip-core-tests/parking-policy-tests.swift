@@ -44,6 +44,18 @@ struct ParkingPolicyTests {
     #expect(parked.minY == display.maxY - ParkingPolicy.visibleSliver)
   }
 
+  @Test func parkedFrameKeepsTheSizeAndSitsBeyondTheRightEdgeWhenItIsOpen() {
+    let frame = CGRect(x: 300, y: 100, width: 600, height: 560)
+    let parked = policy().parkedFrame(frame, toward: .right)
+    #expect(parked == CGRect(x: display.maxX - ParkingPolicy.visibleSliver, y: 100, width: 600, height: 560))
+  }
+
+  @Test func parkedFrameMatchesWhatTheLayoutParksForTheSameSide() throws {
+    let placement = try #require(placements(focusing: 1)[id(5)])
+    let expected = policy(right: true).frame(for: placement, in: testViewport)
+    #expect(policy(right: true).parkedFrame(placement.frame, toward: .right) == expected)
+  }
+
   @Test func partialWindowStaysInPlaceOnAnOpenEdge() throws {
     let partial = try placement(of: 1, scrolledTo: 300)
     #expect(policy().frame(for: partial, in: testViewport) == partial.frame)

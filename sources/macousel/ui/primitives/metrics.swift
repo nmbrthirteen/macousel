@@ -24,6 +24,22 @@ enum Metrics {
 
   enum Opacity {
     static let activeTab = 0.35
+    static let overviewBackdrop = 0.45
+    static let overviewBadge = 0.18
+  }
+
+  enum Overview {
+    static let maximumScale = 0.5
+    static let edgeMargin = 32.0
+    static let columnGap = 12.0
+    static let stackGap = 6.0
+    static let iconSide = 48.0
+    static let compactIconSide = 16.0
+    static let selectionStroke = 3.0
+    static let roomyCardMinimumHeight = 110.0
+    static let titleMinimumWidth = 72.0
+    static let badgeMinimumWidth = 22.0
+    static let titleLineLimit = 2
   }
 
   enum Size {

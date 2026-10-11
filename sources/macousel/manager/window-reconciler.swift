@@ -13,6 +13,7 @@ final class WindowReconciler {
   private let restorer: WindowRestorer
   private let recorder: SessionRecorder
   private let admissionFrames: AdmissionFrames
+  private let scratchpad: Scratchpad
   private let unresponsive: UnresponsiveApps
   private let fullScreen = FullScreenCache()
   private var absences = AbsenceTracker()
@@ -23,7 +24,8 @@ final class WindowReconciler {
   init(
     state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
     store: PreferencesStore, restorer: WindowRestorer, sessions: SessionStore,
-    admissionFrames: AdmissionFrames, now: @escaping () -> ContinuousClock.Instant
+    admissionFrames: AdmissionFrames, scratchpad: Scratchpad,
+    now: @escaping () -> ContinuousClock.Instant
   ) {
     self.state = state
     self.source = source
@@ -32,6 +34,7 @@ final class WindowReconciler {
     self.restorer = restorer
     recorder = SessionRecorder(state: state, source: source, store: store, sessions: sessions)
     self.admissionFrames = admissionFrames
+    self.scratchpad = scratchpad
     unresponsive = UnresponsiveApps(now: now)
   }
 
@@ -52,6 +55,8 @@ final class WindowReconciler {
     scheduleSessionSave()
   }
 
+  var capturedTitles: [CGWindowID: String] { recorder.capturedTitles }
+
   func invalidateFullScreen(_ window: CGWindowID) {
     fullScreen[window] = nil
   }
@@ -71,8 +76,8 @@ final class WindowReconciler {
   private func tileCandidates(onScreen: Set<CGWindowID>) -> [any WindowHandle] {
     let placed = placedWindows()
     return source.windows.values.filter { window in
-      onScreen.contains(window.id) && !floating.contains(window.id)
-        && !isRuledFloat(window) && qualifies(window, alreadyPlaced: placed)
+      onScreen.contains(window.id) && !isExcludedFromTiling(window)
+        && qualifies(window, alreadyPlaced: placed)
     }
   }
 
@@ -102,6 +107,10 @@ final class WindowReconciler {
     return true
   }
 
+  private func isExcludedFromTiling(_ window: any WindowHandle) -> Bool {
+    floating.contains(window.id) || scratchpad.holds(window.id) || isRuledFloat(window)
+  }
+
   private func isRuledFloat(_ window: any WindowHandle) -> Bool {
     store.preferences.rule(for: window.bundleIdentifier) == .float
   }
@@ -111,8 +120,8 @@ final class WindowReconciler {
     let removals = absences.removals(among: members) { member in
       if candidates.contains(member) { return .present }
       guard let window = source.window(member.rawValue) else { return .closed }
-      let isExcluded = floating.contains(member.rawValue) || isRuledFloat(window)
-      return onScreen.contains(member.rawValue) || isExcluded ? .excluded : .offScreen
+      return onScreen.contains(member.rawValue) || isExcludedFromTiling(window)
+        ? .excluded : .offScreen
     }
     guard !removals.isEmpty else { return }
     for key in state.activeKeys {
@@ -212,6 +221,7 @@ final class WindowReconciler {
     floating.formIntersection(alive)
     knownTileable.formIntersection(alive)
     fullScreen.retain(only: alive)
+    scratchpad.retain(only: alive)
     unresponsive.pruneExpired()
     recorder.retain(only: alive)
     restorer.retain(only: alive)

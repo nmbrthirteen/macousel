@@ -18,8 +18,14 @@ struct ActionCommandTests {
     #expect(Set(Action.allCases.map(\.commandName)).count == Action.allCases.count)
   }
 
-  @Test func thereAreFortySixActions() {
-    #expect(Action.allCases.count == 46)
+  @Test func thereAreFortyNineActions() {
+    #expect(Action.allCases.count == 49)
+  }
+
+  @Test func overviewAndScratchpadCommandNames() {
+    #expect(Action.toggleOverview.commandName == "toggle-overview")
+    #expect(Action.sendToScratchpad.commandName == "send-to-scratchpad")
+    #expect(Action.toggleScratchpad.commandName == "toggle-scratchpad")
   }
 
   @Test func unknownCommandNameIsRejected() {

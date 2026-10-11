@@ -26,6 +26,10 @@ public struct ParkingPolicy: Sendable, Equatable {
     }
   }
 
+  public func parkedFrame(_ frame: CGRect, toward side: HorizontalDirection) -> CGRect {
+    parked(frame, toward: side)
+  }
+
   public func isParked(_ placement: Placement, in viewport: CGRect) -> Bool {
     frame(for: placement, in: viewport) != placement.frame
   }

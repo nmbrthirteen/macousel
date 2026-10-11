@@ -41,38 +41,20 @@ final class WindowManager {
     store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults,
     polling: AccessibilityMonitor.Intervals = .standard
   ) {
-    let state = TilingState(store: store, environment: ports.environment, pointer: ports.pointer)
-    let overlays = OverlayPresenter(
-      state: state, source: ports.source, store: store, host: ports.overlays)
-    let admissionFrames = AdmissionFrames()
-    let clock = ports.clock
-    let presenter = LayoutPresenter(
-      state: state, source: ports.source, environment: ports.environment, store: store,
-      placer: ports.placer, clock: clock, overlays: overlays, admissionFrames: admissionFrames)
-    let boot = ports.environment.bootSessionIdentifier
-    let restorer = WindowRestorer(defaults: defaults, bootSession: boot)
-    let reconciler = WindowReconciler(
-      state: state, source: ports.source, environment: ports.environment, store: store,
-      restorer: restorer, sessions: SessionStore(defaults: defaults),
-      admissionFrames: admissionFrames, now: { clock.now })
-    focus = FocusDriver(
-      state: state, source: ports.source, store: store, pointer: ports.pointer, now: { clock.now })
+    let parts = ManagerComponents(store: store, ports: ports, defaults: defaults)
     self.store = store
     self.source = ports.source
     self.environment = ports.environment
-    self.state = state
-    self.presenter = presenter
-    release = WindowRelease(
-      state: state, source: ports.source, environment: ports.environment, restorer: restorer,
-      presenter: presenter)
+    state = parts.state
+    presenter = parts.presenter
+    reconciler = parts.reconciler
+    focus = parts.focus
+    release = parts.release
+    router = parts.router
     accessibility = AccessibilityMonitor(environment: ports.environment, intervals: polling)
-    self.reconciler = reconciler
-    router = CommandRouter(
-      state: state, source: ports.source, presenter: presenter, focus: focus,
-      reconciler: reconciler)
     let interactions = ManagerInteractions(
-      state: state, source: ports.source, presenter: presenter, focus: focus, store: store,
-      ports: ports)
+      state: parts.state, source: ports.source, presenter: parts.presenter, focus: parts.focus,
+      store: store, ports: ports)
     self.interactions = interactions
     inputs = InputBindings(store: store, shortcuts: ports.shortcuts, interactions: interactions)
     crashRecovery = ports.crashRecovery
@@ -104,6 +86,7 @@ final class WindowManager {
   }
 
   private func stopSystem() {
+    router.closeOverview()
     synchronization.cancel()
     focus.stop()
     crashRecovery.disarm()
@@ -159,8 +142,12 @@ final class WindowManager {
   private func connectEvents() {
     synchronization.onSynchronize = { [weak self] in self?.synchronize() }
     source.onEvent = { [weak self] event in self?.handle(event) }
-    environment.onSpaceChanged = { [weak self] in self?.synchronization.schedule() }
+    environment.onSpaceChanged = { [weak self] in
+      self?.router.closeOverview()
+      self?.synchronization.schedule()
+    }
     environment.onDisplaysChanged = { [weak self] in
+      self?.router.closeOverview()
       self?.presenter.invalidateAll()
       self?.synchronization.schedule()
     }
@@ -175,6 +162,7 @@ final class WindowManager {
   private func pause() {
     status = .paused
     logger.info("Tiling paused")
+    router.closeOverview()
     crashRecovery.disarm()
     synchronization.cancel()
     release.releaseEverything()

@@ -10,18 +10,26 @@ struct ReconcilerHarness {
   let source: FakeWindowSource
   let state: TilingState
   let reconciler: WindowReconciler
+  let scratchpad: Scratchpad
 
   init(suite: IsolatedDefaults) {
     let store = PreferencesStore(defaults: suite.defaults)
     store.preferences.restoresSession = false
     environment = FakeDesktopEnvironment(displays: [.fake()])
     source = FakeWindowSource(environment: environment)
-    state = TilingState(store: store, environment: environment, pointer: FakePointerDevice())
+    let pointer = FakePointerDevice()
+    state = TilingState(store: store, environment: environment, pointer: pointer)
+    let focus = FocusDriver(
+      state: state, source: source, store: store, pointer: pointer,
+      now: { ContinuousClock.now })
+    let scratchpad = Scratchpad(
+      state: state, source: source, placer: FakeFramePlacer(), focus: focus)
+    self.scratchpad = scratchpad
     reconciler = WindowReconciler(
       state: state, source: source, environment: environment, store: store,
       restorer: WindowRestorer(defaults: suite.defaults, bootSession: "boot-1"),
       sessions: SessionStore(defaults: suite.defaults), admissionFrames: AdmissionFrames(),
-      now: { ContinuousClock.now })
+      scratchpad: scratchpad, now: { ContinuousClock.now })
   }
 
   func key(space: UInt64 = 1) -> Workspace.Key {

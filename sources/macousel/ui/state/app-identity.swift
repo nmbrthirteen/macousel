@@ -5,18 +5,19 @@ struct AppIdentity: Identifiable {
   let name: String
   let icon: NSImage
 
-  init(id: String, name: String, icon: NSImage) {
+  init(id: String, name: String, icon: NSImage, iconSide: Double = Metrics.Size.appIcon) {
     self.id = id
     self.name = name
-    self.icon = icon.resized(toSide: Metrics.Size.appIcon)
+    self.icon = icon.resized(toSide: iconSide)
   }
 
-  init(bundleIdentifier: String) {
+  init(bundleIdentifier: String, iconSide: Double = Metrics.Size.appIcon) {
     let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
     self.init(
       id: bundleIdentifier,
       name: url.map { FileManager.default.displayName(atPath: $0.path) } ?? bundleIdentifier,
-      icon: url.map { NSWorkspace.shared.icon(forFile: $0.path) } ?? NSImage()
+      icon: url.map { NSWorkspace.shared.icon(forFile: $0.path) } ?? NSImage(),
+      iconSide: iconSide
     )
   }
 

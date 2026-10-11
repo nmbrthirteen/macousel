@@ -7,22 +7,35 @@ final class CommandRouter {
   private let presenter: LayoutPresenter
   private let focus: FocusDriver
   private let reconciler: WindowReconciler
+  private let scratchpad: Scratchpad
+  private let overview: OverviewController
 
   init(
     state: TilingState, source: any WindowSource, presenter: LayoutPresenter, focus: FocusDriver,
-    reconciler: WindowReconciler
+    reconciler: WindowReconciler, scratchpad: Scratchpad, overview: OverviewController
   ) {
     self.state = state
     self.source = source
     self.presenter = presenter
     self.focus = focus
     self.reconciler = reconciler
+    self.scratchpad = scratchpad
+    self.overview = overview
+    overview.onChoose = { [weak self] window in self?.reveal(window) }
+  }
+
+  func closeOverview() {
+    overview.close()
   }
 
   func perform(_ action: Action) {
+    if action != .toggleOverview { overview.close() }
     switch action {
     case .sendToNextDisplay: sendFocusedWindowToNextDisplay()
     case .toggleFloating: toggleFloatingOfFocusedWindow()
+    case .toggleOverview: overview.toggle()
+    case .sendToScratchpad: sendFocusedWindowToScratchpad()
+    case .toggleScratchpad: scratchpad.toggle()
     case .togglePaused: break
     default: performOnFocusedStrip(action)
     }
@@ -85,6 +98,25 @@ final class CommandRouter {
     state.scrollToFocus(key)
     state.scrollToFocus(destination)
     present(destination, activating: window)
+  }
+
+  private func sendFocusedWindowToScratchpad() {
+    guard let key = state.focusedKey ?? state.pointerKey,
+      let window = state.workspaces[key]?.strip.focusedWindow
+    else { return }
+    let displaced = scratchpad.window
+    guard scratchpad.send(window.rawValue, from: key) else { return }
+    for sent in [window.rawValue, displaced].compactMap({ $0 }) { presenter.invalidate(sent) }
+    reconciler.reconcile()
+    present(key, activating: state.workspaces[key]?.strip.focusedWindow)
+  }
+
+  private func reveal(_ window: WindowID) {
+    guard let key = state.activeKey(containing: window) else { return }
+    state.workspaces[key]?.strip.focus(window)
+    state.scrollToFocus(key)
+    present(key, activating: window)
+    reconciler.scheduleSessionSave()
   }
 
   private func toggleFloatingOfFocusedWindow() {
