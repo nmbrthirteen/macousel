@@ -5,7 +5,10 @@ final class OverlayPanel: NSPanel {
   var keyHandler: ((NSEvent) -> Bool)?
   private var isPresented = false
 
-  init<Content: View>(content: Content, interactive: Bool, level: NSWindow.Level = .floating) {
+  init<Content: View>(
+    content: Content, interactive: Bool, level: NSWindow.Level = .floating,
+    glassCornerRadius: CGFloat? = nil
+  ) {
     super.init(
       contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered,
       defer: true)
@@ -21,7 +24,14 @@ final class OverlayPanel: NSPanel {
 
     let hostingView = NSHostingView(rootView: content)
     hostingView.sizingOptions = []
-    contentView = hostingView
+    if let glassCornerRadius {
+      let glassView = NSGlassEffectView()
+      glassView.cornerRadius = glassCornerRadius
+      glassView.contentView = hostingView
+      contentView = glassView
+    } else {
+      contentView = hostingView
+    }
   }
 
   override var canBecomeKey: Bool { keyHandler != nil }

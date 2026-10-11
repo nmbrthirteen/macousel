@@ -4,17 +4,22 @@ import StripCore
 struct MinimapCell: Identifiable, Equatable {
   let id: WindowID
   let rect: CGRect
+  let cornerRadius: Double
   let isFocused: Bool
   let content: MinimapCellContent
-  let contentCenter: CGPoint
   let tabDots: [CGRect]
 
   init(
     id: WindowID, rect: CGRect, isFocused: Bool, columnNumber: Int, isLeadRow: Bool,
-    dotCount: Int, bundleIdentifier: String?
+    dotCount: Int, bundleIdentifier: String?, containerSize: CGSize, isStacked: Bool
   ) {
     self.id = id
     self.rect = rect
+    let concentricRadius = MinimapConcentricRadius.radius(of: rect, in: containerSize)
+    cornerRadius =
+      isStacked
+      ? min(concentricRadius, rect.height * Metrics.Minimap.stackedRowRadiusShare)
+      : concentricRadius
     self.isFocused = isFocused
     tabDots = Self.dots(count: dotCount, in: rect)
     let contentBottom =
@@ -22,9 +27,8 @@ struct MinimapCell: Identifiable, Equatable {
     let contentArea = CGRect(
       x: rect.minX, y: rect.minY, width: rect.width, height: contentBottom - rect.minY)
     content = MinimapCellContent(
-      size: contentArea.size, columnNumber: columnNumber, showsNumber: isLeadRow,
+      area: contentArea, columnNumber: columnNumber, isLeadRow: isLeadRow,
       bundleIdentifier: bundleIdentifier)
-    contentCenter = CGPoint(x: contentArea.midX, y: contentArea.midY)
   }
 
   private static func dots(count: Int, in rect: CGRect) -> [CGRect] {

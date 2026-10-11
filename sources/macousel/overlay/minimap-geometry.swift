@@ -1,13 +1,14 @@
 import CoreGraphics
 
 struct MinimapGeometry {
-  let capsuleWidth: Double
+  let containerWidth: Double
   let cells: [MinimapCell]
   let lens: CGRect
+  let lensRadius: Double
 
   init(snapshot: MinimapSnapshot) {
     let padding = Metrics.Minimap.horizontalPadding
-    capsuleWidth = min(
+    containerWidth = min(
       max(
         snapshot.contentWidth * Metrics.Minimap.stripScale + 2 * padding,
         Metrics.Minimap.minimumWidth),
@@ -17,18 +18,22 @@ struct MinimapGeometry {
     guard end > start else {
       cells = []
       lens = .zero
+      lensRadius = 0
       return
     }
-    let scale = (capsuleWidth - 2 * padding) / (end - start)
+    let containerSize = CGSize(width: containerWidth, height: Metrics.Minimap.height)
+    let scale = (containerWidth - 2 * padding) / (end - start)
     cells = snapshot.columns.enumerated().flatMap { index, column in
-      Self.cells(of: column, number: index + 1, start: start, scale: scale)
+      Self.cells(
+        of: column, number: index + 1, start: start, scale: scale, containerSize: containerSize)
     }
     let outset = Metrics.Minimap.lensOutset
+    let lensLeft = padding + (snapshot.viewportOffset - start) * scale - outset
+    let lensRight = lensLeft + snapshot.viewportWidth * scale + 2 * outset
     lens = CGRect(
-      x: padding + (snapshot.viewportOffset - start) * scale - outset,
-      y: Metrics.Minimap.verticalPadding - outset,
-      width: snapshot.viewportWidth * scale + 2 * outset,
-      height: Self.innerHeight + 2 * outset)
+      x: lensLeft.rounded(), y: Metrics.Minimap.verticalPadding - outset,
+      width: lensRight.rounded() - lensLeft.rounded(), height: Self.innerHeight + 2 * outset)
+    lensRadius = MinimapConcentricRadius.radius(of: lens, in: containerSize)
   }
 
   private static var innerHeight: Double {
@@ -36,11 +41,13 @@ struct MinimapGeometry {
   }
 
   private static func cells(
-    of column: MinimapSnapshot.Column, number: Int, start: Double, scale: Double
+    of column: MinimapSnapshot.Column, number: Int, start: Double, scale: Double,
+    containerSize: CGSize
   ) -> [MinimapCell] {
     let gap = Metrics.Minimap.columnGap
-    let x = Metrics.Minimap.horizontalPadding + (column.x - start) * scale + gap / 2
-    let width = max(column.width * scale - gap, 1)
+    let rawLeft = Metrics.Minimap.horizontalPadding + (column.x - start) * scale + gap / 2
+    let left = rawLeft.rounded()
+    let width = max((rawLeft + column.width * scale - gap).rounded() - left, 1)
     guard let first = column.rows.first else { return [] }
     let active = column.rows.indices.contains(column.activeRow) ? column.rows[column.activeRow] : first
     let drawn = column.isTabbed ? [active] : column.rows
@@ -52,16 +59,19 @@ struct MinimapGeometry {
 
     var y = Metrics.Minimap.verticalPadding
     return drawn.enumerated().map { row, entry in
-      let height = max(available * entry.height / total, 1)
-      defer { y += height + rowGap }
+      let rawHeight = available * entry.height / total
+      let top = y.rounded()
+      let height = max((y + rawHeight).rounded() - top, 1)
+      defer { y += rawHeight + rowGap }
       return MinimapCell(
         id: identities[row],
-        rect: CGRect(x: x, y: y, width: width, height: height),
+        rect: CGRect(x: left, y: top, width: width, height: height),
         isFocused: column.isFocused,
         columnNumber: number,
         isLeadRow: row == 0,
         dotCount: column.isTabbed ? min(column.rows.count, Metrics.Minimap.tabDotLimit) : 0,
-        bundleIdentifier: entry.bundleIdentifier)
+        bundleIdentifier: entry.bundleIdentifier, containerSize: containerSize,
+        isStacked: drawn.count > 1)
     }
   }
 }

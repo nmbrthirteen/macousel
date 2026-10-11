@@ -21,13 +21,13 @@ struct MinimapGeometryTests {
   }
 
   @Test(arguments: [(1000.0, 140.0), (2000.0, 228.0), (3000.0, 328.0), (20000.0, 360.0)])
-  func capsuleWidthFollowsTheContentWithinBounds(content: Double, expected: Double) {
+  func containerWidthFollowsTheContentWithinBounds(content: Double, expected: Double) {
     var snapshot = MinimapSnapshots.strip(columns: 2)
     snapshot.contentWidth = content
     let geometry = MinimapGeometry(snapshot: snapshot)
-    #expect(abs(geometry.capsuleWidth - expected) < 0.001)
-    #expect(geometry.capsuleWidth >= Metrics.Minimap.minimumWidth)
-    #expect(geometry.capsuleWidth <= Metrics.Minimap.maximumWidth)
+    #expect(abs(geometry.containerWidth - expected) < 0.001)
+    #expect(geometry.containerWidth >= Metrics.Minimap.minimumWidth)
+    #expect(geometry.containerWidth <= Metrics.Minimap.maximumWidth)
   }
 
   @Test func lensCoversTheViewportShare() {
@@ -44,12 +44,12 @@ struct MinimapGeometryTests {
     #expect(abs(geometry.lens.minX - 61) < 0.001)
   }
 
-  @Test func lensStaysInsideTheCapsuleWhenTheViewportIsInsideTheContent() {
+  @Test func lensStaysInsideTheContainerWhenTheViewportIsInsideTheContent() {
     for offset in [0.0, 400, 992] {
       let geometry = MinimapGeometry(
         snapshot: MinimapSnapshots.strip(columns: 4, viewportOffset: offset))
       #expect(geometry.lens.minX >= 0)
-      #expect(geometry.lens.maxX <= geometry.capsuleWidth)
+      #expect(geometry.lens.maxX <= geometry.containerWidth)
     }
   }
 
@@ -63,7 +63,8 @@ struct MinimapGeometryTests {
   @Test func columnsAreSeparatedByTheColumnGap() {
     let geometry = MinimapGeometry(snapshot: MinimapSnapshots.strip(columns: 3))
     let gap = geometry.cells[1].rect.minX - geometry.cells[0].rect.maxX
-    #expect(abs(gap - (Metrics.Minimap.columnGap + 8 * 0.1)) < 0.001)
+    #expect(abs(gap - (Metrics.Minimap.columnGap + 8 * 0.1)) <= 1)
+    #expect(gap == gap.rounded())
   }
 
   @Test func stackedWindowsBecomeRowsSizedByTheirShares() {
@@ -81,7 +82,8 @@ struct MinimapGeometryTests {
     let cells = MinimapGeometry(snapshot: snapshot).cells
     #expect(cells.count == 2)
     #expect(cells[0].id == WindowID(1))
-    #expect(cells[0].content == .icon(bundleIdentifier: "app.2"))
+    #expect(cells[0].content.icon?.bundleIdentifier == "app.2")
+    #expect(cells[0].content.number?.value == 1)
   }
 
   @Test(arguments: [(2, 2), (3, 3), (5, 3)] as [(UInt32, Int)])
@@ -90,7 +92,7 @@ struct MinimapGeometryTests {
     let cell = MinimapGeometry(snapshot: snapshot).cells[0]
     #expect(cell.tabDots.count == dots)
     #expect(cell.tabDots.allSatisfy { cell.rect.contains($0) })
-    #expect(cell.tabDots.allSatisfy { $0.minY > cell.contentCenter.y })
+    #expect(cell.tabDots.allSatisfy { $0.minY > cell.rect.midY })
     #expect(abs(cell.tabDots.map(\.midX).reduce(0, +) / Double(dots) - cell.rect.midX) < 0.001)
   }
 
@@ -99,43 +101,132 @@ struct MinimapGeometryTests {
     #expect(cells.allSatisfy { $0.tabDots.isEmpty })
   }
 
-  @Test func wideCellsShowTheAppIcon() {
-    let cells = MinimapGeometry(snapshot: MinimapSnapshots.strip(columns: 4)).cells
-    #expect(cells.allSatisfy { $0.content == .icon(bundleIdentifier: "com.example.app") })
+  private func content(
+    width: Double, height: Double = 26, number: Int = 3, lead: Bool = true,
+    app: String? = "a"
+  ) -> MinimapCellContent {
+    MinimapCellContent(
+      area: CGRect(x: 10, y: 5, width: width, height: height), columnNumber: number,
+      isLeadRow: lead, bundleIdentifier: app)
   }
 
-  @Test func narrowCellsShowTheColumnNumberUpToNine() {
+  @Test func wideCellsShowTheIconAndTheNumberTogether() {
+    let cells = MinimapGeometry(snapshot: MinimapSnapshots.strip(columns: 4)).cells
+    #expect(cells.allSatisfy { $0.content.icon?.bundleIdentifier == "com.example.app" })
+    #expect(cells.map(\.content.number?.value) == [1, 2, 3, 4])
+  }
+
+  @Test func theIconAndNumberPairIsCentredWithTheIconFirst() throws {
+    let area = CGRect(x: 10, y: 5, width: Metrics.Minimap.pairMinimumWidth, height: 26)
+    let result = MinimapCellContent(
+      area: area, columnNumber: 3, isLeadRow: true, bundleIdentifier: "a")
+    let icon = try #require(result.icon)
+    let number = try #require(result.number)
+    let left = icon.center.x - Metrics.Minimap.iconSide / 2
+    let right = number.center.x + Metrics.Minimap.numberSlotWidth / 2
+    #expect(abs((left + right) / 2 - area.midX) < 0.001)
+    let gap = (number.center.x - Metrics.Minimap.numberSlotWidth / 2) - (icon.center.x + Metrics.Minimap.iconSide / 2)
+    #expect(abs(gap - Metrics.Minimap.pairGap) < 0.001)
+    #expect(icon.center.y == area.midY)
+    #expect(number.center.y == area.midY)
+  }
+
+  @Test func justBelowThePairWidthTheNumberStandsAlone() throws {
+    let result = content(width: Metrics.Minimap.pairMinimumWidth - 0.1)
+    #expect(result.icon == nil)
+    let number = try #require(result.number)
+    #expect(number.value == 3)
+    #expect(number.center == CGPoint(x: 10 + (Metrics.Minimap.pairMinimumWidth - 0.1) / 2, y: 18))
+  }
+
+  @Test func atThePairWidthBothAppear() {
+    let result = content(width: Metrics.Minimap.pairMinimumWidth)
+    #expect(result.icon != nil)
+    #expect(result.number?.value == 3)
+  }
+
+  @Test(arguments: [12.0, 20.0, 33.9])
+  func narrowCellsShowOnlyTheNumber(width: Double) {
+    let result = content(width: width)
+    #expect(result.icon == nil)
+    #expect(result.number?.value == 3)
+  }
+
+  @Test func cellsNarrowerThanTheNumberMinimumShowNothing() {
+    #expect(content(width: Metrics.Minimap.numberMinimumWidth - 0.1) == .empty)
+  }
+
+  @Test func aWideLeadCellWithoutABundleIdentifierShowsTheNumberAlone() {
+    let result = content(width: 60, app: nil)
+    #expect(result.icon == nil)
+    #expect(result.number?.value == 3)
+  }
+
+  @Test func aLeadCellTooShortForTheIconKeepsTheNumber() {
+    let result = content(width: 60, height: 12)
+    #expect(result.icon == nil)
+    #expect(result.number?.value == 3)
+  }
+
+  @Test func lowerRowsShowTheirIconAloneWhenWideAndTallEnough() {
+    let result = content(width: 60, lead: false)
+    #expect(result.icon?.bundleIdentifier == "a")
+    #expect(result.number == nil)
+    #expect(content(width: 25.9, lead: false) == .empty)
+    #expect(content(width: 60, height: 17.9, lead: false) == .empty)
+  }
+
+  @Test func columnsPastTheNinthShowNoNumber() {
+    #expect(content(width: 60, number: 9).number?.value == 9)
+    let tenth = content(width: 60, number: 10)
+    #expect(tenth.number == nil)
+    #expect(tenth.icon?.bundleIdentifier == "a")
+    #expect(content(width: 20, number: 10) == .empty)
+  }
+
+  @Test func narrowStripColumnsNumberOneToNineThenNothing() {
     let snapshot = MinimapSnapshots.strip(columns: 12, columnWidth: 292, pitch: 300)
     let cells = MinimapGeometry(snapshot: snapshot).cells
     #expect(cells[0].rect.width < Metrics.Minimap.iconMinimumWidth)
     #expect(cells[0].rect.width >= Metrics.Minimap.numberMinimumWidth)
-    #expect(cells.prefix(9).map(\.content) == (1...9).map { .number($0) })
-    #expect(cells[9].content == .none)
+    #expect(cells.prefix(9).map(\.content.number?.value) == (1...9).map { $0 })
+    #expect(cells.prefix(9).allSatisfy { $0.content.icon == nil })
+    #expect(cells[9...].allSatisfy { $0.content == .empty })
   }
 
-  @Test(arguments: [
-    (26.0, MinimapCellContent.icon(bundleIdentifier: "a")),
-    (25.9, .number(3)), (12.0, .number(3)), (11.9, .none),
-  ])
-  func contentFollowsTheCellWidth(width: Double, expected: MinimapCellContent) {
-    let content = MinimapCellContent(
-      size: CGSize(width: width, height: 26), columnNumber: 3, showsNumber: true,
-      bundleIdentifier: "a")
-    #expect(content == expected)
+  @Test func theTopRowOfAStackedColumnCarriesTheNumberAndItsIcon() {
+    let snapshot = MinimapSnapshots.strip(columns: 2, replacing: [0: stacked(heights: [300, 100])])
+    let cells = MinimapGeometry(snapshot: snapshot).cells.filter { $0.rect.minX < 60 }
+    #expect(cells[0].content.number?.value == 1)
+    #expect(cells[0].content.icon != nil)
+    #expect(cells[1].content == .empty)
   }
 
-  @Test func aWideCellWithoutABundleIdentifierFallsBackToTheNumber() {
-    let content = MinimapCellContent(
-      size: CGSize(width: 40, height: 26), columnNumber: 2, showsNumber: true,
-      bundleIdentifier: nil)
-    #expect(content == .number(2))
+  @Test func aTallLowerRowShowsItsIconWithoutTheNumber() {
+    let snapshot = MinimapSnapshots.strip(columns: 2, replacing: [0: stacked(heights: [100, 300])])
+    let cells = MinimapGeometry(snapshot: snapshot).cells.filter { $0.rect.minX < 60 }
+    #expect(cells[0].content == .empty)
+    #expect(cells[1].content.number == nil)
+    #expect(cells[1].content.icon?.bundleIdentifier == "com.example.app")
   }
 
   @Test func rowsTooShortForAnIconKeepOnlyTheLeadNumber() {
     let snapshot = MinimapSnapshots.strip(columns: 2, replacing: [0: stacked(heights: [1, 1])])
     let cells = MinimapGeometry(snapshot: snapshot).cells.filter { $0.rect.minX < 60 }
-    #expect(cells[0].content == .number(1))
-    #expect(cells[1].content == .none)
+    #expect(cells[0].content.number?.value == 1)
+    #expect(cells[0].content.icon == nil)
+    #expect(cells[1].content == .empty)
+  }
+
+  @Test func cellFramesSitOnWholePoints() {
+    let snapshot = MinimapSnapshots.strip(
+      columns: 7, replacing: [2: stacked(heights: [130, 270])])
+    let cells = MinimapGeometry(snapshot: snapshot).cells
+    for rect in cells.map(\.rect) {
+      for value in [rect.minX, rect.minY, rect.width, rect.height] {
+        #expect(value == value.rounded())
+      }
+    }
   }
 
   @Test func cellIdentitiesAreTheWindowsAndSurviveFocusAndScrolling() {
@@ -151,12 +242,50 @@ struct MinimapGeometryTests {
     let geometry = MinimapGeometry(snapshot: .empty)
     #expect(geometry.cells.isEmpty)
     #expect(geometry.lens == .zero)
-    #expect(geometry.capsuleWidth == Metrics.Minimap.minimumWidth)
+    #expect(geometry.containerWidth == Metrics.Minimap.minimumWidth)
   }
 
-  @Test func cellsStayInsideTheCapsule() {
+  @Test func cellsStayInsideTheContainer() {
     let geometry = MinimapGeometry(snapshot: MinimapSnapshots.strip(columns: 12))
-    #expect(geometry.cells.allSatisfy { $0.rect.minX >= 0 && $0.rect.maxX <= geometry.capsuleWidth })
+    #expect(geometry.cells.allSatisfy { $0.rect.minX >= 0 && $0.rect.maxX <= geometry.containerWidth })
     #expect(geometry.cells.allSatisfy { $0.rect.minY >= 0 && $0.rect.maxY <= Metrics.Minimap.height })
+  }
+
+  @Test func thePanelFrameEqualsTheContainerFrameCentredAtTheDisplayBottom() {
+    let display = CGRect(x: 100, y: 50, width: 1000, height: 800)
+    let frame = MinimapPanelFrame.frame(containerWidth: 228, on: display)
+    #expect(frame.width == 228)
+    #expect(abs(frame.height - Metrics.Minimap.height) < 0.001)
+    #expect(abs(frame.midX - display.midX) < 0.001)
+    #expect(abs(frame.maxY - (display.maxY - Metrics.Spacing.spacious)) < 0.001)
+  }
+
+  @Test func cellRadiusIsTheContainerRadiusMinusTheInset() {
+    let cells = MinimapGeometry(snapshot: MinimapSnapshots.strip(columns: 4)).cells
+    let expected = Metrics.Minimap.containerRadius - Metrics.Minimap.verticalPadding
+    #expect(cells.allSatisfy { abs($0.cornerRadius - expected) < 0.001 })
+  }
+
+  @Test func lensRadiusIsTheContainerRadiusMinusItsOwnInset() {
+    let geometry = MinimapGeometry(snapshot: MinimapSnapshots.strip(columns: 4))
+    let inset = Metrics.Minimap.verticalPadding - Metrics.Minimap.lensOutset
+    #expect(abs(geometry.lensRadius - (Metrics.Minimap.containerRadius - inset)) < 0.001)
+    #expect(geometry.lensRadius < Metrics.Minimap.containerRadius)
+    #expect(geometry.lensRadius > MinimapGeometry(snapshot: MinimapSnapshots.strip(columns: 4)).cells[0].cornerRadius)
+  }
+
+  @Test(arguments: [(0.0, 14.0), (5.0, 9.0), (10.0, 4.0), (13.0, 4.0)])
+  func concentricRadiusShrinksByTheInsetDownToTheFloor(inset: Double, expected: Double) {
+    let container = CGSize(width: 200, height: 40)
+    let rect = CGRect(x: inset, y: inset, width: 50, height: 10)
+    #expect(abs(MinimapConcentricRadius.radius(of: rect, in: container) - expected) < 0.001)
+  }
+
+  @Test func shortStackedRowsCapTheirRadiusAtAThirdOfTheirHeight() {
+    let snapshot = MinimapSnapshots.strip(columns: 2, replacing: [0: stacked(heights: [100, 300])])
+    let cells = MinimapGeometry(snapshot: snapshot).cells.filter { $0.rect.minX < 60 }
+    #expect(abs(cells[0].cornerRadius - cells[0].rect.height / 3) < 0.001)
+    #expect(cells[1].cornerRadius <= cells[1].rect.height / 3 + 0.001)
+    #expect(cells[1].cornerRadius < Metrics.Minimap.containerRadius - Metrics.Minimap.verticalPadding)
   }
 }

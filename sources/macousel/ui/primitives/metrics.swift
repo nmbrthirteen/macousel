@@ -28,7 +28,7 @@ enum Metrics {
     static let minimapLens = 0.10
     static let minimapLensBorder = 0.30
     static let minimapTabDot = 0.5
-    static let minimapCaption = 0.6
+    static let minimapNumber = 0.85
   }
 
   enum Minimap {
@@ -40,22 +40,24 @@ enum Metrics {
     static let stripScale = 0.1
     static let columnGap = 3.0
     static let rowGap = 2.0
-    static let cellRadius = 5.0
-    static let capsuleRadius = 20.0
+    static let containerRadius = 14.0
+    static let concentricRadiusFloor = 4.0
+    static let stackedRowRadiusShare = 1.0 / 3.0
     static let lensOutset = 3.0
-    static let lensRadius = 8.0
     static let iconSide = 14.0
     static let iconMinimumWidth = 26.0
     static let iconMinimumHeight = 18.0
     static let numberMinimumWidth = 12.0
     static let numberMinimumHeight = 10.0
     static let highestNumberedColumn = 9
-    static let numberFontSize = 10.0
+    static let pairMinimumWidth = 34.0
+    static let pairGap = 3.0
+    static let numberSlotWidth = 7.0
+    static let numberFontSize = 11.0
     static let tabDotDiameter = 3.0
     static let tabDotGap = 2.0
     static let tabDotInset = 2.0
     static let tabDotLimit = 3
-    static let panelMargin = 16.0
     static let hiddenScale = 0.96
   }
 
