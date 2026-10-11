@@ -59,7 +59,7 @@ final class Updater {
 
   func startAutomaticChecks() {
     guard scheduledChecks == nil else { return }
-    scheduledChecks = Task { await runAutomaticChecks() }
+    scheduledChecks = Task(priority: .utility) { await runAutomaticChecks() }
   }
 
   func runAutomaticChecks() async {

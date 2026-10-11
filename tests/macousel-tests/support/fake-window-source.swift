@@ -52,6 +52,13 @@ final class FakeWindowSource: WindowSource {
     onEvent?(.minimized(window.id))
   }
 
+  func hideApp(_ app: FakeApp) {
+    for window in tracked.values where window.pid == app.pid {
+      environment.hide(window.id)
+    }
+    onEvent?(.appHidden(app.pid))
+  }
+
   func restore(_ window: FakeWindow) {
     environment.show(window.id)
     onEvent?(.restored(window.id))

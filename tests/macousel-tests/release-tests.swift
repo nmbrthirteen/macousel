@@ -16,6 +16,17 @@ struct ReleaseTests {
     #expect(
       release.archiveURL.absoluteString
         == "https://github.com/nmbrthirteen/macousel/releases/download/v0.2.0/Macousel.zip")
+    #expect(
+      release.signatureURL.absoluteString
+        == "https://github.com/nmbrthirteen/macousel/releases/download/v0.2.0/Macousel.zip.sig")
+  }
+
+  @Test func rejectsAReleaseWithoutTheSignatureAsset() {
+    let data = ReleaseJSON.data(assets: ["Macousel.dmg", "Macousel.zip", "install.sh"])
+
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode(Release.self, from: data)
+    }
   }
 
   @Test func rejectsAReleaseWithoutTheZipAsset() {

@@ -57,6 +57,14 @@ struct GitHubReleaseFeedTests {
     await #expect(throws: UpdateFeedError.unexpectedResponse) { try await feed.latestRelease() }
   }
 
+  @Test func mapsAReleaseWithoutTheSignatureToUnexpectedResponse() async {
+    let feed = GitHubReleaseFeed(fetch: { _ in
+      ReleaseJSON.data(assets: ["Macousel.dmg", "Macousel.zip"])
+    })
+
+    await #expect(throws: UpdateFeedError.unexpectedResponse) { try await feed.latestRelease() }
+  }
+
   @Test func everyErrorSaysWhatToDoNext() {
     let errors: [UpdateFeedError] = [.noConnection, .rateLimited, .unexpectedResponse]
 

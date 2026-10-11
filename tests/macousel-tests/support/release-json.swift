@@ -4,7 +4,7 @@ import Testing
 @testable import Macousel
 
 enum ReleaseJSON {
-  static func make(tag: String = "v0.2.0", assets: [String] = ["Macousel.dmg", "Macousel.zip", "install.sh"]) -> String {
+  static func make(tag: String = "v0.2.0", assets: [String] = ["Macousel.dmg", "Macousel.zip", "Macousel.zip.sig", "install.sh"]) -> String {
     let entries = assets.map { name in
       """
       {"name": "\(name)", "size": 1024, "state": "uploaded", \
@@ -19,7 +19,7 @@ enum ReleaseJSON {
       """
   }
 
-  static func data(tag: String = "v0.2.0", assets: [String] = ["Macousel.dmg", "Macousel.zip", "install.sh"]) -> Data {
+  static func data(tag: String = "v0.2.0", assets: [String] = ["Macousel.dmg", "Macousel.zip", "Macousel.zip.sig", "install.sh"]) -> Data {
     Data(make(tag: tag, assets: assets).utf8)
   }
 
@@ -29,6 +29,7 @@ enum ReleaseJSON {
       version: try #require(AppVersion(version)),
       pageURL: try #require(URL(string: "\(base)/tag/v\(version)")),
       notes: "Notes",
-      archiveURL: try #require(URL(string: "\(base)/download/v\(version)/Macousel.zip")))
+      archiveURL: try #require(URL(string: "\(base)/download/v\(version)/Macousel.zip")),
+      signatureURL: try #require(URL(string: "\(base)/download/v\(version)/Macousel.zip.sig")))
   }
 }

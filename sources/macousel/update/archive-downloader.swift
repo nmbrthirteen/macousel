@@ -4,9 +4,11 @@ struct ArchiveDownloader {
   typealias Download = @Sendable (URL) async throws -> (file: URL, finalURL: URL)
 
   static let live: Download = { url in
-    let (file, response) = try await URLSession.shared.download(from: url)
-    if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-      throw HTTPStatusError(code: http.statusCode)
+    let (file, response) = try await URLSession.shared.download(
+      from: url, delegate: RedirectGuard())
+    if let http = response as? HTTPURLResponse {
+      if (300..<400).contains(http.statusCode) { throw UpdateInstallError.untrustedDownload }
+      if !(200..<300).contains(http.statusCode) { throw HTTPStatusError(code: http.statusCode) }
     }
     return (file, response.url ?? url)
   }
@@ -17,19 +19,21 @@ struct ArchiveDownloader {
     self.download = download
   }
 
-  func fetch(_ url: URL, into directory: URL) async throws -> URL {
-    guard DownloadPolicy.allows(url) else { throw UpdateInstallError.untrustedDownload }
+  func fetch(_ url: URL, into directory: URL, named name: String) async throws -> URL {
+    guard DownloadPolicy.allowsInitial(url) else { throw UpdateInstallError.untrustedDownload }
     let result: (file: URL, finalURL: URL)
     do {
       result = try await download(url)
+    } catch let error as UpdateInstallError {
+      throw error
     } catch {
       throw UpdateInstallError.downloadFailed
     }
-    guard DownloadPolicy.allows(result.finalURL) else {
+    guard DownloadPolicy.allowsDestination(result.finalURL, requested: url) else {
       try? FileManager.default.removeItem(at: result.file)
       throw UpdateInstallError.untrustedDownload
     }
-    let destination = directory.appendingPathComponent(Release.archiveName)
+    let destination = directory.appendingPathComponent(name)
     try FileManager.default.moveItem(at: result.file, to: destination)
     return destination
   }

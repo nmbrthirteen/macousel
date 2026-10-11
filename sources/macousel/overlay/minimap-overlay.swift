@@ -63,65 +63,36 @@ struct MinimapView: View {
   let model: MinimapModel
 
   private static let padding = Metrics.Spacing.regular + Metrics.Spacing.hairline
-  private static let columnGap = 1.5
-  private static let widestNumberedColumn = 9
-  private static let narrowestNumberedWidth = 14.0
   private static let numberFontSize = 9.0
+  private static let restingColumnOpacity = 0.3
 
   var body: some View {
-    Canvas { context, size in
-      draw(model.snapshot, in: context, size: size)
+    GeometryReader { proxy in
+      let geometry = MinimapGeometry(snapshot: model.snapshot, size: proxy.size)
+      ZStack(alignment: .topLeading) {
+        ForEach(geometry.cells) { cell in
+          RoundedRectangle(cornerRadius: Metrics.Radius.column)
+            .fill(cell.isFocused ? Color.accentColor : Color.primary.opacity(Self.restingColumnOpacity))
+            .frame(width: cell.rect.width, height: cell.rect.height)
+            .offset(x: cell.rect.minX, y: cell.rect.minY)
+        }
+        ForEach(geometry.labels) { label in
+          Text("\(label.number)")
+            .font(
+              .system(size: Self.numberFontSize, weight: .semibold, design: .rounded)
+                .monospacedDigit()
+            )
+            .foregroundStyle(Color.primary)
+            .position(label.center)
+        }
+        RoundedRectangle(cornerRadius: Metrics.Radius.viewport)
+          .strokeBorder(Color.primary, lineWidth: Metrics.Size.outlineStroke)
+          .frame(width: geometry.viewport.width, height: geometry.viewport.height)
+          .offset(x: geometry.viewport.minX, y: geometry.viewport.minY)
+      }
     }
     .padding(Self.padding)
     .overlaySurface(in: RoundedRectangle(cornerRadius: Metrics.Radius.panel))
     .accessibilityHidden(true)
-  }
-
-  private func draw(_ snapshot: MinimapSnapshot, in context: GraphicsContext, size: CGSize) {
-    let start = min(0, snapshot.viewportOffset)
-    let end = max(snapshot.contentWidth, snapshot.viewportOffset + snapshot.viewportWidth)
-    let span = end - start
-    guard span > 0 else { return }
-    let scale = size.width / span
-
-    for (index, column) in snapshot.columns.enumerated() {
-      let x = (column.x - start) * scale
-      let width = max(column.width * scale - Self.columnGap, 1)
-      let shares = column.rowShares.isEmpty ? [1] : column.rowShares
-      let total = shares.reduce(0, +)
-      guard total > 0 else { continue }
-      let usableHeight = size.height - Self.columnGap * Double(shares.count - 1)
-      let color: Color = column.isFocused ? .accentColor : .primary.opacity(0.3)
-
-      var y = 0.0
-      for share in shares {
-        let height = max(usableHeight * share / total, 1)
-        let rect = CGRect(x: x, y: y, width: width, height: height)
-        context.fill(Path(roundedRect: rect, cornerRadius: Metrics.Radius.column), with: .color(color))
-        y += height + Self.columnGap
-      }
-      drawNumber(
-        index + 1, centeredAt: CGPoint(x: x + width / 2, y: size.height / 2), columnWidth: width,
-        in: context)
-    }
-
-    let viewport = CGRect(
-      x: (snapshot.viewportOffset - start) * scale, y: 0,
-      width: snapshot.viewportWidth * scale, height: size.height)
-    context.stroke(
-      Path(roundedRect: viewport.insetBy(dx: 0.5, dy: 0.5), cornerRadius: Metrics.Radius.viewport),
-      with: .color(.primary), lineWidth: Metrics.Size.outlineStroke)
-  }
-
-  private func drawNumber(
-    _ number: Int, centeredAt center: CGPoint, columnWidth: Double, in context: GraphicsContext
-  ) {
-    guard number <= Self.widestNumberedColumn, columnWidth >= Self.narrowestNumberedWidth else {
-      return
-    }
-    let label = Text("\(number)")
-      .font(.system(size: Self.numberFontSize, weight: .semibold, design: .rounded).monospacedDigit())
-      .foregroundStyle(Color.primary)
-    context.draw(label, at: center, anchor: .center)
   }
 }

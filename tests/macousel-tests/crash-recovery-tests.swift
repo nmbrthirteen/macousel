@@ -126,4 +126,38 @@ struct CrashRecoveryTests {
     #expect(await fixture.becomes { fixture.frames(of: row) == originals })
     #expect(fixture.manager.status == .paused)
   }
+
+  @Test func aWindowThatAttachesAfterRecoveryStartedIsRestoredToo() throws {
+    let (suite, originals, tiled) = try crashedSession()
+    let fixture = try ControllerFixture(suite: suite)
+    fixture.crashRecovery.isRecoveringFromCrash = true
+    fixture.launch()
+    let late = FakeWindow(
+      id: 3, app: .editor, title: "Window 3", frame: try #require(tiled[3]))
+    let stranger = FakeWindow(
+      id: 99, app: .browser, title: "Window 99",
+      frame: CGRect(x: 10, y: 10, width: 300, height: 300))
+
+    fixture.source.add(late, activating: false)
+    fixture.source.add(stranger, activating: false)
+
+    #expect(late.frame == originals[3])
+    #expect(stranger.framesSet.isEmpty)
+    #expect(fixture.manager.status == .paused)
+  }
+
+  @Test func windowsArrivingAfterTilingResumedAreLeftToTheTiler() throws {
+    let (suite, _, tiled) = try crashedSession()
+    let fixture = try ControllerFixture(suite: suite)
+    fixture.crashRecovery.isRecoveringFromCrash = true
+    fixture.launch()
+    let hotkey = try #require(pauseHotkeys.first)
+    fixture.shortcuts.trigger(hotkey)
+    let late = FakeWindow(
+      id: 3, app: .editor, title: "Window 3", frame: try #require(tiled[3]))
+
+    fixture.source.add(late, activating: false)
+
+    #expect(late.framesSet.isEmpty)
+  }
 }

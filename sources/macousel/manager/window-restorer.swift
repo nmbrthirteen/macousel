@@ -10,14 +10,21 @@ final class WindowRestorer {
     var frame: CGRect
   }
 
+  private struct Snapshot: Codable {
+    var bootSession: String
+    var frames: [CGWindowID: SavedFrame]
+  }
+
   private static let defaultsKey = "originalFrames"
 
   private let defaults: UserDefaults
+  private let bootSession: String
   private var originalFrames: [CGWindowID: SavedFrame]
 
-  init(defaults: UserDefaults = .standard) {
+  init(defaults: UserDefaults = .standard, bootSession: String) {
     self.defaults = defaults
-    originalFrames = Self.load(from: defaults)
+    self.bootSession = bootSession
+    originalFrames = Self.load(from: defaults, bootSession: bootSession)
   }
 
   func remember(_ window: any WindowHandle) {
@@ -39,15 +46,19 @@ final class WindowRestorer {
     persist()
   }
 
-  private static func load(from defaults: UserDefaults) -> [CGWindowID: SavedFrame] {
+  private static func load(from defaults: UserDefaults, bootSession: String) -> [CGWindowID:
+    SavedFrame]
+  {
     guard let data = defaults.data(forKey: defaultsKey),
-      let saved = try? JSONDecoder().decode([CGWindowID: SavedFrame].self, from: data)
+      let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data),
+      snapshot.bootSession == bootSession
     else { return [:] }
-    return saved
+    return snapshot.frames
   }
 
   private func persist() {
-    guard let data = try? JSONEncoder().encode(originalFrames) else { return }
+    let snapshot = Snapshot(bootSession: bootSession, frames: originalFrames)
+    guard let data = try? JSONEncoder().encode(snapshot) else { return }
     defaults.set(data, forKey: Self.defaultsKey)
   }
 

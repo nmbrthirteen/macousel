@@ -3,6 +3,7 @@ import WindowSystem
 
 protocol DesktopEnvironment: AnyObject {
   var isAccessibilityGranted: Bool { get }
+  var bootSessionIdentifier: String { get }
   var displays: [Display] { get }
   var frontmostProcessID: pid_t? { get }
   var reducesMotion: Bool { get }

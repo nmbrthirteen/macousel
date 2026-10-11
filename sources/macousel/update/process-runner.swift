@@ -21,13 +21,14 @@ enum ProcessRunner {
 
   static func capture(_ executable: String, _ arguments: [String]) async throws -> ProcessOutput {
     try await withCheckedThrowingContinuation { continuation in
-      DispatchQueue.global().async {
+      DispatchQueue.global(qos: .utility).async {
         let process = Process()
         let pipe = Pipe()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
         process.standardOutput = pipe
         process.standardError = pipe
+        process.qualityOfService = .utility
         do {
           try process.run()
         } catch {

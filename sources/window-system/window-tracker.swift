@@ -138,7 +138,7 @@ public final class WindowTracker {
       for _ in 1..<Self.attachAttempts {
         try? await Task.sleep(for: Self.attachDelay)
         if Task.isCancelled { return }
-        if tryAttach(app, announce: announce) {
+        if tryAttach(app, announce: true) {
           attachTasks[pid] = nil
           return
         }

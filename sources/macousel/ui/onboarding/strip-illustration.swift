@@ -19,24 +19,29 @@ struct StripIllustration: View {
   private static let columnBottom = 0.86
 
   var body: some View {
-    Canvas { context, size in
-      for (index, column) in Self.columns.enumerated() {
-        let rect = CGRect(
-          x: column.start * size.width, y: Self.columnTop * size.height,
-          width: column.width * size.width,
-          height: (Self.columnBottom - Self.columnTop) * size.height)
-        context.fill(
-          Path(roundedRect: rect, cornerRadius: Metrics.Radius.illustrationColumn),
-          with: .color(index == Self.focusedIndex ? .accentColor : .secondary.opacity(0.35)))
+    GeometryReader { proxy in
+      ZStack(alignment: .topLeading) {
+        ForEach(Self.columns.indices, id: \.self) { index in
+          columnShape(Self.columns[index], isFocused: index == Self.focusedIndex, in: proxy.size)
+        }
+        RoundedRectangle(cornerRadius: Metrics.Radius.panel)
+          .stroke(Color.primary.opacity(0.6), lineWidth: Metrics.Size.illustrationStroke)
+          .frame(
+            width: (Self.screenEnd - Self.screenStart) * proxy.size.width, height: proxy.size.height
+          )
+          .offset(x: Self.screenStart * proxy.size.width)
       }
-      let screen = CGRect(
-        x: Self.screenStart * size.width, y: 0,
-        width: (Self.screenEnd - Self.screenStart) * size.width, height: size.height)
-      context.stroke(
-        Path(roundedRect: screen, cornerRadius: Metrics.Radius.panel),
-        with: .color(.primary.opacity(0.6)), lineWidth: Metrics.Size.illustrationStroke)
     }
     .frame(height: Metrics.Size.illustrationHeight)
     .accessibilityHidden(true)
+  }
+
+  private func columnShape(_ column: Column, isFocused: Bool, in size: CGSize) -> some View {
+    RoundedRectangle(cornerRadius: Metrics.Radius.illustrationColumn)
+      .fill(isFocused ? Color.accentColor : Color.secondary.opacity(0.35))
+      .frame(
+        width: column.width * size.width, height: (Self.columnBottom - Self.columnTop) * size.height
+      )
+      .offset(x: column.start * size.width, y: Self.columnTop * size.height)
   }
 }

@@ -17,10 +17,10 @@ struct WindowRestorerTests {
   @Test func originalFramesSurviveASimulatedRelaunch() throws {
     let suite = try IsolatedDefaults()
     let tracked = window(1)
-    WindowRestorer(defaults: suite.defaults).remember(tracked)
+    WindowRestorer(defaults: suite.defaults, bootSession: "boot-1").remember(tracked)
     tracked.frame = moved
 
-    let relaunched = WindowRestorer(defaults: suite.defaults)
+    let relaunched = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
     relaunched.restore([tracked], on: displays)
 
     #expect(tracked.frame == original)
@@ -29,7 +29,7 @@ struct WindowRestorerTests {
   @Test func firstRememberedFrameWinsOverLaterOnes() throws {
     let suite = try IsolatedDefaults()
     let tracked = window(1)
-    let restorer = WindowRestorer(defaults: suite.defaults)
+    let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
     restorer.remember(tracked)
     tracked.frame = moved
 
@@ -41,7 +41,7 @@ struct WindowRestorerTests {
 
   @Test func recycledWindowIDFromAnotherProcessIsRememberedAgain() throws {
     let suite = try IsolatedDefaults()
-    let restorer = WindowRestorer(defaults: suite.defaults)
+    let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
     restorer.remember(window(1, app: .editor))
     let reused = window(1, app: .browser)
     reused.frame = moved
@@ -56,12 +56,12 @@ struct WindowRestorerTests {
   @Test func framesAreClearedAfterForgetAll() throws {
     let suite = try IsolatedDefaults()
     let tracked = window(1)
-    let restorer = WindowRestorer(defaults: suite.defaults)
+    let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
     restorer.remember(tracked)
     tracked.frame = moved
 
     restorer.forgetAll()
-    WindowRestorer(defaults: suite.defaults).restore([tracked], on: displays)
+    WindowRestorer(defaults: suite.defaults, bootSession: "boot-1").restore([tracked], on: displays)
 
     #expect(tracked.frame == moved)
   }
@@ -70,14 +70,14 @@ struct WindowRestorerTests {
     let suite = try IsolatedDefaults()
     let kept = window(1)
     let gone = window(2)
-    let restorer = WindowRestorer(defaults: suite.defaults)
+    let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
     restorer.remember(kept)
     restorer.remember(gone)
     kept.frame = moved
     gone.frame = moved
 
     restorer.retain(only: [1])
-    let relaunched = WindowRestorer(defaults: suite.defaults)
+    let relaunched = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
     relaunched.restore([kept, gone], on: displays)
 
     #expect(kept.frame == original)
@@ -88,7 +88,7 @@ struct WindowRestorerTests {
     let suite = try IsolatedDefaults()
     let stranded = window(1)
     stranded.frame = CGRect(x: 4000, y: 100, width: 400, height: 300)
-    let restorer = WindowRestorer(defaults: suite.defaults)
+    let restorer = WindowRestorer(defaults: suite.defaults, bootSession: "boot-1")
     restorer.remember(stranded)
 
     restorer.restore([stranded], on: displays)
@@ -102,7 +102,7 @@ struct WindowRestorerTests {
     let tracked = window(1)
     tracked.frame = moved
 
-    WindowRestorer(defaults: suite.defaults).restore([tracked], on: displays)
+    WindowRestorer(defaults: suite.defaults, bootSession: "boot-1").restore([tracked], on: displays)
 
     #expect(tracked.frame == moved)
   }
@@ -114,7 +114,7 @@ struct WindowRestorerTests {
     fixture.launch()
     #expect(fixture.frames(of: row) != originals)
 
-    WindowRestorer(defaults: fixture.suite.defaults).restore(row, on: fixture.environment.displays)
+    WindowRestorer(defaults: fixture.suite.defaults, bootSession: "boot-1").restore(row, on: fixture.environment.displays)
 
     #expect(fixture.frames(of: row) == originals)
   }
@@ -126,7 +126,7 @@ struct WindowRestorerTests {
     fixture.quit()
     row[0].frame = moved
 
-    WindowRestorer(defaults: fixture.suite.defaults).restore(row, on: fixture.environment.displays)
+    WindowRestorer(defaults: fixture.suite.defaults, bootSession: "boot-1").restore(row, on: fixture.environment.displays)
 
     #expect(row[0].frame == moved)
   }
@@ -141,7 +141,7 @@ struct WindowRestorerTests {
     #expect(await fixture.becomes { marker.frame == expected.frame(of: 4) })
     row[2].frame = moved
 
-    let relaunched = WindowRestorer(defaults: fixture.suite.defaults)
+    let relaunched = WindowRestorer(defaults: fixture.suite.defaults, bootSession: "boot-1")
     relaunched.restore([row[2]], on: fixture.environment.displays)
 
     #expect(row[2].frame == moved)

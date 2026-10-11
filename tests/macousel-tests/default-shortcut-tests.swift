@@ -11,16 +11,16 @@ struct DefaultShortcutTests {
     kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9,
   ]
 
-  @Test func focusPlacesUseOptionAndTheDigit() {
+  @Test func focusPlacesUseControlOptionAndTheDigit() {
     for (place, key) in zip(Action.places, Self.digitKeys) {
-      let expected = Hotkey(keyCode: UInt16(key), modifiers: [.option])
+      let expected = Hotkey(keyCode: UInt16(key), modifiers: [.control, .option])
       #expect(Action.defaultShortcuts[.focusColumn(place)] == [expected])
     }
   }
 
-  @Test func movePlacesUseOptionShiftAndTheDigit() {
+  @Test func movePlacesUseControlOptionShiftAndTheDigit() {
     for (place, key) in zip(Action.places, Self.digitKeys) {
-      let expected = Hotkey(keyCode: UInt16(key), modifiers: [.option, .shift])
+      let expected = Hotkey(keyCode: UInt16(key), modifiers: [.control, .option, .shift])
       #expect(Action.defaultShortcuts[.moveToColumn(place)] == [expected])
     }
   }

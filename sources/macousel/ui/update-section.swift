@@ -7,7 +7,7 @@ struct UpdateSection: View {
     Section("Updates") {
       status
       Button("Check for updates") {
-        Task { await updater.check() }
+        Task(priority: .utility) { await updater.check() }
       }
       .disabled(updater.state.isBusy)
       if offersInstall {
@@ -32,8 +32,8 @@ struct UpdateSection: View {
           Task { await updater.install() }
         }
         .disabled(updater.state.isBusy)
-        if case .available(let release) = updater.state {
-          Link("Release notes", destination: release.pageURL)
+        if case .available(let release) = updater.state, let notes = release.notesPageURL {
+          Link("Release notes", destination: notes)
         }
       }
       CaptionText(

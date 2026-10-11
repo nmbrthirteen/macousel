@@ -37,7 +37,7 @@ Early. I wrote it on macOS 27 with two displays. The layout engine is well teste
 - A minimap of the strip, a focus border, and dimming for inactive windows.
 - Per-app rules: float, open at a set width, or open in a set slot.
 - A URL scheme and a command line client for scripts.
-- Quitting or pausing puts every window back where it was.
+- Quitting or pausing puts every window back where it was. If Macousel crashes, it relaunches, puts the windows back, and stays paused until you resume it.
 
 ## Requirements
 
@@ -60,12 +60,16 @@ Then open Macousel and grant Accessibility access when macOS asks.
 
 Open Settings > About and click "Check for updates". Macousel checks once a day on its own, and you can turn that off in Settings > General. You can also run the installer again. After either one, macOS asks for Accessibility access again, because every release has a new signature.
 
+Macousel only installs an update whose archive carries a valid signature from my update signing key. If the check fails, nothing is installed.
+
 ### The app is not notarized
 
 I do not have an Apple Developer ID, so releases are signed ad hoc. Two things follow from that:
 
 - If you used the DMG, macOS blocks the first launch. Open System Settings > Privacy & Security and click "Open Anyway". The installer script clears the quarantine flag, so it skips this step.
-- macOS ties the Accessibility grant to the signature, and every release has a new one. After an update, remove Macousel from the Accessibility list and add it again.
+- macOS ties the Accessibility grant to the signature, and every release has a new one. After an update, Macousel resets its Accessibility entry and asks again. Grant it when macOS prompts.
+
+Updates are verified with a signing key that I hold, and the app is not notarized. The signature proves an update came from me. It does not replace Apple's notarization.
 
 ### Build from source
 
@@ -84,15 +88,15 @@ CODESIGN_IDENTITY="My Certificate" scripts/bundle.sh
 
 ## Default shortcuts
 
-Most of them use Control-Option. The column numbers use plain Option, which takes over the symbols macOS types with Option-1 to Option-9. Rebind them in Settings > Shortcuts if you need those symbols.
+Most of them use Control-Option, including the column numbers. Plain Option plus a digit would block characters on layouts such as German, where Option-5 to Option-9 type brackets and braces. Rebind any of them in Settings > Shortcuts. A shortcut you already changed keeps its binding.
 
 | Action | Keys |
 | --- | --- |
 | Focus left, down, up, right | ⌃⌥ H J K L, or the arrows |
 | Move the window | ⌃⌥⇧ and the same keys |
 | First or last window | ⌃⌥⌘ ← → |
-| Jump to column 1 to 8, or 9 for the last | ⌥ 1 to 9 |
-| Move the window to that column | ⌥⇧ 1 to 9 |
+| Jump to column 1 to 8, or 9 for the last | ⌃⌥ 1 to 9 |
+| Move the window to that column | ⌃⌥⇧ 1 to 9 |
 | Move the window to the first or last spot | ⌃⌥⌘⇧ ← → |
 | Cycle width, full width, center | ⌃⌥ R, F, C |
 | Wider, narrower | ⌃⌥ = and - |
@@ -103,6 +107,10 @@ Most of them use Control-Option. The column numbers use plain Option, which take
 | Float | ⌃⌥ T |
 | Send to the next display | ⌃⌥ N |
 | Pause tiling | ⌃⌥ Q |
+
+## What Macousel stores and sends
+
+Layout restore keeps the app identifiers and a hash of each window title in the app's preferences. It never stores a title in plain text. Nothing is sent anywhere, except two requests to GitHub: the update check once a day, which you can turn off in Settings > General, and the download when you install an update.
 
 ## Reporting a problem
 
@@ -146,7 +154,13 @@ The code has no comments. Names carry the meaning.
 
 ### Releasing
 
-Push a version tag. The release workflow runs the tests, builds the app with that version, and publishes `Macousel.dmg`, `Macousel.zip`, and `install.sh` to a GitHub release.
+Push a version tag. The release workflow runs the tests, builds the app with that version, signs the zip with the update key, attests build provenance, and publishes `Macousel.dmg`, `Macousel.zip`, `Macousel.zip.sig`, and `install.sh` to a GitHub release. The release notes list the SHA-256 sums of the DMG and the zip.
+
+The workflow reads the base64 private key from the `UPDATE_SIGNING_KEY` repository secret. To sign a zip by hand:
+
+```sh
+UPDATE_SIGNING_KEY="..." swift scripts/sign-update.swift build/Macousel.zip build/Macousel.zip.sig
+```
 
 ```sh
 git tag v0.1.0

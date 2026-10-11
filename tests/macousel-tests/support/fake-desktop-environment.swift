@@ -6,6 +6,7 @@ import WindowSystem
 @MainActor
 final class FakeDesktopEnvironment: DesktopEnvironment {
   var isAccessibilityGranted = true
+  var bootSessionIdentifier = "boot-1"
   var displays: [Display]
   var frontmostProcessID: pid_t?
   var reducesMotion = false

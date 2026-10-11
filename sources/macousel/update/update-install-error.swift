@@ -1,5 +1,6 @@
 nonisolated enum UpdateInstallError: UserFacingError, Equatable {
   case untrustedDownload
+  case unverifiedUpdate
   case downloadFailed
   case unpackFailed
   case missingApp
@@ -13,7 +14,9 @@ nonisolated enum UpdateInstallError: UserFacingError, Equatable {
   var message: String {
     switch self {
     case .untrustedDownload:
-      "The update is not hosted on GitHub, so Macousel did not download it. Get the release from the releases page instead."
+      "The update is not hosted in the Macousel releases on GitHub, so Macousel did not download it. Get the release from the releases page instead."
+    case .unverifiedUpdate:
+      "This update could not be verified, so it was not installed. Download it from the releases page if you trust it."
     case .downloadFailed:
       "The download failed. Check your internet connection and try again."
     case .unpackFailed:

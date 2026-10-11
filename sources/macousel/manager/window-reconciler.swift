@@ -3,7 +3,6 @@ import StripCore
 import os
 
 final class WindowReconciler {
-  private static let sessionSaveDelay = Duration.seconds(2)
   private static let signposter = OSSignposter(
     subsystem: "dev.macousel.app", category: "reconcile")
 
@@ -12,15 +11,14 @@ final class WindowReconciler {
   private let environment: any DesktopEnvironment
   private let store: PreferencesStore
   private let restorer: WindowRestorer
-  private let sessions: SessionStore
+  private let recorder: SessionRecorder
   private let admissionFrames: AdmissionFrames
   private let unresponsive: UnresponsiveApps
   private let fullScreen = FullScreenCache()
+  private var absences = AbsenceTracker()
+  private var previousActiveKeys: [Workspace.Key] = []
   private var floating: Set<CGWindowID> = []
   private var knownTileable: Set<CGWindowID> = []
-  private var capturedTitles: [CGWindowID: String] = [:]
-  private var savedSession: [String: [SavedColumn]]
-  private var pendingSessionSave: Task<Void, Never>?
 
   init(
     state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
@@ -32,19 +30,22 @@ final class WindowReconciler {
     self.environment = environment
     self.store = store
     self.restorer = restorer
-    self.sessions = sessions
+    recorder = SessionRecorder(state: state, source: source, store: store, sessions: sessions)
     self.admissionFrames = admissionFrames
     unresponsive = UnresponsiveApps(now: now)
-    savedSession = sessions.load()
   }
 
   func reconcile() {
     let interval = Self.signposter.beginInterval("reconcile")
     defer { Self.signposter.endInterval("reconcile", interval) }
     state.refreshDisplays()
-    let candidates = tileCandidates()
-    removeWindows(notIn: Set(candidates.map { WindowID($0) }))
+    let spaceIsSettled = state.activeKeys == previousActiveKeys
+    previousActiveKeys = state.activeKeys
+    let onScreen = environment.onScreenWindowIDs()
+    let candidates = tileCandidates(onScreen: onScreen)
+    removeWindows(candidates: Set(candidates.map { WindowID($0) }), onScreen: onScreen)
     admitNewcomers(among: candidates)
+    if spaceIsSettled { removeFromInactiveWorkspaces(candidates) }
     retain(only: Set(source.windows.keys))
     adoptSystemFocus()
     state.activeKeys.forEach(state.scrollToFocus)
@@ -60,29 +61,18 @@ final class WindowReconciler {
   }
 
   func scheduleSessionSave() {
-    pendingSessionSave?.cancel()
-    pendingSessionSave = Task {
-      try? await Task.sleep(for: Self.sessionSaveDelay)
-      if !Task.isCancelled { saveSession() }
-    }
+    recorder.scheduleSave()
   }
 
   func saveSession() {
-    pendingSessionSave?.cancel()
-    guard store.preferences.restoresSession else { return }
-    let stripsByDisplay = state.activeKeys.reduce(into: [String: Strip]()) { strips, key in
-      strips[key.displayUUID] = state.workspaces[key]?.strip
-    }
-    sessions.save(stripsByDisplay, windows: source.windows, titles: capturedTitles)
+    recorder.save()
   }
 
-  private func tileCandidates() -> [any WindowHandle] {
-    let onScreen = environment.onScreenWindowIDs()
+  private func tileCandidates(onScreen: Set<CGWindowID>) -> [any WindowHandle] {
     let placed = placedWindows()
     return source.windows.values.filter { window in
       onScreen.contains(window.id) && !floating.contains(window.id)
-        && store.preferences.rule(for: window.bundleIdentifier) != .float
-        && qualifies(window, alreadyPlaced: placed)
+        && !isRuledFloat(window) && qualifies(window, alreadyPlaced: placed)
     }
   }
 
@@ -112,10 +102,21 @@ final class WindowReconciler {
     return true
   }
 
-  private func removeWindows(notIn candidates: Set<WindowID>) {
+  private func isRuledFloat(_ window: any WindowHandle) -> Bool {
+    store.preferences.rule(for: window.bundleIdentifier) == .float
+  }
+
+  private func removeWindows(candidates: Set<WindowID>, onScreen: Set<CGWindowID>) {
+    let members = Set(state.activeKeys.flatMap { state.workspaces[$0]?.strip.windows ?? [] })
+    let removals = absences.removals(among: members) { member in
+      if candidates.contains(member) { return .present }
+      guard let window = source.window(member.rawValue) else { return .closed }
+      let isExcluded = floating.contains(member.rawValue) || isRuledFloat(window)
+      return onScreen.contains(member.rawValue) || isExcluded ? .excluded : .offScreen
+    }
+    guard !removals.isEmpty else { return }
     for key in state.activeKeys {
-      guard let windows = state.workspaces[key]?.strip.windows else { continue }
-      for window in windows where !candidates.contains(window) {
+      for window in state.workspaces[key]?.strip.windows ?? [] where removals.contains(window) {
         state.workspaces[key]?.strip.remove(window)
       }
     }
@@ -147,9 +148,8 @@ final class WindowReconciler {
 
   private func admit(_ windows: [any WindowHandle], to key: Workspace.Key) {
     windows.forEach(restorer.remember)
-    windows.forEach { capturedTitles[$0.id] = $0.title }
+    recorder.capture(windows)
     for window in windows { unresponsive.noteTimeout(of: window) }
-    removeFromOtherWorkspaces(windows, keeping: key)
 
     var strip = state.workspaces[key]?.strip ?? Strip()
     if strip.isEmpty {
@@ -160,12 +160,11 @@ final class WindowReconciler {
     state.workspaces[key, default: Workspace()].strip = strip
   }
 
-  private func removeFromOtherWorkspaces(
-    _ windows: [any WindowHandle], keeping key: Workspace.Key
-  ) {
-    for other in state.workspaces.keys where other != key {
+  private func removeFromInactiveWorkspaces(_ windows: [any WindowHandle]) {
+    let active = Set(state.activeKeys)
+    for key in state.workspaces.keys where !active.contains(key) {
       for window in windows {
-        state.workspaces[other]?.strip.remove(WindowID(window))
+        state.workspaces[key]?.strip.remove(WindowID(window))
       }
     }
   }
@@ -174,10 +173,8 @@ final class WindowReconciler {
     _ strip: inout Strip, with windows: [any WindowHandle], displayUUID: String
   ) {
     var remaining = windows
-    if store.preferences.restoresSession,
-      let saved = savedSession.removeValue(forKey: displayUUID)
-    {
-      remaining = strip.restore(saved, from: windows, titles: capturedTitles)
+    if store.preferences.restoresSession, let saved = recorder.takeSaved(forDisplay: displayUUID) {
+      remaining = strip.restore(saved, from: windows, titles: recorder.capturedTitles)
     }
     for window in remaining {
       strip.append(WindowID(window), width: initialWidth(for: window))
@@ -216,7 +213,7 @@ final class WindowReconciler {
     knownTileable.formIntersection(alive)
     fullScreen.retain(only: alive)
     unresponsive.pruneExpired()
-    capturedTitles = capturedTitles.filter { alive.contains($0.key) }
+    recorder.retain(only: alive)
     restorer.retain(only: alive)
     for key in state.workspaces.keys {
       guard let windows = state.workspaces[key]?.strip.windows else { continue }

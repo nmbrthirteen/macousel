@@ -3,6 +3,7 @@ import os
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private static let logger = Logger(subsystem: "dev.macousel.app", category: "commands")
+  private static let loggedHostLength = 40
 
   let store: PreferencesStore
   let manager: WindowManager
@@ -37,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func application(_ application: NSApplication, open urls: [URL]) {
     for url in urls {
       guard let action = CommandURL.action(from: url) else {
-        Self.logger.error("Ignored unknown command URL: \(url.absoluteString, privacy: .public)")
+        let host = String((url.host ?? "").prefix(Self.loggedHostLength))
+        Self.logger.error("Ignored unknown command URL with host: \(host, privacy: .public)")
         continue
       }
       manager.perform(action)

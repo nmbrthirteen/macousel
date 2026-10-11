@@ -21,5 +21,5 @@ build_number="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
   -c "Set :CFBundleShortVersionString $version" \
   -c "Set :CFBundleVersion $build_number" "$plist"
 
-codesign --force --sign "${CODESIGN_IDENTITY:--}" "$app"
+codesign --force --options runtime --sign "${CODESIGN_IDENTITY:--}" "$app"
 echo "$root/$app"

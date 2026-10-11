@@ -11,35 +11,37 @@ final class WindowManager {
     case needsPermission, running, paused
   }
 
-  private static let permissionPollInterval = Duration.seconds(1)
-
   private(set) var status: Status = .needsPermission
   private(set) var displays: [Display] = []
 
   private let store: PreferencesStore
   private let source: any WindowSource
   private let environment: any DesktopEnvironment
-  private let shortcuts: any ShortcutRegistry
   private let state: TilingState
   private let presenter: LayoutPresenter
-  private let restorer: WindowRestorer
+  private let release: WindowRelease
+  private let accessibility: AccessibilityMonitor
   private let reconciler: WindowReconciler
   private let focus: FocusDriver
   private let router: CommandRouter
   private let interactions: ManagerInteractions
+  private let inputs: InputBindings
   private let crashRecovery: any CrashRecovery
 
   @ObservationIgnored private var appliedPreferences: Preferences?
   @ObservationIgnored private let synchronization = SynchronizationScheduler()
-  @ObservationIgnored private var permissionPoll: Task<Void, Never>?
+  @ObservationIgnored private var hasLostAccess = false
+  @ObservationIgnored private var restoresArrivingWindows = false
 
   convenience init(store: PreferencesStore) {
-    self.init(store: store, ports: .system(), defaults: .standard)
+    self.init(store: store, ports: .system(), defaults: .standard, polling: .standard)
   }
 
-  init(store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults) {
-    let state = TilingState(
-      store: store, environment: ports.environment, pointer: ports.pointer)
+  init(
+    store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults,
+    polling: AccessibilityMonitor.Intervals = .standard
+  ) {
+    let state = TilingState(store: store, environment: ports.environment, pointer: ports.pointer)
     let overlays = OverlayPresenter(
       state: state, source: ports.source, store: store, host: ports.overlays)
     let admissionFrames = AdmissionFrames()
@@ -47,46 +49,38 @@ final class WindowManager {
     let presenter = LayoutPresenter(
       state: state, source: ports.source, environment: ports.environment, store: store,
       placer: ports.placer, clock: clock, overlays: overlays, admissionFrames: admissionFrames)
-    let restorer = WindowRestorer(defaults: defaults)
+    let boot = ports.environment.bootSessionIdentifier
+    let restorer = WindowRestorer(defaults: defaults, bootSession: boot)
     let reconciler = WindowReconciler(
       state: state, source: ports.source, environment: ports.environment, store: store,
       restorer: restorer, sessions: SessionStore(defaults: defaults),
       admissionFrames: admissionFrames, now: { clock.now })
     focus = FocusDriver(
-      state: state, source: ports.source, store: store, pointer: ports.pointer,
-      now: { clock.now })
+      state: state, source: ports.source, store: store, pointer: ports.pointer, now: { clock.now })
     self.store = store
     self.source = ports.source
     self.environment = ports.environment
-    self.shortcuts = ports.shortcuts
     self.state = state
     self.presenter = presenter
-    self.restorer = restorer
+    release = WindowRelease(
+      state: state, source: ports.source, environment: ports.environment, restorer: restorer,
+      presenter: presenter)
+    accessibility = AccessibilityMonitor(environment: ports.environment, intervals: polling)
     self.reconciler = reconciler
     router = CommandRouter(
       state: state, source: ports.source, presenter: presenter, focus: focus,
       reconciler: reconciler)
-    interactions = ManagerInteractions(
+    let interactions = ManagerInteractions(
       state: state, source: ports.source, presenter: presenter, focus: focus, store: store,
       ports: ports)
+    self.interactions = interactions
+    inputs = InputBindings(store: store, shortcuts: ports.shortcuts, interactions: interactions)
     crashRecovery = ports.crashRecovery
   }
 
   func start() {
     displays = environment.displays
-    guard !environment.isAccessibilityGranted else {
-      begin()
-      return
-    }
-    logger.info("Waiting for Accessibility access")
-    environment.requestAccessibilityAccess()
-    permissionPoll = Task {
-      while !environment.isAccessibilityGranted {
-        try? await Task.sleep(for: Self.permissionPollInterval)
-        if Task.isCancelled { return }
-      }
-      begin()
-    }
+    if environment.isAccessibilityGranted { begin() } else { awaitAccessibility() }
   }
 
   func perform(_ action: Action) {
@@ -100,20 +94,38 @@ final class WindowManager {
   }
 
   func shutdown() {
-    permissionPoll?.cancel()
+    accessibility.stop()
+    if status == .running {
+      reconciler.saveSession()
+      release.releaseEverything()
+    }
+    if status != .needsPermission && environment.isAccessibilityGranted { release.forgetSaved() }
+    stopSystem()
+  }
+
+  private func stopSystem() {
     synchronization.cancel()
     focus.stop()
     crashRecovery.disarm()
-    guard status != .needsPermission else { return }
-    if status == .running {
-      reconciler.saveSession()
-      releaseWindows()
-    }
-    restorer.forgetAll()
-    shortcuts.removeAll()
-    interactions.stop()
+    inputs.release()
     source.stop()
     environment.stopObserving()
+  }
+
+  private func awaitAccessibility() {
+    logger.info("Waiting for Accessibility access")
+    environment.requestAccessibilityAccess()
+    accessibility.waitForGrant { [weak self] in self?.begin() }
+  }
+
+  private func accessibilityLost() {
+    logger.error("Accessibility access was lost, tiling stopped")
+    status = .needsPermission
+    hasLostAccess = true
+    restoresArrivingWindows = false
+    presenter.halt()
+    stopSystem()
+    awaitAccessibility()
   }
 
   private func begin() {
@@ -121,8 +133,13 @@ final class WindowManager {
     source.start()
     environment.startObserving()
     interactions.start()
+    accessibility.watchForLoss { [weak self] in self?.accessibilityLost() }
+    if hasLostAccess || crashRecovery.isRecoveringFromCrash {
+      release.restoreEverythingSaved()
+    }
+    hasLostAccess = false
     if crashRecovery.isRecoveringFromCrash {
-      recoverWindows()
+      pauseForRecovery()
       return
     }
     status = .running
@@ -132,10 +149,10 @@ final class WindowManager {
     synchronize()
   }
 
-  private func recoverWindows() {
+  private func pauseForRecovery() {
     status = .paused
+    restoresArrivingWindows = true
     logger.info("Recovering windows after a crash, tiling paused")
-    restorer.restoreSaved(Array(source.windows.values), on: environment.displays)
     applyInputs()
   }
 
@@ -160,40 +177,21 @@ final class WindowManager {
     logger.info("Tiling paused")
     crashRecovery.disarm()
     synchronization.cancel()
-    releaseWindows()
+    release.releaseEverything()
     applyInputs()
   }
 
   private func resume() {
     status = .running
+    restoresArrivingWindows = false
     logger.info("Tiling resumed")
     crashRecovery.arm()
     applyInputs()
     synchronize()
   }
 
-  private func releaseWindows() {
-    presenter.halt()
-    let managed = state.workspaces.values.flatMap(\.strip.windows)
-    restorer.restore(managed.compactMap { source.window($0.rawValue) }, on: state.displays)
-  }
-
   private func applyInputs() {
-    let isTiling = status == .running
-    shortcuts.setBindings(activeBindings())
-    interactions.configure(isTiling: isTiling)
-  }
-
-  private func activeBindings() -> [Hotkey: () -> Void] {
-    guard !store.isRecordingShortcut else { return [:] }
-    var bindings: [Hotkey: () -> Void] = [:]
-    for (action, keys) in store.preferences.shortcuts
-    where status == .running || action == .togglePaused {
-      for key in keys {
-        bindings[key] = { [weak self] in self?.perform(action) }
-      }
-    }
-    return bindings
+    inputs.apply(isTiling: status == .running) { [weak self] action in self?.perform(action) }
   }
 
   private func preferencesChanged() {
@@ -217,6 +215,9 @@ final class WindowManager {
   }
 
   private func handle(_ event: WindowSourceEvent) {
+    if restoresArrivingWindows, case .created(let window) = event {
+      release.restoreSaved(window)
+    }
     guard status == .running else { return }
     switch event {
     case .created:

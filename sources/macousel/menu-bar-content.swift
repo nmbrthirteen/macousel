@@ -33,7 +33,7 @@ struct MenuBarContent: View {
     Button("Show welcome guide", action: onShowWelcome)
 
     Button("Save diagnostics…") {
-      Task { await diagnostics.save() }
+      Task(priority: .utility) { await diagnostics.save() }
     }
     .disabled(diagnostics.isSaving)
 

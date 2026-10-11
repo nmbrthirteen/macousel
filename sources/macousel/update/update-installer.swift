@@ -5,6 +5,7 @@ struct UpdateInstaller: ReleaseInstalling {
   let runningBundleURL: URL
   let downloader: ArchiveDownloader
   let validator: BundleValidator
+  var verifier = UpdateSignatureVerifier()
   var workRoot = FileManager.default.temporaryDirectory
 
   static func running(bundle: Bundle = .main) -> UpdateInstaller {
@@ -21,7 +22,13 @@ struct UpdateInstaller: ReleaseInstalling {
     let work = workRoot.appendingPathComponent("macousel-update-\(UUID().uuidString)", isDirectory: true)
     try files.createDirectory(at: work, withIntermediateDirectories: true)
     do {
-      let archive = try await downloader.fetch(release.archiveURL, into: work)
+      let archive = try await downloader.fetch(
+        release.archiveURL, into: work, named: Release.archiveName)
+      let signature = try await downloader.fetch(
+        release.signatureURL, into: work, named: Release.signatureName)
+      guard verifier.isValid(signatureFile: signature, archiveFile: archive) else {
+        throw UpdateInstallError.unverifiedUpdate
+      }
       let unpacked = work.appendingPathComponent("unpacked", isDirectory: true)
       try await ArchiveUnpacker.unpack(archive, into: unpacked)
       let bundle = try await validator.validate(unpackedIn: unpacked)

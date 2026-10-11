@@ -15,8 +15,8 @@ struct SessionTitleTests {
     fixture.quit()
 
     let saved = SessionStore(defaults: suite.defaults).load()
-    let titles = saved.values.flatMap { $0 }.flatMap(\.windows).map(\.title)
-    #expect(titles == ["Notes"])
+    let hashes = saved.values.flatMap { $0 }.flatMap(\.windows).map(\.titleHash)
+    #expect(hashes == [TitleDigest.of("Notes")])
   }
 
   @Test func savingTheSessionDoesNotReadWindowTitlesAgain() throws {

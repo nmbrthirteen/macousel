@@ -6,6 +6,8 @@ final class SystemDesktopEnvironment: DesktopEnvironment {
 
   var isAccessibilityGranted: Bool { AccessibilityPermission.isGranted }
 
+  var bootSessionIdentifier: String { BootSession.identifier }
+
   var displays: [Display] { Display.all() }
 
   var frontmostProcessID: pid_t? {

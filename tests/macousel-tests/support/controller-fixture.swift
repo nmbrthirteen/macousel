@@ -23,13 +23,14 @@ final class ControllerFixture {
 
   init(
     displays: [Display] = [.fake()], suite: IsolatedDefaults? = nil,
-    preferences: (inout Preferences) -> Void = { _ in }
+    bootSession: String = "boot-1", preferences: (inout Preferences) -> Void = { _ in }
   ) throws {
     let suite = try suite ?? IsolatedDefaults()
     let store = PreferencesStore(defaults: suite.defaults)
     store.preferences.animationSpeed = .off
     preferences(&store.preferences)
     let environment = FakeDesktopEnvironment(displays: displays)
+    environment.bootSessionIdentifier = bootSession
     let source = FakeWindowSource(environment: environment)
     self.suite = suite
     self.store = store
@@ -41,7 +42,9 @@ final class ControllerFixture {
         source: source, placer: placer, clock: clock, environment: environment,
         pointer: pointer, shortcuts: shortcuts, gestures: gestures, overlays: overlays,
         crashRecovery: crashRecovery),
-      defaults: suite.defaults)
+      defaults: suite.defaults,
+      polling: AccessibilityMonitor.Intervals(
+        whileWaiting: .milliseconds(10), whileWatching: .milliseconds(10)))
     try FixtureRegistry.enroll(self)
   }
 

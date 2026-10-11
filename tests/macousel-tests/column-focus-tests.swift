@@ -68,11 +68,11 @@ struct ColumnFocusTests {
     #expect(row[1].focusCount == 1)
   }
 
-  @Test func columnShortcutsUsePlainOptionAndTheDigit() {
+  @Test func columnShortcutsUseControlOptionAndTheDigit() {
     for place in Action.places {
       let keys = Action.defaultShortcuts[.focusColumn(place)] ?? []
       #expect(keys.count == 1)
-      #expect(keys.allSatisfy { $0.modifiers == [.option] })
+      #expect(keys.allSatisfy { $0.modifiers == [.control, .option] })
     }
   }
 }

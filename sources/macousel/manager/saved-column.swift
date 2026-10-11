@@ -4,7 +4,7 @@ import StripCore
 struct SavedColumn: Codable {
   struct Window: Codable {
     var bundleIdentifier: String?
-    var title: String
+    var titleHash: String?
   }
 
   var width: ColumnWidth
@@ -31,6 +31,6 @@ extension SavedColumn {
 
 extension SavedColumn.Window {
   init(_ window: any WindowHandle, title: String) {
-    self.init(bundleIdentifier: window.bundleIdentifier, title: title)
+    self.init(bundleIdentifier: window.bundleIdentifier, titleHash: TitleDigest.of(title))
   }
 }

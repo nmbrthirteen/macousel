@@ -12,8 +12,6 @@ extension Action {
     let base: Hotkey.Modifiers = [.control, .option]
     let shifted: Hotkey.Modifiers = [.control, .option, .shift]
     let commanded: Hotkey.Modifiers = [.control, .option, .command]
-    let optioned: Hotkey.Modifiers = [.option]
-    let optionShifted: Hotkey.Modifiers = [.option, .shift]
     let everyModifier: Hotkey.Modifiers = [.control, .option, .command, .shift]
     let placeKeys = [
       kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5,
@@ -51,8 +49,8 @@ extension Action {
       .toggleFloating: [Hotkey(kVK_ANSI_T, base)],
     ]
     for (place, key) in zip(Action.places, placeKeys) {
-      shortcuts[.focusColumn(place)] = [Hotkey(key, optioned)]
-      shortcuts[.moveToColumn(place)] = [Hotkey(key, optionShifted)]
+      shortcuts[.focusColumn(place)] = [Hotkey(key, base)]
+      shortcuts[.moveToColumn(place)] = [Hotkey(key, shifted)]
     }
     return shortcuts
   }()
