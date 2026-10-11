@@ -89,7 +89,7 @@ struct DisplayFollowsPointerTests {
     fixture.launch()
 
     fixture.pointer.moveTo(rightPoint)
-    try await Task.sleep(for: Self.settleTime)
+    #expect(await fixture.becomes { fixture.overlays.focusBorder == nil })
     fixture.manager.perform(.focusLeft)
     #expect(left[0].focusCount == 1)
 
