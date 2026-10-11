@@ -36,6 +36,34 @@ struct FocusCommandTests {
     #expect(fixture.frames(of: row) == expected.frames)
   }
 
+  @Test func lateFocusEventFromAnEarlierKeypressDoesNotPullTheStripBack() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(4)
+    fixture.launch()
+
+    fixture.manager.perform(.focusRight)
+    fixture.manager.perform(.focusRight)
+    fixture.manager.perform(.focusRight)
+    let settled = fixture.frames(of: row)
+    fixture.source.focus(row[1])
+    fixture.source.focus(row[2])
+
+    #expect(fixture.frames(of: row) == settled)
+    #expect(fixture.windowShowingFocusBorder(among: row) === row[3])
+  }
+
+  @Test func focusEventForTheRequestedWindowEndsTheEchoPeriod() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(4)
+    fixture.launch()
+
+    fixture.manager.perform(.focusRight)
+    fixture.source.focus(row[1])
+    fixture.source.focus(row[3])
+
+    #expect(fixture.windowShowingFocusBorder(among: row) === row[3])
+  }
+
   @Test func focusLeftReturnsToThePreviousWindow() throws {
     let fixture = try ControllerFixture()
     let row = fixture.openRow(4)

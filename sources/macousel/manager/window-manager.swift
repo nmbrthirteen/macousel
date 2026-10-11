@@ -25,6 +25,7 @@ final class WindowManager {
   private let presenter: LayoutPresenter
   private let restorer: WindowRestorer
   private let reconciler: WindowReconciler
+  private let focus: FocusDriver
   private let router: CommandRouter
   private let drag: DragInteraction
   private let scrolling: ScrollInteraction
@@ -50,7 +51,7 @@ final class WindowManager {
     let reconciler = WindowReconciler(
       state: state, source: ports.source, environment: ports.environment, store: store,
       restorer: restorer, sessions: SessionStore(defaults: defaults))
-    let focus = FocusDriver(
+    focus = FocusDriver(
       state: state, source: ports.source, store: store, pointer: ports.pointer)
 
     self.store = store
@@ -228,6 +229,7 @@ final class WindowManager {
   }
 
   private func focusChanged(to window: WindowID) {
+    guard !focus.isEchoOfEarlierActivation(window) else { return }
     presenter.overlays.restackDim()
     let key = state.activeKey(containing: window)
     state.focusedKey = key

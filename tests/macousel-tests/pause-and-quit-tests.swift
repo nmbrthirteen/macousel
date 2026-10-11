@@ -55,7 +55,7 @@ struct PauseAndQuitTests {
       $0.swipeGestureEnabled = true
     }
     #expect(fixture.gestures.isScrolling)
-    #expect(fixture.gestures.swipeFingerCount == 3)
+    #expect(fixture.gestures.swipeFingerCount == 4)
 
     fixture.manager.perform(.togglePaused)
 

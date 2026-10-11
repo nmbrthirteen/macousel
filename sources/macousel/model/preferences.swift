@@ -27,7 +27,7 @@ struct Preferences: Codable, Equatable {
   var restoresSession = true
   var scrollGestureEnabled = true
   var swipeGestureEnabled = true
-  var swipeFingers = 3
+  var swipeFingers = 4
   var focusFollowsMouse = false
   var mouseFollowsFocus = false
   var appRules: [AppRule] = []
