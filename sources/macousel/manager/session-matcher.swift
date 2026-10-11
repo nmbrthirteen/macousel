@@ -1,8 +1,10 @@
+import CoreGraphics
+
 struct SessionMatcher {
   private var unclaimed: [(window: any WindowHandle, title: String)]
 
-  init(_ windows: [any WindowHandle]) {
-    unclaimed = windows.map { ($0, $0.title) }
+  init(_ windows: [any WindowHandle], titles: [CGWindowID: String]) {
+    unclaimed = windows.map { ($0, titles[$0.id] ?? "") }
   }
 
   var remaining: [any WindowHandle] { unclaimed.map(\.window) }

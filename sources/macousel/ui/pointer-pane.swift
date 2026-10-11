@@ -8,6 +8,10 @@ struct PointerPane: View {
   var body: some View {
     SettingsForm {
       Section("Pointer") {
+        ToggleRow(
+          title: "Activate the display under the pointer",
+          isOn: $store.preferences.displayFollowsPointer,
+          caption: "Shortcuts act on the display your pointer is on.")
         ToggleRow(title: "Focus follows mouse", isOn: $store.preferences.focusFollowsMouse)
         ToggleRow(title: "Mouse follows focus", isOn: $store.preferences.mouseFollowsFocus)
       }

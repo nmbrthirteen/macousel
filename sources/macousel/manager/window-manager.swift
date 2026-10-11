@@ -27,9 +27,8 @@ final class WindowManager {
   private let reconciler: WindowReconciler
   private let focus: FocusDriver
   private let router: CommandRouter
-  private let drag: DragInteraction
-  private let scrolling: ScrollInteraction
-  private let hover: FocusFollowsPointer
+  private let interactions: ManagerInteractions
+  private let crashRecovery: any CrashRecovery
 
   @ObservationIgnored private var appliedPreferences: Preferences?
   @ObservationIgnored private var synchronization: Task<Void, Never>?
@@ -51,9 +50,7 @@ final class WindowManager {
     let reconciler = WindowReconciler(
       state: state, source: ports.source, environment: ports.environment, store: store,
       restorer: restorer, sessions: SessionStore(defaults: defaults))
-    focus = FocusDriver(
-      state: state, source: ports.source, store: store, pointer: ports.pointer)
-
+    focus = FocusDriver(state: state, source: ports.source, store: store, pointer: ports.pointer)
     self.store = store
     self.source = ports.source
     self.environment = ports.environment
@@ -65,12 +62,10 @@ final class WindowManager {
     router = CommandRouter(
       state: state, source: ports.source, presenter: presenter, focus: focus,
       reconciler: reconciler)
-    drag = DragInteraction(
-      state: state, source: ports.source, presenter: presenter, pointer: ports.pointer)
-    scrolling = ScrollInteraction(
-      state: state, presenter: presenter, focus: focus, store: store, gestures: ports.gestures)
-    hover = FocusFollowsPointer(
-      state: state, presenter: presenter, focus: focus, store: store, pointer: ports.pointer)
+    interactions = ManagerInteractions(
+      state: state, source: ports.source, presenter: presenter, focus: focus, store: store,
+      ports: ports)
+    crashRecovery = ports.crashRecovery
   }
 
   func start() {
@@ -103,6 +98,7 @@ final class WindowManager {
   func shutdown() {
     permissionPoll?.cancel()
     synchronization?.cancel()
+    crashRecovery.disarm()
     guard status != .needsPermission else { return }
     if status == .running {
       reconciler.saveSession()
@@ -116,14 +112,26 @@ final class WindowManager {
   }
 
   private func begin() {
-    status = .running
-    logger.info("Accessibility access granted, tiling started")
     connectEvents()
     source.start()
     environment.startObserving()
-    drag.start()
+    interactions.start()
+    if crashRecovery.isRecoveringFromCrash {
+      recoverWindows()
+      return
+    }
+    status = .running
+    logger.info("Accessibility access granted, tiling started")
+    crashRecovery.arm()
     applyInputs()
     synchronize()
+  }
+
+  private func recoverWindows() {
+    status = .paused
+    logger.info("Recovering windows after a crash, tiling paused")
+    restorer.restoreSaved(Array(source.windows.values), on: environment.displays)
+    applyInputs()
   }
 
   private func connectEvents() {
@@ -134,15 +142,13 @@ final class WindowManager {
       self?.scheduleSynchronization()
     }
     presenter.overlays.onTabSelected = { [weak self] window in self?.router.select(window) }
-    hover.isSuppressed = { [weak self] in
-      self.map { $0.drag.isActive || $0.scrolling.isActive } ?? true
-    }
     store.onChange = { [weak self] in self?.preferencesChanged() }
   }
 
   private func pause() {
     status = .paused
     logger.info("Tiling paused")
+    crashRecovery.disarm()
     synchronization?.cancel()
     releaseWindows()
     applyInputs()
@@ -151,6 +157,7 @@ final class WindowManager {
   private func resume() {
     status = .running
     logger.info("Tiling resumed")
+    crashRecovery.arm()
     applyInputs()
     synchronize()
   }
@@ -162,16 +169,13 @@ final class WindowManager {
   }
 
   private func stopInteractions() {
-    drag.stop()
-    scrolling.stop()
-    hover.stop()
+    interactions.stop()
   }
 
   private func applyInputs() {
     let isTiling = status == .running
     shortcuts.setBindings(activeBindings())
-    scrolling.configure(isTiling: isTiling)
-    hover.configure(isTiling: isTiling)
+    interactions.configure(isTiling: isTiling)
   }
 
   private func activeBindings() -> [Hotkey: () -> Void] {
@@ -223,8 +227,10 @@ final class WindowManager {
       scheduleSynchronization()
     case .focused(let window):
       focusChanged(to: WindowID(window))
-    case .moved(let window), .resized(let window):
-      drag.windowChanged(window)
+    case .moved(let window):
+      interactions.windowMoved(window)
+    case .resized(let window):
+      interactions.windowResized(window)
     }
   }
 

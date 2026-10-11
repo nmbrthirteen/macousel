@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   let manager: WindowManager
   let onboarding: OnboardingWindowController
   let updater: Updater
+  private let terminationSignals = TerminationSignals()
 
   override init() {
     let store = PreferencesStore()
@@ -21,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    terminationSignals.install()
     manager.start()
     onboarding.showIfNeeded()
     updater.startAutomaticChecks()

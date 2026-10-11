@@ -26,6 +26,8 @@ struct AppRulesPane: View {
           }
         }
         .disabled(addableApps.isEmpty)
+        Button("Restore default rules", action: restoreDefaults)
+          .disabled(store.preferences.appRules == AppRule.defaults)
       }
     }
     .onAppear(perform: runningApps.start)
@@ -38,6 +40,10 @@ struct AppRulesPane: View {
 
   private func add(_ app: AppIdentity) {
     store.preferences.appRules.append(AppRule(bundleIdentifier: app.id, behavior: .float))
+  }
+
+  private func restoreDefaults() {
+    store.preferences.appRules = AppRule.defaults
   }
 
   private func remove(_ rule: AppRule) {

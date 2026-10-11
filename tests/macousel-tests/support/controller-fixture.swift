@@ -17,6 +17,7 @@ final class ControllerFixture {
   let shortcuts = FakeShortcutRegistry()
   let gestures = FakeGestureInput()
   let overlays = FakeOverlayHost()
+  let crashRecovery = FakeCrashRecovery()
   let manager: WindowManager
   private var hasQuit = false
 
@@ -27,7 +28,6 @@ final class ControllerFixture {
     let suite = try suite ?? IsolatedDefaults()
     let store = PreferencesStore(defaults: suite.defaults)
     store.preferences.animationSpeed = .off
-    store.preferences.showsFocusBorder = true
     preferences(&store.preferences)
     let environment = FakeDesktopEnvironment(displays: displays)
     let source = FakeWindowSource(environment: environment)
@@ -39,7 +39,8 @@ final class ControllerFixture {
       store: store,
       ports: ManagerPorts(
         source: source, placer: placer, clock: clock, environment: environment,
-        pointer: pointer, shortcuts: shortcuts, gestures: gestures, overlays: overlays),
+        pointer: pointer, shortcuts: shortcuts, gestures: gestures, overlays: overlays,
+        crashRecovery: crashRecovery),
       defaults: suite.defaults)
     try FixtureRegistry.enroll(self)
   }

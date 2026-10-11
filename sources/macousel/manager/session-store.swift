@@ -18,9 +18,12 @@ struct SessionStore {
     return session
   }
 
-  func save(_ stripsByDisplay: [String: Strip], windows: [CGWindowID: any WindowHandle]) {
+  func save(
+    _ stripsByDisplay: [String: Strip], windows: [CGWindowID: any WindowHandle],
+    titles: [CGWindowID: String]
+  ) {
     let session = stripsByDisplay.mapValues { strip in
-      strip.columns.map { SavedColumn($0, windows: windows) }
+      strip.columns.map { SavedColumn($0, windows: windows, titles: titles) }
     }
     guard let data = try? JSONEncoder().encode(session) else { return }
     defaults.set(data, forKey: Self.key)

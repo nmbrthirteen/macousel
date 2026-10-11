@@ -94,6 +94,13 @@ public struct Strip: Sendable, Codable, Equatable {
   }
 
   @discardableResult
+  public mutating func focusColumn(_ index: Int) -> Bool {
+    guard columns.indices.contains(index), focusedColumn != index else { return false }
+    focusedColumn = index
+    return true
+  }
+
+  @discardableResult
   public mutating func focusFirst() -> Bool {
     guard !isEmpty, focusedColumn != 0 else { return false }
     focusedColumn = 0

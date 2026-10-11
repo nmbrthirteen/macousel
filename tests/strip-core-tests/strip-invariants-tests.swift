@@ -4,7 +4,7 @@ import Testing
 
 struct StripInvariantTests {
   private enum Operation: CaseIterable {
-    case insert, append, remove, focusWindow, focusDirection, focusFirst, focusLast
+    case insert, append, remove, stackOnto, focusColumn, setFullWidth, focusWindow, focusDirection, focusFirst, focusLast
     case moveFocused, moveToColumn, cycleWidth, toggleFullWidth, adjustWidth, setFixedWidth
     case adjustHeight, equalizeHeights, stack, popOut, toggleTabbed
     case scrollToFocus, centerFocused, settle
@@ -24,6 +24,10 @@ struct StripInvariantTests {
       nextID += 1
       strip.append(id(nextID), width: .fraction(Double.random(in: 0.2...0.9, using: &rng)))
     case .remove: strip.remove(pick)
+    case .stackOnto:
+      strip.stack(pick, ontoColumnOf: known.randomElement(using: &rng) ?? id(0), atRow: Int.random(in: -1...4, using: &rng))
+    case .focusColumn: strip.focusColumn(Int.random(in: -1...6, using: &rng))
+    case .setFullWidth: strip.setFullWidth(Bool.random(using: &rng), of: pick)
     case .focusWindow: strip.focus(pick)
     case .focusDirection: strip.focus(Direction.allCases.randomElement(using: &rng) ?? .left)
     case .focusFirst: strip.focusFirst()

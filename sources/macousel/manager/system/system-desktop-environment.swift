@@ -27,6 +27,7 @@ final class SystemDesktopEnvironment: DesktopEnvironment {
   }
 
   func requestAccessibilityAccess() {
+    AccessibilityPermission.resetGrant()
     AccessibilityPermission.requestWithPrompt()
   }
 

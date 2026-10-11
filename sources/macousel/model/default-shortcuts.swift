@@ -12,8 +12,13 @@ extension Action {
     let base: Hotkey.Modifiers = [.control, .option]
     let shifted: Hotkey.Modifiers = [.control, .option, .shift]
     let commanded: Hotkey.Modifiers = [.control, .option, .command]
+    let optioned: Hotkey.Modifiers = [.option]
+    let columnKeys = [
+      kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5,
+      kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9,
+    ]
 
-    return [
+    var shortcuts: [Action: [Hotkey]] = [
       .focusLeft: [Hotkey(kVK_ANSI_H, base), Hotkey(kVK_LeftArrow, base)],
       .focusDown: [Hotkey(kVK_ANSI_J, base), Hotkey(kVK_DownArrow, base)],
       .focusUp: [Hotkey(kVK_ANSI_K, base), Hotkey(kVK_UpArrow, base)],
@@ -41,5 +46,9 @@ extension Action {
       .toggleTabbed: [Hotkey(kVK_ANSI_T, shifted)],
       .toggleFloating: [Hotkey(kVK_ANSI_T, base)],
     ]
+    for (action, key) in zip(Action.columnActions, columnKeys) {
+      shortcuts[action] = [Hotkey(key, optioned)]
+    }
+    return shortcuts
   }()
 }

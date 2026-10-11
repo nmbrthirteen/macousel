@@ -18,6 +18,9 @@ extension Strip {
     case .focusDown: outcome(focus(.down))
     case .focusFirst: outcome(focusFirst())
     case .focusLast: outcome(focusLast())
+    case .focusColumn1, .focusColumn2, .focusColumn3, .focusColumn4, .focusColumn5,
+      .focusColumn6, .focusColumn7, .focusColumn8, .focusColumn9:
+      outcome(action.columnIndex.map { focusColumn($0) } ?? false)
     case .moveLeft: outcome(moveFocused(.left))
     case .moveRight: outcome(moveFocused(.right))
     case .moveUp: outcome(moveFocused(.up))

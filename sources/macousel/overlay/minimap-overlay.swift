@@ -64,6 +64,9 @@ struct MinimapView: View {
 
   private static let padding = Metrics.Spacing.regular + Metrics.Spacing.hairline
   private static let columnGap = 1.5
+  private static let widestNumberedColumn = 9
+  private static let narrowestNumberedWidth = 14.0
+  private static let numberFontSize = 9.0
 
   var body: some View {
     Canvas { context, size in
@@ -81,7 +84,7 @@ struct MinimapView: View {
     guard span > 0 else { return }
     let scale = size.width / span
 
-    for column in snapshot.columns {
+    for (index, column) in snapshot.columns.enumerated() {
       let x = (column.x - start) * scale
       let width = max(column.width * scale - Self.columnGap, 1)
       let shares = column.rowShares.isEmpty ? [1] : column.rowShares
@@ -97,6 +100,9 @@ struct MinimapView: View {
         context.fill(Path(roundedRect: rect, cornerRadius: Metrics.Radius.column), with: .color(color))
         y += height + Self.columnGap
       }
+      drawNumber(
+        index + 1, centeredAt: CGPoint(x: x + width / 2, y: size.height / 2), columnWidth: width,
+        in: context)
     }
 
     let viewport = CGRect(
@@ -105,5 +111,17 @@ struct MinimapView: View {
     context.stroke(
       Path(roundedRect: viewport.insetBy(dx: 0.5, dy: 0.5), cornerRadius: Metrics.Radius.viewport),
       with: .color(.primary), lineWidth: Metrics.Size.outlineStroke)
+  }
+
+  private func drawNumber(
+    _ number: Int, centeredAt center: CGPoint, columnWidth: Double, in context: GraphicsContext
+  ) {
+    guard number <= Self.widestNumberedColumn, columnWidth >= Self.narrowestNumberedWidth else {
+      return
+    }
+    let label = Text("\(number)")
+      .font(.system(size: Self.numberFontSize, weight: .semibold, design: .rounded).monospacedDigit())
+      .foregroundStyle(Color.primary)
+    context.draw(label, at: center, anchor: .center)
   }
 }

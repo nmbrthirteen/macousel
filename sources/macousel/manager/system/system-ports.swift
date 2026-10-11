@@ -11,6 +11,7 @@ extension ManagerPorts {
       pointer: SystemPointerDevice(),
       shortcuts: SystemShortcutRegistry(),
       gestures: SystemGestureInput(),
-      overlays: SystemOverlayHost())
+      overlays: SystemOverlayHost(),
+      crashRecovery: SystemCrashRecovery())
   }
 }

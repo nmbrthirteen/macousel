@@ -5,6 +5,7 @@ import WindowSystem
 final class DragInteraction {
   private static let frameTolerance: CGFloat = 2
   private static let grabMargin: CGFloat = 12
+  private static let stackZoneShare: CGFloat = 0.6
 
   private struct Drag {
     var window: CGWindowID
@@ -98,7 +99,7 @@ final class DragInteraction {
   private func drop(_ window: WindowID, from key: Workspace.Key) {
     let destination = state.pointerKey ?? key
     if destination == key {
-      reorder(window, in: key)
+      if !stackOntoWindowUnderPointer(window, in: key) { reorder(window, in: key) }
     } else {
       state.workspaces[key]?.strip.remove(window)
       state.workspaces[destination]?.strip.insert(window, config: state.config)
@@ -116,5 +117,32 @@ final class DragInteraction {
       layout.placements.first { $0.column == column }.map { $0.frame.midX < pointerX } ?? false
     }
     state.workspaces[key]?.strip.move(window, toColumn: columnsLeftOfPointer.count)
+  }
+
+  private func stackOntoWindowUnderPointer(_ window: WindowID, in key: Workspace.Key) -> Bool {
+    let point = pointer.location
+    guard let layout = state.targetLayout(for: key),
+      let strip = state.workspaces[key]?.strip,
+      let target = layout.placements.first(where: {
+        $0.window != window && !$0.isBehindTab && $0.frame.contains(point)
+      }),
+      isInStackZone(point.x, of: target.frame),
+      let column = strip.columnIndex(of: target.window),
+      let targetRow = strip.columns[column].windows.firstIndex(of: target.window)
+    else { return false }
+    let isAbove = point.y < target.frame.midY
+    var row = isAbove ? targetRow : targetRow + 1
+    if let draggedRow = strip.columns[column].windows.firstIndex(of: window),
+      draggedRow < targetRow
+    {
+      row -= 1
+    }
+    state.workspaces[key]?.strip.stack(window, ontoColumnOf: target.window, atRow: row)
+    return true
+  }
+
+  private func isInStackZone(_ x: CGFloat, of frame: CGRect) -> Bool {
+    let margin = frame.width * (1 - Self.stackZoneShare) / 2
+    return x >= frame.minX + margin && x <= frame.maxX - margin
   }
 }

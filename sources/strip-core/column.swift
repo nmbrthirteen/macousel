@@ -37,6 +37,23 @@ public struct Column: Sendable, Codable, Equatable {
     activeRow = windows.count - 1
   }
 
+  mutating func insertWindow(_ window: WindowID, at row: Int) {
+    let target = min(max(row, 0), windows.count)
+    windows.insert(window, at: target)
+    heightWeights.insert(1.0, at: target)
+    activeRow = target
+    normalizeWeights()
+  }
+
+  mutating func moveWindow(from source: Int, to row: Int) {
+    let target = min(max(row, 0), windows.count - 1)
+    let window = windows.remove(at: source)
+    let weight = heightWeights.remove(at: source)
+    windows.insert(window, at: target)
+    heightWeights.insert(weight, at: target)
+    activeRow = target
+  }
+
   mutating func removeWindow(at row: Int) {
     precondition(windows.count > 1, "removeWindow would leave the column empty")
     windows.remove(at: row)

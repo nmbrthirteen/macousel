@@ -1,6 +1,8 @@
 enum Action: String, CaseIterable, Codable, Sendable {
   case focusLeft, focusRight, focusUp, focusDown
   case focusFirst, focusLast
+  case focusColumn1, focusColumn2, focusColumn3, focusColumn4, focusColumn5
+  case focusColumn6, focusColumn7, focusColumn8, focusColumn9
   case moveLeft, moveRight, moveUp, moveDown
   case sendToNextDisplay
   case togglePaused
@@ -30,6 +32,8 @@ enum Action: String, CaseIterable, Codable, Sendable {
   var group: Group {
     switch self {
     case .focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast,
+      .focusColumn1, .focusColumn2, .focusColumn3, .focusColumn4, .focusColumn5,
+      .focusColumn6, .focusColumn7, .focusColumn8, .focusColumn9,
       .moveLeft, .moveRight, .moveUp, .moveDown, .sendToNextDisplay, .togglePaused:
       .navigate
     case .cycleWidth, .toggleFullWidth, .center, .wider, .narrower, .taller, .shorter,
@@ -48,6 +52,15 @@ enum Action: String, CaseIterable, Codable, Sendable {
     case .focusDown: "Focus down"
     case .focusFirst: "Focus first window"
     case .focusLast: "Focus last window"
+    case .focusColumn1: "Focus column 1"
+    case .focusColumn2: "Focus column 2"
+    case .focusColumn3: "Focus column 3"
+    case .focusColumn4: "Focus column 4"
+    case .focusColumn5: "Focus column 5"
+    case .focusColumn6: "Focus column 6"
+    case .focusColumn7: "Focus column 7"
+    case .focusColumn8: "Focus column 8"
+    case .focusColumn9: "Focus column 9"
     case .moveLeft: "Move left"
     case .moveRight: "Move right"
     case .moveUp: "Move up"
@@ -73,9 +86,16 @@ enum Action: String, CaseIterable, Codable, Sendable {
 }
 
 extension Action {
+  static let columnActions: [Action] = [
+    .focusColumn1, .focusColumn2, .focusColumn3, .focusColumn4, .focusColumn5,
+    .focusColumn6, .focusColumn7, .focusColumn8, .focusColumn9,
+  ]
+
+  var columnIndex: Int? { Self.columnActions.firstIndex(of: self) }
+
   var commandName: String {
     rawValue.reduce(into: "") { name, character in
-      if character.isUppercase { name.append("-") }
+      if character.isUppercase || character.isNumber { name.append("-") }
       name.append(contentsOf: character.lowercased())
     }
   }

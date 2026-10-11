@@ -8,20 +8,28 @@ final class FakeWindow: WindowHandle {
   let pid: pid_t
   let bundleIdentifier: String?
   let appName: String
-  var title: String
+  var title: String {
+    get {
+      titleReadCount += 1
+      return storedTitle
+    }
+    set { storedTitle = newValue }
+  }
   var frame: CGRect?
   var isTileable = true
   var isFullScreen = false
   var onFocus: ((FakeWindow) -> Void)?
   private(set) var framesSet: [CGRect] = []
   private(set) var focusCount = 0
+  private(set) var titleReadCount = 0
+  private var storedTitle: String
 
   init(id: CGWindowID, app: FakeApp, title: String, frame: CGRect) {
     self.id = id
     pid = app.pid
     bundleIdentifier = app.bundleIdentifier
     appName = app.name
-    self.title = title
+    storedTitle = title
     self.frame = frame
   }
 

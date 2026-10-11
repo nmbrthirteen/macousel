@@ -52,6 +52,11 @@ extension Strip {
     columns[columnIndex].isFullWidth = false
   }
 
+  public mutating func setFullWidth(_ isFullWidth: Bool, of window: WindowID) {
+    guard let (columnIndex, _) = location(of: window) else { return }
+    columns[columnIndex].isFullWidth = isFullWidth
+  }
+
   @discardableResult
   public mutating func adjustHeight(by delta: Double) -> Bool {
     guard let focused = focusedColumn else { return false }

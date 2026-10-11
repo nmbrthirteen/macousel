@@ -7,7 +7,10 @@ nonisolated struct ThreadSafeAXElement: @unchecked Sendable {
   let element: AXUIElement
 }
 
+private nonisolated let logger = Logger(subsystem: "dev.macousel.app", category: "frame-applier")
+
 private nonisolated struct Placement: Sendable {
+  let pid: pid_t
   let element: ThreadSafeAXElement
   let frame: CGRect
 }
@@ -119,6 +122,7 @@ private nonisolated final class PlacementWorker: Sendable {
 
   private let sizes = OSAllocatedUnfairLock(initialState: [CGWindowID: CGSize]())
   private let suspended = OSAllocatedUnfairLock(initialState: Set<pid_t>())
+  private let timings = OSAllocatedUnfairLock(initialState: [pid_t: BurstTiming]())
   private let messagingTimeout: Float
 
   init(messagingTimeout: Float) {
@@ -126,6 +130,13 @@ private nonisolated final class PlacementWorker: Sendable {
   }
 
   func apply(_ window: CGWindowID, _ placement: Placement) {
+    let started = ContinuousClock.now
+    place(window, placement)
+    let elapsed = started.duration(to: .now)
+    timings.withLock { $0[placement.pid, default: BurstTiming()].record(elapsed) }
+  }
+
+  private func place(_ window: CGWindowID, _ placement: Placement) {
     let element = placement.element.element
     let frame = placement.frame
     if sizes.withLock({ $0[window] }) == frame.size {
@@ -142,7 +153,24 @@ private nonisolated final class PlacementWorker: Sendable {
     sizes.withLock { $0[window] = nil }
   }
 
-  func disableEnhancedInterface(of pid: pid_t) {
+  func beginBurst(of pid: pid_t) {
+    timings.withLock { $0[pid] = nil }
+    disableEnhancedInterface(of: pid)
+  }
+
+  func endBurst(of pid: pid_t) {
+    reportTiming(of: pid)
+    restoreEnhancedInterface(of: pid)
+  }
+
+  private func reportTiming(of pid: pid_t) {
+    guard let timing = timings.withLock({ $0.removeValue(forKey: pid) }) else { return }
+    logger.info(
+      "pid \(pid, privacy: .public) applies \(timing.count, privacy: .public) average \(timing.averageMilliseconds, format: .fixed(precision: 1), privacy: .public) ms maximum \(timing.maximumMilliseconds, format: .fixed(precision: 1), privacy: .public) ms"
+    )
+  }
+
+  private func disableEnhancedInterface(of pid: pid_t) {
     let app = applicationElement(pid)
     let enhanced: Bool = app.attribute(Self.enhancedInterface) ?? false
     guard enhanced else { return }
@@ -150,7 +178,7 @@ private nonisolated final class PlacementWorker: Sendable {
     suspended.withLock { _ = $0.insert(pid) }
   }
 
-  func restoreEnhancedInterface(of pid: pid_t) {
+  private func restoreEnhancedInterface(of pid: pid_t) {
     guard suspended.withLock({ $0.remove(pid) != nil }) else { return }
     applicationElement(pid).set(bool: true, for: Self.enhancedInterface)
   }
@@ -171,13 +199,14 @@ public final class FrameApplier {
     self.worker = worker
     queue = LatestWinsQueue(
       apply: { worker.apply($0, $1) },
-      beginBurst: { worker.disableEnhancedInterface(of: $0) },
-      endBurst: { worker.restoreEnhancedInterface(of: $0) })
+      beginBurst: { worker.beginBurst(of: $0) },
+      endBurst: { worker.endBurst(of: $0) })
   }
 
   public func submit(_ frame: CGRect, for window: ManagedWindow) {
     queue.submit(
-      Placement(element: ThreadSafeAXElement(element: window.element), frame: frame),
+      Placement(
+        pid: window.pid, element: ThreadSafeAXElement(element: window.element), frame: frame),
       window: window.id, pid: window.pid)
   }
 

@@ -58,6 +58,10 @@ final class WindowRestorer {
     }
   }
 
+  func restoreSaved(_ windows: [any WindowHandle], on displays: [Display]) {
+    restore(windows.filter { originalFrames[$0.id]?.pid == $0.pid }, on: displays)
+  }
+
   private func reachable(_ frame: CGRect, on displays: [Display]) -> CGRect {
     let isReachable = displays.contains {
       $0.visibleFrame.intersection(frame).width >= min(frame.width, Self.minimumReachableWidth)

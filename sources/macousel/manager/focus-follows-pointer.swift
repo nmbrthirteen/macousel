@@ -24,17 +24,6 @@ final class FocusFollowsPointer {
     self.pointer = pointer
   }
 
-  func configure(isTiling: Bool) {
-    pointer.stopObservingMovement()
-    if isTiling && store.preferences.focusFollowsMouse {
-      pointer.startObservingMovement { [weak self] point in self?.pointerMoved(to: point) }
-    }
-  }
-
-  func stop() {
-    pointer.stopObservingMovement()
-  }
-
   private func isOverFocusedWindow(_ point: CGPoint) -> Bool {
     guard let key = state.focusedKey,
       let focused = state.workspaces[key]?.strip.focusedWindow,
@@ -43,8 +32,8 @@ final class FocusFollowsPointer {
     return frame.contains(point)
   }
 
-  private func pointerMoved(to point: CGPoint) {
-    guard presenter.isSettled, !isSuppressed(), !isOverFocusedWindow(point),
+  func pointerMoved(to point: CGPoint) {
+    guard store.preferences.focusFollowsMouse, presenter.isSettled, !isSuppressed(), !isOverFocusedWindow(point),
       !focus.hasCommandActivation(within: Self.commandGracePeriod),
       let window = pointer.windowID(at: point).map(WindowID.init(_:)),
       let key = state.activeKey(containing: window),

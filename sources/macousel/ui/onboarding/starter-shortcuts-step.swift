@@ -3,13 +3,13 @@ import WindowSystem
 
 struct StarterShortcutsStep: View {
   private static let starterActions: [Action] = [
-    .focusLeft, .focusRight, .moveLeft, .moveRight, .cycleWidth,
+    .focusLeft, .focusRight, .moveLeft, .moveRight, .cycleWidth, .stackLeft,
   ]
 
   let store: PreferencesStore
 
   var body: some View {
-    OnboardingStepLayout(title: "Five shortcuts to start") {
+    OnboardingStepLayout(title: "Six shortcuts to start") {
       Form {
         ForEach(Self.starterActions, id: \.self) { action in
           LabeledContent(action.title) {
@@ -20,6 +20,7 @@ struct StarterShortcutsStep: View {
       }
       .formStyle(.grouped)
       .scrollDisabled(true)
+      CaptionText("Or drag a window onto the middle of another to stack them.")
       CaptionText("Change any of them in Settings > Shortcuts.")
     }
   }

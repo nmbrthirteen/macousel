@@ -11,11 +11,15 @@ struct ActionCommandTests {
 
   @Test(arguments: Action.allCases)
   func commandNameIsLowercaseKebabCase(action: Action) {
-    #expect(action.commandName.allSatisfy { $0.isLowercase || $0 == "-" })
+    #expect(action.commandName.allSatisfy { $0.isLowercase || $0.isNumber || $0 == "-" })
   }
 
   @Test func commandNamesAreUnique() {
     #expect(Set(Action.allCases.map(\.commandName)).count == Action.allCases.count)
+  }
+
+  @Test func thereAreThirtyFiveActions() {
+    #expect(Action.allCases.count == 35)
   }
 
   @Test func unknownCommandNameIsRejected() {

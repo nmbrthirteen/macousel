@@ -2,24 +2,11 @@ import Foundation
 import StripCore
 import WindowSystem
 
-struct AppRule: Codable, Equatable, Identifiable {
-  enum Behavior: Codable, Equatable {
-    case float
-    case width(Double)
-    case slot(Int)
-  }
-
-  var bundleIdentifier: String
-  var behavior: Behavior
-
-  var id: String { bundleIdentifier }
-}
-
 struct Preferences: Codable, Equatable {
   var layout = LayoutConfig()
   var shortcuts: [Action: [Hotkey]] = Action.defaultShortcuts
   var animationSpeed = AnimationSpeed.fast
-  var showsFocusBorder = false
+  var showsFocusBorder = true
   var focusBorderWidth: Double = 3
   var dimsInactiveWindows = false
   var dimAmount: Double = 0.25
@@ -28,9 +15,10 @@ struct Preferences: Codable, Equatable {
   var scrollGestureEnabled = true
   var swipeGestureEnabled = true
   var swipeFingers = 4
+  var displayFollowsPointer = true
   var focusFollowsMouse = false
   var mouseFollowsFocus = false
-  var appRules: [AppRule] = []
+  var appRules: [AppRule] = AppRule.defaults
   var disabledDisplays: Set<String> = []
   var hasCompletedOnboarding = false
   var checksForUpdates = true
@@ -44,7 +32,8 @@ struct Preferences: Codable, Equatable {
     }
     let defaults = Preferences()
     layout = value(.layout, or: defaults.layout)
-    shortcuts = value(.shortcuts, or: defaults.shortcuts)
+    let savedShortcuts: [Action: [Hotkey]] = value(.shortcuts, or: [:])
+    shortcuts = defaults.shortcuts.merging(savedShortcuts) { _, saved in saved }
     animationSpeed = value(.animationSpeed, or: defaults.animationSpeed)
     showsFocusBorder = value(.showsFocusBorder, or: defaults.showsFocusBorder)
     focusBorderWidth = value(.focusBorderWidth, or: defaults.focusBorderWidth)
@@ -55,6 +44,7 @@ struct Preferences: Codable, Equatable {
     scrollGestureEnabled = value(.scrollGestureEnabled, or: defaults.scrollGestureEnabled)
     swipeGestureEnabled = value(.swipeGestureEnabled, or: defaults.swipeGestureEnabled)
     swipeFingers = value(.swipeFingers, or: defaults.swipeFingers)
+    displayFollowsPointer = value(.displayFollowsPointer, or: defaults.displayFollowsPointer)
     focusFollowsMouse = value(.focusFollowsMouse, or: defaults.focusFollowsMouse)
     mouseFollowsFocus = value(.mouseFollowsFocus, or: defaults.mouseFollowsFocus)
     appRules = value(.appRules, or: defaults.appRules)

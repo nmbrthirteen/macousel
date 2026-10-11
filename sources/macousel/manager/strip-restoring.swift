@@ -1,10 +1,13 @@
+import CoreGraphics
 import StripCore
 
 extension Strip {
-  mutating func restore(_ saved: [SavedColumn], from windows: [any WindowHandle])
+  mutating func restore(
+    _ saved: [SavedColumn], from windows: [any WindowHandle], titles: [CGWindowID: String]
+  )
     -> [any WindowHandle]
   {
-    var matcher = SessionMatcher(windows)
+    var matcher = SessionMatcher(windows, titles: titles)
     for column in saved {
       let members = column.windows.compactMap { matcher.claim($0) }.map { WindowID($0) }
       restoreColumn(of: members, like: column)

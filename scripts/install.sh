@@ -33,5 +33,7 @@ mkdir -p "$install_dir"
 rm -rf "$install_dir/Macousel.app"
 mv "$workdir/Macousel.app" "$install_dir/Macousel.app"
 
+tccutil reset Accessibility dev.macousel.app >/dev/null 2>&1 || true
+
 echo "Installed $install_dir/Macousel.app"
-echo "Open it, then grant Accessibility access when macOS asks."
+echo "Open it. macOS will ask for Accessibility access on first launch."

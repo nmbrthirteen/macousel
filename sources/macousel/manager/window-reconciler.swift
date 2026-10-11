@@ -15,6 +15,7 @@ final class WindowReconciler {
   private let sessions: SessionStore
   private var floating: Set<CGWindowID> = []
   private var knownTileable: Set<CGWindowID> = []
+  private var capturedTitles: [CGWindowID: String] = [:]
   private var savedSession: [String: [SavedColumn]]
   private var pendingSessionSave: Task<Void, Never>?
 
@@ -62,7 +63,7 @@ final class WindowReconciler {
     let stripsByDisplay = state.activeKeys.reduce(into: [String: Strip]()) { strips, key in
       strips[key.displayUUID] = state.workspaces[key]?.strip
     }
-    sessions.save(stripsByDisplay, windows: source.windows)
+    sessions.save(stripsByDisplay, windows: source.windows, titles: capturedTitles)
   }
 
   private func tileCandidates() -> [any WindowHandle] {
@@ -113,6 +114,7 @@ final class WindowReconciler {
 
   private func admit(_ windows: [any WindowHandle], to key: Workspace.Key) {
     windows.forEach(restorer.remember)
+    windows.forEach { capturedTitles[$0.id] = $0.title }
     removeFromOtherWorkspaces(windows, keeping: key)
 
     var strip = state.workspaces[key]?.strip ?? Strip()
@@ -141,7 +143,7 @@ final class WindowReconciler {
     if store.preferences.restoresSession,
       let saved = savedSession.removeValue(forKey: displayUUID)
     {
-      remaining = strip.restore(saved, from: windows)
+      remaining = strip.restore(saved, from: windows, titles: capturedTitles)
     }
     for window in remaining {
       strip.append(WindowID(window), width: initialWidth(for: window))
@@ -178,6 +180,7 @@ final class WindowReconciler {
   private func retain(only alive: Set<CGWindowID>) {
     floating.formIntersection(alive)
     knownTileable.formIntersection(alive)
+    capturedTitles = capturedTitles.filter { alive.contains($0.key) }
     restorer.retain(only: alive)
     for key in state.workspaces.keys {
       guard let windows = state.workspaces[key]?.strip.windows else { continue }
