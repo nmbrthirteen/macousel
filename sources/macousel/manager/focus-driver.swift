@@ -10,18 +10,23 @@ final class FocusDriver {
   private var lastCommandActivation: ContinuousClock.Instant?
 
   private let state: TilingState
-  private let tracker: WindowTracker
+  private let windowSource: any WindowSource
   private let store: PreferencesStore
+  private let pointer: any PointerDevice
 
-  init(state: TilingState, tracker: WindowTracker, store: PreferencesStore) {
+  init(
+    state: TilingState, source: any WindowSource, store: PreferencesStore,
+    pointer: any PointerDevice
+  ) {
     self.state = state
-    self.tracker = tracker
+    self.windowSource = source
     self.store = store
+    self.pointer = pointer
   }
 
   func activate(_ window: WindowID, in key: Workspace.Key, from source: FocusSource) {
     state.focusedKey = key
-    tracker.windows[window.rawValue]?.focus()
+    windowSource.window(window.rawValue)?.focus()
     guard source == .command else { return }
     lastCommandActivation = .now
     if store.preferences.mouseFollowsFocus {
@@ -35,8 +40,8 @@ final class FocusDriver {
 
   private func movePointer(onto window: WindowID, in key: Workspace.Key) {
     guard let frame = state.settledLayout(for: key)?[window]?.frame,
-      !frame.contains(Pointer.location)
+      !frame.contains(pointer.location)
     else { return }
-    Pointer.warp(to: frame.center)
+    pointer.warp(to: frame.center)
   }
 }

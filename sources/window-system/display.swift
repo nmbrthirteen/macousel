@@ -11,6 +11,18 @@ public struct Display: Equatable, Sendable {
 
   public enum Side: Sendable { case left, right, below }
 
+  public init(
+    id: CGDirectDisplayID, uuid: String, name: String, frame: CGRect, visibleFrame: CGRect,
+    isMain: Bool
+  ) {
+    self.id = id
+    self.uuid = uuid
+    self.name = name
+    self.frame = frame
+    self.visibleFrame = visibleFrame
+    self.isMain = isMain
+  }
+
   public static func all() -> [Display] {
     let screens = NSScreen.screens
     guard let primary = screens.first else { return [] }

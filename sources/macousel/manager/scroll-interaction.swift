@@ -22,20 +22,20 @@ final class ScrollInteraction {
   private let presenter: LayoutPresenter
   private let focus: FocusDriver
   private let store: PreferencesStore
-  private let scrollTap = ScrollGestureTap()
-  private let swipes = SwipeGestureMonitor()
+  private let gestures: any GestureInput
   private var gesture: Gesture?
 
   init(
-    state: TilingState, presenter: LayoutPresenter, focus: FocusDriver, store: PreferencesStore
+    state: TilingState, presenter: LayoutPresenter, focus: FocusDriver, store: PreferencesStore,
+    gestures: any GestureInput
   ) {
     self.state = state
     self.presenter = presenter
     self.focus = focus
     self.store = store
-    scrollTap.modifiers = Self.scrollModifiers
-    scrollTap.onScroll = { [weak self] deltaX, phase in self?.scrolled(by: deltaX, phase: phase) }
-    swipes.onSwipe = { [weak self] share, phase in self?.swiped(byPadShare: share, phase: phase) }
+    self.gestures = gestures
+    gestures.onScroll = { [weak self] deltaX, phase in self?.scrolled(by: deltaX, phase: phase) }
+    gestures.onSwipe = { [weak self] share, phase in self?.swiped(byPadShare: share, phase: phase) }
   }
 
   var isActive: Bool { gesture != nil }
@@ -44,17 +44,16 @@ final class ScrollInteraction {
     stop()
     guard isTiling else { return }
     if store.preferences.scrollGestureEnabled {
-      _ = scrollTap.start()
+      gestures.startScrolling(modifiers: Self.scrollModifiers)
     }
     if store.preferences.swipeGestureEnabled {
-      swipes.fingerCount = store.preferences.swipeFingers
-      _ = swipes.start()
+      gestures.startSwiping(fingerCount: store.preferences.swipeFingers)
     }
   }
 
   func stop() {
-    scrollTap.stop()
-    swipes.stop()
+    gestures.stopScrolling()
+    gestures.stopSwiping()
     gesture?.idleTimeout?.cancel()
     if let key = gesture?.key { state.workspaces[key]?.gestureOffset = nil }
     gesture = nil
@@ -99,9 +98,10 @@ final class ScrollInteraction {
     gesture.velocity = smoothedVelocity(of: gesture, after: -deltaX)
     gesture.lastSample = .now
     self.gesture = gesture
-    state.workspaces[key]?.gestureOffset = RubberBand.resisted(
+    let resisted = RubberBand.resisted(
       gesture.unresistedOffset, within: state.scrollRange(of: key),
       dimension: state.usableWidth(of: display))
+    state.workspaces[key]?.gestureOffset = resisted
   }
 
   private func smoothedVelocity(of gesture: Gesture, after travel: Double) -> Double {

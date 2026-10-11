@@ -1,4 +1,4 @@
-import AppKit
+import CoreGraphics
 import StripCore
 import WindowSystem
 import os
@@ -11,24 +11,29 @@ final class LayoutPresenter {
   var excludedWindow: CGWindowID?
 
   private let state: TilingState
-  private let tracker: WindowTracker
+  private let source: any WindowSource
+  private let environment: any DesktopEnvironment
   private let store: PreferencesStore
-  private let applier = FrameApplier()
-  private let ticker = FrameTicker()
+  private let placer: any FramePlacer
+  private let clock: any AnimationClock
   private var requestedFrames: [CGWindowID: CGRect] = [:]
 
   init(
-    state: TilingState, tracker: WindowTracker, store: PreferencesStore,
+    state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
+    store: PreferencesStore, placer: any FramePlacer, clock: any AnimationClock,
     overlays: OverlayPresenter
   ) {
     self.state = state
-    self.tracker = tracker
+    self.source = source
+    self.environment = environment
     self.store = store
+    self.placer = placer
+    self.clock = clock
     self.overlays = overlays
-    ticker.onFrame = { [weak self] deltaTime in self?.advance(by: deltaTime) }
+    clock.onFrame = { [weak self] deltaTime in self?.advance(by: deltaTime) }
   }
 
-  var isSettled: Bool { !ticker.isRunning && applier.isIdle }
+  var isSettled: Bool { !clock.isRunning && placer.isIdle }
 
   func requestedFrame(for window: CGWindowID) -> CGRect? {
     requestedFrames[window]
@@ -38,7 +43,7 @@ final class LayoutPresenter {
     let snapping = skipsAnimation
     state.activeKeys.forEach { retarget($0, snapping: snapping) }
     render()
-    if hasUnsettledMotion { ticker.start() }
+    if hasUnsettledMotion { clock.start() }
   }
 
   func track(_ key: Workspace.Key) {
@@ -60,7 +65,7 @@ final class LayoutPresenter {
   }
 
   func pauseAnimation() {
-    ticker.stop()
+    clock.stop()
   }
 
   func invalidate(_ window: CGWindowID) {
@@ -74,21 +79,20 @@ final class LayoutPresenter {
   func retain(only alive: Set<CGWindowID>) {
     for window in requestedFrames.keys where !alive.contains(window) {
       requestedFrames[window] = nil
-      applier.forget(window)
+      placer.forget(window)
     }
   }
 
   func halt() {
-    ticker.stop()
-    applier.flush()
+    clock.stop()
+    placer.flush()
     overlays.hide()
     requestedFrames = [:]
   }
 
   private var skipsAnimation: Bool {
     store.preferences.animationSpeed == .off
-      || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-      || ProcessInfo.processInfo.isLowPowerModeEnabled
+      || environment.reducesMotion || environment.isLowPowerModeEnabled
   }
 
   private var hasUnsettledMotion: Bool {
@@ -111,7 +115,7 @@ final class LayoutPresenter {
     else { return [:] }
     var origins: [WindowID: CGPoint] = [:]
     for placement in layout.placements where !motion.isTracking(placement.window) {
-      guard let frame = tracker.windows[placement.window.rawValue]?.frame,
+      guard let frame = source.window(placement.window.rawValue)?.frame,
         display.frame.intersection(frame).width >= Self.narrowestVisibleEntrance
       else { continue }
       origins[placement.window] = frame.origin
@@ -125,7 +129,7 @@ final class LayoutPresenter {
     }
     if !hasUnsettledMotion {
       for key in state.activeKeys { state.workspaces[key]?.motion.snap() }
-      ticker.stop()
+      clock.stop()
     }
     render()
   }
@@ -134,11 +138,11 @@ final class LayoutPresenter {
     let policy = state.parkingPolicy(for: display)
     for placement in layout.placements {
       let id = placement.window.rawValue
-      guard id != excludedWindow, let window = tracker.windows[id] else { continue }
+      guard id != excludedWindow, let window = source.window(id) else { continue }
       let frame = policy.frame(for: placement, in: display.visibleFrame)
       guard requestedFrames[id] != frame else { continue }
       requestedFrames[id] = frame
-      applier.submit(frame, for: window)
+      placer.submit(frame, for: window)
     }
   }
 }

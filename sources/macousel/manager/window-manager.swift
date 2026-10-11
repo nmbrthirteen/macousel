@@ -18,9 +18,9 @@ final class WindowManager {
   private(set) var displays: [Display] = []
 
   private let store: PreferencesStore
-  private let tracker: WindowTracker
-  private let environment = EnvironmentObserver()
-  private let hotkeys = HotkeyCenter()
+  private let source: any WindowSource
+  private let environment: any DesktopEnvironment
+  private let shortcuts: any ShortcutRegistry
   private let state: TilingState
   private let presenter: LayoutPresenter
   private let restorer: WindowRestorer
@@ -34,40 +34,54 @@ final class WindowManager {
   @ObservationIgnored private var synchronization: Task<Void, Never>?
   @ObservationIgnored private var permissionPoll: Task<Void, Never>?
 
-  init(store: PreferencesStore) {
-    let tracker = WindowTracker()
-    let state = TilingState(store: store)
-    let overlays = OverlayPresenter(state: state, tracker: tracker, store: store)
+  convenience init(store: PreferencesStore) {
+    self.init(store: store, ports: .system(), defaults: .standard)
+  }
+
+  init(store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults) {
+    let state = TilingState(
+      store: store, environment: ports.environment, pointer: ports.pointer)
+    let overlays = OverlayPresenter(
+      state: state, source: ports.source, store: store, host: ports.overlays)
     let presenter = LayoutPresenter(
-      state: state, tracker: tracker, store: store, overlays: overlays)
-    let restorer = WindowRestorer()
+      state: state, source: ports.source, environment: ports.environment, store: store,
+      placer: ports.placer, clock: ports.clock, overlays: overlays)
+    let restorer = WindowRestorer(defaults: defaults)
     let reconciler = WindowReconciler(
-      state: state, tracker: tracker, store: store, restorer: restorer)
-    let focus = FocusDriver(state: state, tracker: tracker, store: store)
+      state: state, source: ports.source, environment: ports.environment, store: store,
+      restorer: restorer, sessions: SessionStore(defaults: defaults))
+    let focus = FocusDriver(
+      state: state, source: ports.source, store: store, pointer: ports.pointer)
 
     self.store = store
-    self.tracker = tracker
+    self.source = ports.source
+    self.environment = ports.environment
+    self.shortcuts = ports.shortcuts
     self.state = state
     self.presenter = presenter
     self.restorer = restorer
     self.reconciler = reconciler
     router = CommandRouter(
-      state: state, tracker: tracker, presenter: presenter, focus: focus, reconciler: reconciler)
-    drag = DragInteraction(state: state, tracker: tracker, presenter: presenter)
-    scrolling = ScrollInteraction(state: state, presenter: presenter, focus: focus, store: store)
-    hover = FocusFollowsPointer(state: state, presenter: presenter, focus: focus, store: store)
+      state: state, source: ports.source, presenter: presenter, focus: focus,
+      reconciler: reconciler)
+    drag = DragInteraction(
+      state: state, source: ports.source, presenter: presenter, pointer: ports.pointer)
+    scrolling = ScrollInteraction(
+      state: state, presenter: presenter, focus: focus, store: store, gestures: ports.gestures)
+    hover = FocusFollowsPointer(
+      state: state, presenter: presenter, focus: focus, store: store, pointer: ports.pointer)
   }
 
   func start() {
-    displays = Display.all()
-    guard !AccessibilityPermission.isGranted else {
+    displays = environment.displays
+    guard !environment.isAccessibilityGranted else {
       begin()
       return
     }
     logger.info("Waiting for Accessibility access")
-    AccessibilityPermission.requestWithPrompt()
+    environment.requestAccessibilityAccess()
     permissionPoll = Task {
-      while !AccessibilityPermission.isGranted {
+      while !environment.isAccessibilityGranted {
         try? await Task.sleep(for: Self.permissionPollInterval)
         if Task.isCancelled { return }
       }
@@ -94,25 +108,25 @@ final class WindowManager {
       releaseWindows()
     }
     restorer.forgetAll()
-    hotkeys.removeAll()
+    shortcuts.removeAll()
     stopInteractions()
-    tracker.stop()
-    environment.stop()
+    source.stop()
+    environment.stopObserving()
   }
 
   private func begin() {
     status = .running
     logger.info("Accessibility access granted, tiling started")
     connectEvents()
-    tracker.start()
-    environment.start()
+    source.start()
+    environment.startObserving()
     drag.start()
     applyInputs()
     synchronize()
   }
 
   private func connectEvents() {
-    tracker.onEvent = { [weak self] event in self?.handle(event) }
+    source.onEvent = { [weak self] event in self?.handle(event) }
     environment.onSpaceChanged = { [weak self] in self?.scheduleSynchronization() }
     environment.onDisplaysChanged = { [weak self] in
       self?.presenter.invalidateAll()
@@ -143,7 +157,7 @@ final class WindowManager {
   private func releaseWindows() {
     presenter.halt()
     let managed = state.workspaces.values.flatMap(\.strip.windows)
-    restorer.restore(managed.compactMap { tracker.windows[$0.rawValue] }, on: state.displays)
+    restorer.restore(managed.compactMap { source.window($0.rawValue) }, on: state.displays)
   }
 
   private func stopInteractions() {
@@ -154,7 +168,7 @@ final class WindowManager {
 
   private func applyInputs() {
     let isTiling = status == .running
-    hotkeys.setBindings(activeBindings())
+    shortcuts.setBindings(activeBindings())
     scrolling.configure(isTiling: isTiling)
     hover.configure(isTiling: isTiling)
   }
@@ -196,12 +210,12 @@ final class WindowManager {
     guard status == .running else { return }
     reconciler.reconcile()
     if displays != state.displays { displays = state.displays }
-    presenter.retain(only: Set(tracker.windows.keys))
+    presenter.retain(only: Set(source.windows.keys))
     presenter.overlays.refreshTitles()
     presenter.relayout()
   }
 
-  private func handle(_ event: WindowEvent) {
+  private func handle(_ event: WindowSourceEvent) {
     guard status == .running else { return }
     switch event {
     case .created, .destroyed, .minimized, .restored, .appHidden, .appShown:

@@ -1,5 +1,4 @@
 import StripCore
-import WindowSystem
 
 struct Workspace {
   struct Key: Hashable {
@@ -14,14 +13,8 @@ struct Workspace {
   var scrollOffset: Double { gestureOffset ?? strip.scrollOffset }
 }
 
-extension Workspace.Key {
-  init(currentSpaceOf display: Display) {
-    self.init(displayUUID: display.uuid, space: Spaces.currentSpace(of: display))
-  }
-}
-
 extension WindowID {
-  init(_ window: ManagedWindow) {
+  init(_ window: any WindowHandle) {
     self.init(window.id)
   }
 }

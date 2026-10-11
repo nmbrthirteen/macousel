@@ -12,38 +12,39 @@ final class OverlayPresenter {
   }
 
   var onTabSelected: ((WindowID) -> Void)? {
-    get { tabBars.onSelect }
-    set { tabBars.onSelect = newValue }
+    get { host.onTabSelected }
+    set { host.onTabSelected = newValue }
   }
 
   private let state: TilingState
-  private let tracker: WindowTracker
+  private let source: any WindowSource
   private let store: PreferencesStore
-  private let focusBorder = FocusBorderOverlay()
-  private let dim = DimOverlay()
-  private let minimap = MinimapOverlay()
-  private let tabBars = TabBarOverlay()
+  private let host: any OverlayHost
   private var tabTitles: [WindowID: String] = [:]
   private var shownDim: DimRequest?
 
-  init(state: TilingState, tracker: WindowTracker, store: PreferencesStore) {
+  init(
+    state: TilingState, source: any WindowSource, store: PreferencesStore,
+    host: any OverlayHost
+  ) {
     self.state = state
-    self.tracker = tracker
+    self.source = source
     self.store = store
+    self.host = host
   }
 
   func render(_ layouts: [Workspace.Key: StripLayout]) {
     let focused = focusedPlacement(in: layouts)
     renderFocusBorder(around: focused)
     renderDim(behind: focused)
-    tabBars.update(tabBarModels(for: layouts))
+    host.updateTabBars(tabBarModels(for: layouts))
   }
 
   func hide() {
-    focusBorder.hide()
-    dim.hide()
-    minimap.hide()
-    tabBars.update([])
+    host.hideFocusBorder()
+    host.hideDim()
+    host.hideMinimap()
+    host.updateTabBars([])
     shownDim = nil
   }
 
@@ -57,7 +58,7 @@ final class OverlayPresenter {
       guard let strip = state.workspaces[key]?.strip else { continue }
       for column in strip.columns where column.display == .tabbed {
         for window in column.windows {
-          tabTitles[window] = tracker.windows[window.rawValue].map(Self.tabTitle)
+          tabTitles[window] = source.window(window.rawValue).map(Self.tabTitle)
         }
       }
     }
@@ -68,10 +69,10 @@ final class OverlayPresenter {
       let workspace = state.workspaces[key], let layout = state.targetLayout(for: key),
       layout.contentWidth > state.usableWidth(of: display)
     else {
-      minimap.hide()
+      host.hideMinimap()
       return
     }
-    minimap.show(
+    host.showMinimap(
       MinimapSnapshot(
         columns: minimapColumns(of: workspace, in: layout, on: display),
         contentWidth: layout.contentWidth,
@@ -80,7 +81,7 @@ final class OverlayPresenter {
       on: display.visibleFrame)
   }
 
-  private static func tabTitle(of window: ManagedWindow) -> String {
+  private static func tabTitle(of window: any WindowHandle) -> String {
     let title = window.title
     return title.isEmpty ? window.appName : title
   }
@@ -95,15 +96,15 @@ final class OverlayPresenter {
 
   private func renderFocusBorder(around placement: Placement?) {
     guard store.preferences.showsFocusBorder, let placement else {
-      focusBorder.hide()
+      host.hideFocusBorder()
       return
     }
-    focusBorder.show(around: placement.frame, lineWidth: store.preferences.focusBorderWidth)
+    host.showFocusBorder(around: placement.frame, lineWidth: store.preferences.focusBorderWidth)
   }
 
   private func renderDim(behind placement: Placement?) {
     guard store.preferences.dimsInactiveWindows, let placement else {
-      if shownDim != nil { dim.hide() }
+      if shownDim != nil { host.hideDim() }
       shownDim = nil
       return
     }
@@ -113,7 +114,7 @@ final class OverlayPresenter {
       displayFrames: state.tiledDisplays.map(\.frame))
     guard request != shownDim else { return }
     shownDim = request
-    dim.show(on: request.displayFrames, below: request.window, amount: request.amount)
+    host.showDim(on: request.displayFrames, below: request.window, amount: request.amount)
   }
 
   private func tabBarModels(for layouts: [Workspace.Key: StripLayout]) -> [TabBarModel] {

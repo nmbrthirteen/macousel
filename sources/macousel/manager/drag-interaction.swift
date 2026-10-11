@@ -1,4 +1,4 @@
-import AppKit
+import CoreGraphics
 import StripCore
 import WindowSystem
 
@@ -12,39 +12,39 @@ final class DragInteraction {
   }
 
   private let state: TilingState
-  private let tracker: WindowTracker
+  private let source: any WindowSource
   private let presenter: LayoutPresenter
+  private let pointer: any PointerDevice
   private var drag: Drag?
-  private var mouseUpMonitor: Any?
 
-  init(state: TilingState, tracker: WindowTracker, presenter: LayoutPresenter) {
+  init(
+    state: TilingState, source: any WindowSource, presenter: LayoutPresenter,
+    pointer: any PointerDevice
+  ) {
     self.state = state
-    self.tracker = tracker
+    self.source = source
     self.presenter = presenter
+    self.pointer = pointer
   }
 
   var isActive: Bool { drag != nil }
 
   func start() {
-    guard mouseUpMonitor == nil else { return }
-    mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] _ in
-      self?.finish()
-    }
+    pointer.startObservingPrimaryRelease { [weak self] in self?.finish() }
   }
 
   func stop() {
-    if let mouseUpMonitor { NSEvent.removeMonitor(mouseUpMonitor) }
-    mouseUpMonitor = nil
+    pointer.stopObservingPrimaryRelease()
     cancel()
   }
 
   func windowChanged(_ window: CGWindowID) {
-    guard drag == nil, Pointer.isPrimaryButtonDown, presenter.isSettled,
+    guard drag == nil, pointer.isPrimaryButtonDown, presenter.isSettled,
       state.activeKey(containing: WindowID(window)) != nil,
       let requested = presenter.requestedFrame(for: window),
-      let actual = tracker.windows[window]?.frame,
+      let actual = source.window(window)?.frame,
       !actual.isClose(to: requested, within: Self.frameTolerance),
-      actual.insetBy(dx: -Self.grabMargin, dy: -Self.grabMargin).contains(Pointer.location)
+      actual.insetBy(dx: -Self.grabMargin, dy: -Self.grabMargin).contains(pointer.location)
     else { return }
     drag = Drag(window: window, startFrame: requested)
     presenter.excludedWindow = window
@@ -61,7 +61,7 @@ final class DragInteraction {
     presenter.invalidate(drag.window)
     let window = WindowID(drag.window)
     guard let key = state.activeKey(containing: window),
-      let actual = tracker.windows[drag.window]?.frame
+      let actual = source.window(drag.window)?.frame
     else { return }
 
     if hasResized(from: drag.startFrame, to: actual) {
@@ -110,7 +110,7 @@ final class DragInteraction {
 
   private func reorder(_ window: WindowID, in key: Workspace.Key) {
     guard let layout = state.targetLayout(for: key) else { return }
-    let pointerX = Pointer.location.x
+    let pointerX = pointer.location.x
     let remainingColumns = Set(layout.placements.filter { $0.window != window }.map(\.column))
     let columnsLeftOfPointer = remainingColumns.filter { column in
       layout.placements.first { $0.column == column }.map { $0.frame.midX < pointerX } ?? false

@@ -1,6 +1,5 @@
-import AppKit
+import CoreGraphics
 import StripCore
-import WindowSystem
 import os
 
 final class WindowReconciler {
@@ -9,21 +8,27 @@ final class WindowReconciler {
     subsystem: "dev.macousel.app", category: "reconcile")
 
   private let state: TilingState
-  private let tracker: WindowTracker
+  private let source: any WindowSource
+  private let environment: any DesktopEnvironment
   private let store: PreferencesStore
   private let restorer: WindowRestorer
+  private let sessions: SessionStore
   private var floating: Set<CGWindowID> = []
   private var knownTileable: Set<CGWindowID> = []
-  private var savedSession = SessionStore.load()
+  private var savedSession: [String: [SavedColumn]]
   private var pendingSessionSave: Task<Void, Never>?
 
   init(
-    state: TilingState, tracker: WindowTracker, store: PreferencesStore, restorer: WindowRestorer
+    state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
+    store: PreferencesStore, restorer: WindowRestorer, sessions: SessionStore
   ) {
     self.state = state
-    self.tracker = tracker
+    self.source = source
+    self.environment = environment
     self.store = store
     self.restorer = restorer
+    self.sessions = sessions
+    savedSession = sessions.load()
   }
 
   func reconcile() {
@@ -33,7 +38,7 @@ final class WindowReconciler {
     let candidates = tileCandidates()
     removeWindows(notIn: Set(candidates.map { WindowID($0) }))
     admitNewcomers(among: candidates)
-    retain(only: Set(tracker.windows.keys))
+    retain(only: Set(source.windows.keys))
     adoptSystemFocus()
     state.activeKeys.forEach(state.scrollToFocus)
     scheduleSessionSave()
@@ -57,19 +62,19 @@ final class WindowReconciler {
     let stripsByDisplay = state.activeKeys.reduce(into: [String: Strip]()) { strips, key in
       strips[key.displayUUID] = state.workspaces[key]?.strip
     }
-    SessionStore.save(stripsByDisplay, windows: tracker.windows)
+    sessions.save(stripsByDisplay, windows: source.windows)
   }
 
-  private func tileCandidates() -> [ManagedWindow] {
-    let onScreen = Spaces.onScreenWindowIDs()
-    return tracker.windows.values.filter { window in
+  private func tileCandidates() -> [any WindowHandle] {
+    let onScreen = environment.onScreenWindowIDs()
+    return source.windows.values.filter { window in
       onScreen.contains(window.id) && !floating.contains(window.id)
         && store.preferences.rule(for: window.bundleIdentifier) != .float
         && isTileable(window) && !window.isFullScreen
     }
   }
 
-  private func isTileable(_ window: ManagedWindow) -> Bool {
+  private func isTileable(_ window: any WindowHandle) -> Bool {
     if knownTileable.contains(window.id) { return true }
     guard window.isTileable else { return false }
     knownTileable.insert(window.id)
@@ -85,7 +90,7 @@ final class WindowReconciler {
     }
   }
 
-  private func admitNewcomers(among candidates: [ManagedWindow]) {
+  private func admitNewcomers(among candidates: [any WindowHandle]) {
     let placed = Set(state.activeKeys.flatMap { state.workspaces[$0]?.strip.windows ?? [] })
     let newcomers = candidates.filter { !placed.contains(WindowID($0)) }
     for (key, windows) in groupedByWorkspace(newcomers) {
@@ -93,10 +98,10 @@ final class WindowReconciler {
     }
   }
 
-  private func groupedByWorkspace(_ windows: [ManagedWindow])
-    -> [(Workspace.Key, [ManagedWindow])]
+  private func groupedByWorkspace(_ windows: [any WindowHandle])
+    -> [(Workspace.Key, [any WindowHandle])]
   {
-    var positioned: [Workspace.Key: [(window: ManagedWindow, x: CGFloat)]] = [:]
+    var positioned: [Workspace.Key: [(window: any WindowHandle, x: CGFloat)]] = [:]
     for window in windows {
       guard let frame = window.frame, let key = state.activeKey(at: frame.center) else { continue }
       positioned[key, default: []].append((window, frame.minX))
@@ -106,7 +111,7 @@ final class WindowReconciler {
     }
   }
 
-  private func admit(_ windows: [ManagedWindow], to key: Workspace.Key) {
+  private func admit(_ windows: [any WindowHandle], to key: Workspace.Key) {
     windows.forEach(restorer.remember)
     removeFromOtherWorkspaces(windows, keeping: key)
 
@@ -119,7 +124,9 @@ final class WindowReconciler {
     state.workspaces[key, default: Workspace()].strip = strip
   }
 
-  private func removeFromOtherWorkspaces(_ windows: [ManagedWindow], keeping key: Workspace.Key) {
+  private func removeFromOtherWorkspaces(
+    _ windows: [any WindowHandle], keeping key: Workspace.Key
+  ) {
     for other in state.workspaces.keys where other != key {
       for window in windows {
         state.workspaces[other]?.strip.remove(WindowID(window))
@@ -128,7 +135,7 @@ final class WindowReconciler {
   }
 
   private func populate(
-    _ strip: inout Strip, with windows: [ManagedWindow], displayUUID: String
+    _ strip: inout Strip, with windows: [any WindowHandle], displayUUID: String
   ) {
     var remaining = windows
     if store.preferences.restoresSession,
@@ -142,13 +149,13 @@ final class WindowReconciler {
     remaining.forEach { moveToRuledSlot($0, in: &strip) }
   }
 
-  private func moveToRuledSlot(_ window: ManagedWindow, in strip: inout Strip) {
+  private func moveToRuledSlot(_ window: any WindowHandle, in strip: inout Strip) {
     guard case .slot(let position) = store.preferences.rule(for: window.bundleIdentifier)
     else { return }
     strip.move(WindowID(window), toColumn: position - 1)
   }
 
-  private func insertBesideFocus(_ window: ManagedWindow, into strip: inout Strip) {
+  private func insertBesideFocus(_ window: any WindowHandle, into strip: inout Strip) {
     let previousFocus = strip.focusedWindow
     strip.insert(WindowID(window), width: initialWidth(for: window), config: state.config)
     moveToRuledSlot(window, in: &strip)
@@ -157,15 +164,15 @@ final class WindowReconciler {
     }
   }
 
-  private func initialWidth(for window: ManagedWindow) -> ColumnWidth {
+  private func initialWidth(for window: any WindowHandle) -> ColumnWidth {
     if case .width(let fraction) = store.preferences.rule(for: window.bundleIdentifier) {
       return .fraction(fraction)
     }
     return .fraction(state.config.defaultWidth)
   }
 
-  private func isFrontmost(_ window: ManagedWindow) -> Bool {
-    NSWorkspace.shared.frontmostApplication?.processIdentifier == window.pid
+  private func isFrontmost(_ window: any WindowHandle) -> Bool {
+    environment.frontmostProcessID == window.pid
   }
 
   private func retain(only alive: Set<CGWindowID>) {
@@ -182,7 +189,7 @@ final class WindowReconciler {
   }
 
   private func adoptSystemFocus() {
-    guard let focused = tracker.focusedWindow().map({ WindowID($0) }) else { return }
+    guard let focused = source.focusedWindow().map({ WindowID($0) }) else { return }
     state.focusedKey = state.activeKey(containing: focused)
     if let key = state.focusedKey {
       state.workspaces[key]?.strip.focus(focused)

@@ -20,7 +20,7 @@ final class WindowRestorer {
     originalFrames = Self.load(from: defaults)
   }
 
-  func remember(_ window: ManagedWindow) {
+  func remember(_ window: any WindowHandle) {
     if let saved = originalFrames[window.id], saved.pid == window.pid { return }
     guard let frame = window.frame else { return }
     originalFrames[window.id] = SavedFrame(pid: window.pid, frame: frame)
@@ -51,7 +51,7 @@ final class WindowRestorer {
     defaults.set(data, forKey: Self.defaultsKey)
   }
 
-  func restore(_ windows: [ManagedWindow], on displays: [Display]) {
+  func restore(_ windows: [any WindowHandle], on displays: [Display]) {
     for window in windows {
       guard let frame = originalFrames[window.id]?.frame ?? window.frame else { continue }
       window.setFrame(reachable(frame, on: displays))

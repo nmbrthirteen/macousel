@@ -9,9 +9,15 @@ final class TilingState {
   var focusedKey: Workspace.Key?
 
   private let store: PreferencesStore
+  private let environment: any DesktopEnvironment
+  private let pointer: any PointerDevice
 
-  init(store: PreferencesStore) {
+  init(
+    store: PreferencesStore, environment: any DesktopEnvironment, pointer: any PointerDevice
+  ) {
     self.store = store
+    self.environment = environment
+    self.pointer = pointer
   }
 
   var config: LayoutConfig { store.preferences.layout }
@@ -20,11 +26,13 @@ final class TilingState {
     displays.filter { !store.preferences.disabledDisplays.contains($0.uuid) }
   }
 
-  var pointerKey: Workspace.Key? { activeKey(at: Pointer.location) }
+  var pointerKey: Workspace.Key? { activeKey(at: pointer.location) }
 
   func refreshDisplays() {
-    displays = Display.all()
-    activeKeys = tiledDisplays.map(Workspace.Key.init(currentSpaceOf:))
+    displays = environment.displays
+    activeKeys = tiledDisplays.map {
+      Workspace.Key(displayUUID: $0.uuid, space: environment.currentSpace(of: $0))
+    }
     for key in activeKeys where workspaces[key] == nil {
       workspaces[key] = Workspace()
     }

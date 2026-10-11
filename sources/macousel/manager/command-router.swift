@@ -3,17 +3,17 @@ import WindowSystem
 
 final class CommandRouter {
   private let state: TilingState
-  private let tracker: WindowTracker
+  private let source: any WindowSource
   private let presenter: LayoutPresenter
   private let focus: FocusDriver
   private let reconciler: WindowReconciler
 
   init(
-    state: TilingState, tracker: WindowTracker, presenter: LayoutPresenter, focus: FocusDriver,
+    state: TilingState, source: any WindowSource, presenter: LayoutPresenter, focus: FocusDriver,
     reconciler: WindowReconciler
   ) {
     self.state = state
-    self.tracker = tracker
+    self.source = source
     self.presenter = presenter
     self.focus = focus
     self.reconciler = reconciler
@@ -88,7 +88,7 @@ final class CommandRouter {
   }
 
   private func toggleFloatingOfFocusedWindow() {
-    guard let window = tracker.focusedWindow() else { return }
+    guard let window = source.focusedWindow() else { return }
     reconciler.toggleFloating(window.id)
     presenter.invalidate(window.id)
     reconciler.reconcile()

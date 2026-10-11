@@ -11,27 +11,28 @@ final class FocusFollowsPointer {
   private let presenter: LayoutPresenter
   private let focus: FocusDriver
   private let store: PreferencesStore
-  private let monitor = PointerMonitor()
+  private let pointer: any PointerDevice
 
   init(
-    state: TilingState, presenter: LayoutPresenter, focus: FocusDriver, store: PreferencesStore
+    state: TilingState, presenter: LayoutPresenter, focus: FocusDriver, store: PreferencesStore,
+    pointer: any PointerDevice
   ) {
     self.state = state
     self.presenter = presenter
     self.focus = focus
     self.store = store
-    monitor.onMove = { [weak self] point in self?.pointerMoved(to: point) }
+    self.pointer = pointer
   }
 
   func configure(isTiling: Bool) {
-    monitor.stop()
+    pointer.stopObservingMovement()
     if isTiling && store.preferences.focusFollowsMouse {
-      monitor.start()
+      pointer.startObservingMovement { [weak self] point in self?.pointerMoved(to: point) }
     }
   }
 
   func stop() {
-    monitor.stop()
+    pointer.stopObservingMovement()
   }
 
   private func isOverFocusedWindow(_ point: CGPoint) -> Bool {
@@ -45,7 +46,7 @@ final class FocusFollowsPointer {
   private func pointerMoved(to point: CGPoint) {
     guard presenter.isSettled, !isSuppressed(), !isOverFocusedWindow(point),
       !focus.hasCommandActivation(within: Self.commandGracePeriod),
-      let window = Pointer.windowID(at: point).map(WindowID.init(_:)),
+      let window = pointer.windowID(at: point).map(WindowID.init(_:)),
       let key = state.activeKey(containing: window),
       state.focusedKey != key || state.workspaces[key]?.strip.focusedWindow != window
     else { return }
