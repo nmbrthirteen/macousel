@@ -15,13 +15,30 @@ final class FakeWindow: WindowHandle {
     }
     set { storedTitle = newValue }
   }
-  var frame: CGRect?
+  var frame: CGRect? {
+    get {
+      frameReadCount += 1
+      return storedFrame
+    }
+    set { storedFrame = newValue }
+  }
   var isTileable = true
-  var isFullScreen = false
+  var isFullScreen: Bool {
+    get {
+      fullScreenReadCount += 1
+      return storedFullScreen
+    }
+    set { storedFullScreen = newValue }
+  }
+  var timesOutReads = false
   var onFocus: ((FakeWindow) -> Void)?
   private(set) var framesSet: [CGRect] = []
   private(set) var focusCount = 0
   private(set) var titleReadCount = 0
+  private(set) var fullScreenReadCount = 0
+  private(set) var frameReadCount = 0
+  private var storedFrame: CGRect?
+  private var storedFullScreen = false
   private var storedTitle: String
 
   init(id: CGWindowID, app: FakeApp, title: String, frame: CGRect) {
@@ -30,12 +47,16 @@ final class FakeWindow: WindowHandle {
     bundleIdentifier = app.bundleIdentifier
     appName = app.name
     storedTitle = title
-    self.frame = frame
+    storedFrame = frame
+  }
+
+  func consumeReadTimeout() -> Bool {
+    timesOutReads
   }
 
   func setFrame(_ frame: CGRect) {
     framesSet.append(frame)
-    self.frame = frame
+    storedFrame = frame
   }
 
   func focus() {

@@ -3,6 +3,7 @@ import StripCore
 
 final class ResizeAdoption {
   private static let settleDelay = Duration.milliseconds(250)
+  private static let ownRequestEchoWindow = Duration.milliseconds(300)
   private static let widthTolerance: CGFloat = 2
   private static let fullWidthMargin: CGFloat = 24
 
@@ -24,6 +25,7 @@ final class ResizeAdoption {
 
   func windowResized(_ window: CGWindowID) {
     guard !pointer.isPrimaryButtonDown else { return }
+    if let age = presenter.sizeRequestAge(of: window), age < Self.ownRequestEchoWindow { return }
     waits[window]?.cancel()
     waits[window] = Task { [weak self] in await self?.adoptWhenSettled(window) }
   }

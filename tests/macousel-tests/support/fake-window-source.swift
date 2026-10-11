@@ -72,6 +72,10 @@ final class FakeWindowSource: WindowSource {
     onEvent?(.resized(window.id))
   }
 
+  func takeFocusSilently(_ window: FakeWindow) {
+    takeSystemFocus(window)
+  }
+
   private func takeSystemFocus(_ window: FakeWindow) {
     focusedID = window.id
     environment.frontmostProcessID = window.pid

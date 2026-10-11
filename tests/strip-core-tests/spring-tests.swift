@@ -89,4 +89,65 @@ struct SpringTests {
     #expect(spring.velocity == 0)
     #expect(spring.isSettled)
   }
+
+  private func framesToCoverHalf(of spring: Spring, from start: Double) -> Int {
+    var spring = spring
+    let half = abs(spring.target - start) / 2
+    var frames = 0
+    while abs(spring.value - start) < half && frames < 600 {
+      spring.advance(by: 1.0 / 120.0)
+      frames += 1
+    }
+    return frames
+  }
+
+  @Test func fastSpeedMoveCoversTheTunedShareOfTheDistance() {
+    var spring = Spring(value: 0, response: 0.25)
+    spring.retarget(to: 960, launch: MotionField.launch)
+    spring.advance(by: 1.0 / 120.0)
+    #expect(spring.value > 60 && spring.value < 90)
+    for _ in 0..<7 { spring.advance(by: 1.0 / 120.0) }
+    #expect(spring.value > 480)
+  }
+
+  @Test func retargetMidFlightNeverOvershootsTheNewTarget() {
+    var spring = Spring(value: 0, response: 0.25)
+    spring.retarget(to: 500, launch: MotionField.launch)
+    for _ in 0..<5 { spring.advance(by: 1.0 / 120.0) }
+    spring.retarget(to: 1000, launch: MotionField.launch)
+    var previous = spring.value
+    for _ in 0..<600 {
+      spring.advance(by: 1.0 / 240.0)
+      #expect(spring.value <= 1000 + 1e-9)
+      #expect(spring.value >= previous - 1e-9)
+      previous = spring.value
+    }
+  }
+
+  @Test func retargetKeepsAFasterVelocityTowardTheTarget() {
+    var spring = Spring(value: 0, response: 0.25)
+    spring.target = 1000
+    spring.velocity = 9000
+    spring.retarget(to: 1000, launch: MotionField.launch)
+    #expect(spring.velocity == 9000)
+  }
+
+  @Test func retargetReplacesAVelocityPointingAwayFromTheTarget() {
+    var spring = Spring(value: 0, response: 0.25)
+    spring.velocity = -300
+    spring.retarget(to: 100, launch: MotionField.launch)
+    #expect(spring.velocity > 0)
+  }
+
+  @Test func secondPressReachesHalfItsDistanceAboutAsFastAsTheFirst() {
+    var spring = Spring(value: 0, response: 0.25)
+    spring.retarget(to: 960, launch: MotionField.launch)
+    let first = framesToCoverHalf(of: spring, from: 0)
+    for _ in 0..<4 { spring.advance(by: 1.0 / 120.0) }
+    let restart = spring.value
+    spring.retarget(to: restart + 960, launch: MotionField.launch)
+    let second = framesToCoverHalf(of: spring, from: restart)
+    #expect(second <= first)
+    #expect(second >= first - 3)
+  }
 }

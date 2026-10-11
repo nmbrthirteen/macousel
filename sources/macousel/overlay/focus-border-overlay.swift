@@ -21,7 +21,12 @@ final class FocusBorderOverlay {
       lastFrame = frame
       lastLineWidth = lineWidth
       model.lineWidth = lineWidth
-      panel.setFrame(frame.insetBy(dx: -lineWidth, dy: -lineWidth).axToCocoa, display: true)
+      let cocoaFrame = frame.insetBy(dx: -lineWidth, dy: -lineWidth).axToCocoa
+      if panel.frame.size == cocoaFrame.size {
+        panel.setFrameOrigin(cocoaFrame.origin)
+      } else {
+        panel.setFrame(cocoaFrame, display: true)
+      }
     }
     panel.present(fadeDuration: OverlayTiming.fade)
   }

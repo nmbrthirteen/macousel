@@ -7,6 +7,7 @@ final class FakePointerDevice: PointerDevice {
   var location = CGPoint.zero
   var isPrimaryButtonDown = false
   var windowAtPoint: (CGPoint) -> CGWindowID? = { _ in nil }
+  var isObservingMovement: Bool { movementHandler != nil }
   private(set) var warps: [CGPoint] = []
   private var movementHandler: ((CGPoint) -> Void)?
   private var releaseHandler: (() -> Void)?

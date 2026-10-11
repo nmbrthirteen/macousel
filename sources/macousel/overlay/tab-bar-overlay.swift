@@ -61,7 +61,12 @@ final class TabBarOverlay {
 
   private func apply(_ bar: TabBarModel, to entry: inout Entry) {
     if bar.frame != entry.model.frame || entry.panel.frame == .zero {
-      entry.panel.setFrame(bar.frame.axToCocoa, display: true)
+      let cocoaFrame = bar.frame.axToCocoa
+      if entry.panel.frame.size == cocoaFrame.size {
+        entry.panel.setFrameOrigin(cocoaFrame.origin)
+      } else {
+        entry.panel.setFrame(cocoaFrame, display: true)
+      }
     }
     if bar.tabs != entry.content.tabs { entry.content.tabs = bar.tabs }
     entry.model = bar

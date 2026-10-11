@@ -1,43 +1,34 @@
 import ApplicationServices
 
 extension AXUIElement {
-  nonisolated func attribute<T>(_ name: String) -> T? {
-    var value: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(self, name as CFString, &value) == .success else {
-      return nil
-    }
-    return value as? T
+  nonisolated func attribute<T>(_ name: String, noting timeouts: ReadTimeoutFlag? = nil) -> T? {
+    copyValue(name, noting: timeouts) as? T
   }
 
   func elementAttribute(_ name: String) -> AXUIElement? {
-    var value: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(self, name as CFString, &value) == .success,
-      let value, CFGetTypeID(value) == AXUIElementGetTypeID()
+    guard let value = copyValue(name, noting: nil), CFGetTypeID(value) == AXUIElementGetTypeID()
     else { return nil }
     return (value as! AXUIElement)
   }
 
   func elementsAttribute(_ name: String) -> [AXUIElement] {
-    var value: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(self, name as CFString, &value) == .success,
-      let array = value as? [CFTypeRef]
-    else { return [] }
+    guard let array = copyValue(name, noting: nil) as? [CFTypeRef] else { return [] }
     return array.compactMap { item in
       CFGetTypeID(item) == AXUIElementGetTypeID() ? (item as! AXUIElement) : nil
     }
   }
 
-  func pointAttribute(_ name: String) -> CGPoint? {
+  func pointAttribute(_ name: String, noting timeouts: ReadTimeoutFlag? = nil) -> CGPoint? {
     var point = CGPoint.zero
-    guard let value = axValueAttribute(name, type: .cgPoint),
+    guard let value = axValueAttribute(name, type: .cgPoint, noting: timeouts),
       AXValueGetValue(value, .cgPoint, &point)
     else { return nil }
     return point
   }
 
-  func sizeAttribute(_ name: String) -> CGSize? {
+  func sizeAttribute(_ name: String, noting timeouts: ReadTimeoutFlag? = nil) -> CGSize? {
     var size = CGSize.zero
-    guard let value = axValueAttribute(name, type: .cgSize),
+    guard let value = axValueAttribute(name, type: .cgSize, noting: timeouts),
       AXValueGetValue(value, .cgSize, &size)
     else { return nil }
     return size
@@ -69,10 +60,19 @@ extension AXUIElement {
     return id
   }
 
-  private func axValueAttribute(_ name: String, type: AXValueType) -> AXValue? {
+  private nonisolated func copyValue(_ name: String, noting timeouts: ReadTimeoutFlag?)
+    -> CFTypeRef?
+  {
     var value: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(self, name as CFString, &value) == .success,
-      let value, CFGetTypeID(value) == AXValueGetTypeID()
+    let error = AXUIElementCopyAttributeValue(self, name as CFString, &value)
+    if error == .cannotComplete { timeouts?.note() }
+    return error == .success ? value : nil
+  }
+
+  private func axValueAttribute(
+    _ name: String, type: AXValueType, noting timeouts: ReadTimeoutFlag?
+  ) -> AXValue? {
+    guard let value = copyValue(name, noting: timeouts), CFGetTypeID(value) == AXValueGetTypeID()
     else { return nil }
     let axValue = value as! AXValue
     return AXValueGetType(axValue) == type ? axValue : nil

@@ -15,7 +15,7 @@ enum AnimationSpeed: String, Codable, CaseIterable, Sendable {
   var springResponse: Double? {
     switch self {
     case .off: nil
-    case .fast: 0.18
+    case .fast: 0.25
     case .standard: MotionField.standardResponse
     case .relaxed: 0.42
     }

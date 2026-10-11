@@ -4,6 +4,8 @@ import WindowSystem
 
 final class OverlayPresenter {
   private static let tabBarSpacing: Double = 4
+  private static let borderHidingDistance: CGFloat = 24
+  private static let borderShowingDistance: CGFloat = 2
 
   private struct DimRequest: Equatable {
     var window: CGWindowID
@@ -22,6 +24,7 @@ final class OverlayPresenter {
   private let host: any OverlayHost
   private var tabTitles: [WindowID: String] = [:]
   private var shownDim: DimRequest?
+  private var isBorderWaitingForWindow = false
 
   init(
     state: TilingState, source: any WindowSource, store: PreferencesStore,
@@ -35,7 +38,7 @@ final class OverlayPresenter {
 
   func render(_ layouts: [Workspace.Key: StripLayout]) {
     let focused = focusedPlacement(in: layouts)
-    renderFocusBorder(around: focused)
+    renderFocusBorder(following: focused)
     renderDim(behind: focused)
     host.updateTabBars(tabBarModels(for: layouts))
   }
@@ -54,14 +57,11 @@ final class OverlayPresenter {
 
   func refreshTitles() {
     tabTitles = [:]
-    for key in state.activeKeys {
-      guard let strip = state.workspaces[key]?.strip else { continue }
-      for column in strip.columns where column.display == .tabbed {
-        for window in column.windows {
-          tabTitles[window] = source.window(window.rawValue).map(Self.tabTitle)
-        }
-      }
-    }
+    readTabTitles(onlyMissing: false)
+  }
+
+  func readMissingTitles() {
+    readTabTitles(onlyMissing: true)
   }
 
   func flashMinimap(for key: Workspace.Key) {
@@ -81,6 +81,17 @@ final class OverlayPresenter {
       on: display.visibleFrame)
   }
 
+  private func readTabTitles(onlyMissing: Bool) {
+    for key in state.activeKeys {
+      guard let strip = state.workspaces[key]?.strip else { continue }
+      for column in strip.columns where column.display == .tabbed {
+        for window in column.windows where !onlyMissing || tabTitles[window] == nil {
+          tabTitles[window] = source.window(window.rawValue).map(Self.tabTitle)
+        }
+      }
+    }
+  }
+
   private static func tabTitle(of window: any WindowHandle) -> String {
     let title = window.title
     return title.isEmpty ? window.appName : title
@@ -94,12 +105,32 @@ final class OverlayPresenter {
     return placement
   }
 
-  private func renderFocusBorder(around placement: Placement?) {
+  private func renderFocusBorder(following placement: Placement?) {
     guard store.preferences.showsFocusBorder, let placement else {
+      isBorderWaitingForWindow = false
       host.hideFocusBorder()
       return
     }
-    host.showFocusBorder(around: placement.frame, lineWidth: store.preferences.focusBorderWidth)
+    let target = targetFrame(of: placement)
+    let gap = hypot(
+      placement.frame.minX - target.minX, placement.frame.minY - target.minY)
+    if gap > Self.borderHidingDistance {
+      isBorderWaitingForWindow = true
+    } else if gap <= Self.borderShowingDistance {
+      isBorderWaitingForWindow = false
+    }
+    if isBorderWaitingForWindow {
+      host.hideFocusBorder()
+    } else {
+      host.showFocusBorder(around: target, lineWidth: store.preferences.focusBorderWidth)
+    }
+  }
+
+  private func targetFrame(of placement: Placement) -> CGRect {
+    guard let key = state.activeKey(containing: placement.window),
+      let target = state.targetLayout(for: key)?[placement.window]
+    else { return placement.frame }
+    return target.frame
   }
 
   private func renderDim(behind placement: Placement?) {

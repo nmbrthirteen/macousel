@@ -102,7 +102,7 @@ final class CommandRouter {
     } else {
       state.focusedKey = key
     }
-    presenter.overlays.refreshTitles()
+    presenter.overlays.readMissingTitles()
     presenter.relayout()
     presenter.overlays.flashMinimap(for: key)
   }

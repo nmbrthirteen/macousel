@@ -1,0 +1,111 @@
+import CoreGraphics
+import Foundation
+import os
+
+nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
+  private struct State: Sendable {
+    var pending: [pid_t: [CGWindowID: Request]] = [:]
+    var queues: [pid_t: DispatchQueue] = [:]
+    var running: Set<pid_t> = []
+    var bursting: Set<pid_t> = []
+    var generation: [pid_t: Int] = [:]
+  }
+
+  private enum Step {
+    case work(CGWindowID, Request)
+    case done(generation: Int, queue: DispatchQueue)
+  }
+
+  private let state = OSAllocatedUnfairLock(initialState: State())
+  private let apply: @Sendable (CGWindowID, Request) -> Void
+  private let beginBurst: @Sendable (pid_t) -> Void
+  private let endBurst: @Sendable (pid_t) -> Void
+  private let restoreDelay: TimeInterval
+
+  init(
+    restoreDelay: TimeInterval = 0.3,
+    apply: @escaping @Sendable (CGWindowID, Request) -> Void,
+    beginBurst: @escaping @Sendable (pid_t) -> Void,
+    endBurst: @escaping @Sendable (pid_t) -> Void
+  ) {
+    self.restoreDelay = restoreDelay
+    self.apply = apply
+    self.beginBurst = beginBurst
+    self.endBurst = endBurst
+  }
+
+  var isIdle: Bool {
+    state.withLock { $0.running.isEmpty && $0.pending.isEmpty }
+  }
+
+  var busyPIDs: Set<pid_t> {
+    state.withLock { Set($0.pending.keys).union($0.running) }
+  }
+
+  func submit(_ request: Request, window: CGWindowID, pid: pid_t) {
+    let queue = state.withLock { state -> DispatchQueue? in
+      state.pending[pid, default: [:]][window] = request
+      guard state.running.insert(pid).inserted else { return nil }
+      if let queue = state.queues[pid] { return queue }
+      let queue = DispatchQueue(
+        label: "dev.macousel.frame-applier.\(pid)", qos: .userInteractive)
+      state.queues[pid] = queue
+      return queue
+    }
+    queue?.async { self.drain(pid) }
+  }
+
+  func forget(_ window: CGWindowID) {
+    state.withLock { state in
+      for pid in Array(state.pending.keys) {
+        state.pending[pid]?[window] = nil
+        if state.pending[pid]?.isEmpty == true { state.pending[pid] = nil }
+      }
+    }
+  }
+
+  func flush() {
+    let queues = state.withLock { Array($0.queues.values) }
+    for queue in queues { queue.sync {} }
+    let quiet = state.withLock { state -> [pid_t] in
+      let quiet = state.bursting.filter { state.pending[$0] == nil && !state.running.contains($0) }
+      state.bursting.subtract(quiet)
+      return Array(quiet)
+    }
+    for pid in quiet { endBurst(pid) }
+  }
+
+  private func drain(_ pid: pid_t) {
+    if state.withLock({ $0.bursting.insert(pid).inserted }) { beginBurst(pid) }
+    while true {
+      let step = state.withLock { state -> Step in
+        if let (window, request) = state.pending[pid]?.first {
+          state.pending[pid]?[window] = nil
+          if state.pending[pid]?.isEmpty == true { state.pending[pid] = nil }
+          return .work(window, request)
+        }
+        state.running.remove(pid)
+        let generation = (state.generation[pid] ?? 0) + 1
+        state.generation[pid] = generation
+        return .done(generation: generation, queue: state.queues[pid]!)
+      }
+      switch step {
+      case .work(let window, let request):
+        apply(window, request)
+      case .done(let generation, let queue):
+        queue.asyncAfter(deadline: .now() + restoreDelay) {
+          self.restoreIfQuiet(pid, generation: generation)
+        }
+        return
+      }
+    }
+  }
+
+  private func restoreIfQuiet(_ pid: pid_t, generation: Int) {
+    let restore = state.withLock { state in
+      state.generation[pid] == generation && !state.running.contains(pid)
+        && state.bursting.remove(pid) != nil
+    }
+    if restore { endBurst(pid) }
+  }
+}

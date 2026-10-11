@@ -1,5 +1,5 @@
-public struct Hotkey: Hashable, Sendable, Codable {
-  public struct Modifiers: OptionSet, Hashable, Sendable, Codable {
+public nonisolated struct Hotkey: Hashable, Sendable, Codable {
+  public nonisolated struct Modifiers: OptionSet, Hashable, Sendable, Codable {
     public let rawValue: UInt8
 
     public init(rawValue: UInt8) {

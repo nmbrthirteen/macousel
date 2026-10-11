@@ -13,6 +13,9 @@ final class WindowReconciler {
   private let store: PreferencesStore
   private let restorer: WindowRestorer
   private let sessions: SessionStore
+  private let admissionFrames: AdmissionFrames
+  private let unresponsive: UnresponsiveApps
+  private let fullScreen = FullScreenCache()
   private var floating: Set<CGWindowID> = []
   private var knownTileable: Set<CGWindowID> = []
   private var capturedTitles: [CGWindowID: String] = [:]
@@ -21,7 +24,8 @@ final class WindowReconciler {
 
   init(
     state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
-    store: PreferencesStore, restorer: WindowRestorer, sessions: SessionStore
+    store: PreferencesStore, restorer: WindowRestorer, sessions: SessionStore,
+    admissionFrames: AdmissionFrames, now: @escaping () -> ContinuousClock.Instant
   ) {
     self.state = state
     self.source = source
@@ -29,6 +33,8 @@ final class WindowReconciler {
     self.store = store
     self.restorer = restorer
     self.sessions = sessions
+    self.admissionFrames = admissionFrames
+    unresponsive = UnresponsiveApps(now: now)
     savedSession = sessions.load()
   }
 
@@ -43,6 +49,10 @@ final class WindowReconciler {
     adoptSystemFocus()
     state.activeKeys.forEach(state.scrollToFocus)
     scheduleSessionSave()
+  }
+
+  func invalidateFullScreen(_ window: CGWindowID) {
+    fullScreen[window] = nil
   }
 
   func toggleFloating(_ window: CGWindowID) {
@@ -68,11 +78,31 @@ final class WindowReconciler {
 
   private func tileCandidates() -> [any WindowHandle] {
     let onScreen = environment.onScreenWindowIDs()
+    let placed = placedWindows()
     return source.windows.values.filter { window in
       onScreen.contains(window.id) && !floating.contains(window.id)
         && store.preferences.rule(for: window.bundleIdentifier) != .float
-        && isTileable(window) && !window.isFullScreen
+        && qualifies(window, alreadyPlaced: placed)
     }
+  }
+
+  private func placedWindows() -> Set<CGWindowID> {
+    Set(
+      state.activeKeys.flatMap { state.workspaces[$0]?.strip.windows ?? [] }.map(\.rawValue))
+  }
+
+  private func qualifies(_ window: any WindowHandle, alreadyPlaced placed: Set<CGWindowID>)
+    -> Bool
+  {
+    if unresponsive.isPaused(window.pid) { return placed.contains(window.id) }
+    let tileable = isTileable(window)
+    if unresponsive.noteTimeout(of: window) { return placed.contains(window.id) }
+    guard tileable else { return false }
+    if let cached = fullScreen[window.id] { return !cached }
+    let isFullScreen = window.isFullScreen
+    if unresponsive.noteTimeout(of: window) { return placed.contains(window.id) }
+    fullScreen[window.id] = isFullScreen
+    return !isFullScreen
   }
 
   private func isTileable(_ window: any WindowHandle) -> Bool {
@@ -104,7 +134,10 @@ final class WindowReconciler {
   {
     var positioned: [Workspace.Key: [(window: any WindowHandle, x: CGFloat)]] = [:]
     for window in windows {
-      guard let frame = window.frame, let key = state.activeKey(at: frame.center) else { continue }
+      let read = window.frame
+      if unresponsive.noteTimeout(of: window) { continue }
+      guard let frame = read, let key = state.activeKey(at: frame.center) else { continue }
+      admissionFrames.record(frame, for: window.id)
       positioned[key, default: []].append((window, frame.minX))
     }
     return state.activeKeys.compactMap { key in
@@ -115,6 +148,7 @@ final class WindowReconciler {
   private func admit(_ windows: [any WindowHandle], to key: Workspace.Key) {
     windows.forEach(restorer.remember)
     windows.forEach { capturedTitles[$0.id] = $0.title }
+    for window in windows { unresponsive.noteTimeout(of: window) }
     removeFromOtherWorkspaces(windows, keeping: key)
 
     var strip = state.workspaces[key]?.strip ?? Strip()
@@ -180,6 +214,8 @@ final class WindowReconciler {
   private func retain(only alive: Set<CGWindowID>) {
     floating.formIntersection(alive)
     knownTileable.formIntersection(alive)
+    fullScreen.retain(only: alive)
+    unresponsive.pruneExpired()
     capturedTitles = capturedTitles.filter { alive.contains($0.key) }
     restorer.retain(only: alive)
     for key in state.workspaces.keys {
@@ -192,6 +228,7 @@ final class WindowReconciler {
   }
 
   private func adoptSystemFocus() {
+    if let frontmost = environment.frontmostProcessID, unresponsive.isPaused(frontmost) { return }
     guard let focused = source.focusedWindow().map({ WindowID($0) }) else { return }
     state.focusedKey = state.activeKey(containing: focused)
     if let key = state.focusedKey {

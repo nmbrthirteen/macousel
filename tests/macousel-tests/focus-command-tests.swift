@@ -136,4 +136,38 @@ struct FocusCommandTests {
     let target = try #require(row[1].frame)
     #expect(fixture.pointer.warps == [CGPoint(x: target.midX, y: target.midY)])
   }
+
+  @Test func userFocusEventForAnotherWindowAfterTheEchoPeriodIsHonoured() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(4)
+    fixture.launch()
+    fixture.manager.perform(.focusRight)
+
+    fixture.clock.advance(by: .milliseconds(300))
+    fixture.source.focus(row[3])
+
+    #expect(fixture.windowShowingFocusBorder(among: row) === row[3])
+  }
+
+  @Test func userFocusEventForAnotherWindowInsideTheEchoPeriodIsIgnored() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(4)
+    fixture.launch()
+    fixture.manager.perform(.focusRight)
+
+    fixture.clock.advance(by: .milliseconds(200))
+    fixture.source.focus(row[3])
+
+    #expect(fixture.windowShowingFocusBorder(among: row) === row[1])
+  }
+
+  @Test func unconfirmedFocusRequestAdoptsTheSystemFocusWhenTheEchoPeriodExpires() async throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(4)
+    fixture.launch()
+    fixture.manager.perform(.focusRight)
+    fixture.source.takeFocusSilently(row[3])
+
+    #expect(await fixture.becomes { fixture.windowShowingFocusBorder(among: row) === row[3] })
+  }
 }

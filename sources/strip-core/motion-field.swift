@@ -37,8 +37,8 @@ public struct MotionField: Sendable, Equatable {
     }
   }
 
-  public static let standardResponse = 0.28
-  public static let launch = 0.85
+  public static let standardResponse = 0.30
+  public static let launch = 0.35
 
   public private(set) var response: Double
   private var springs: [WindowID: PointSpring] = [:]

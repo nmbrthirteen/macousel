@@ -55,8 +55,10 @@ struct AnimationTests {
     fixture.manager.perform(.focusLast)
 
     #expect(fixture.clock.isRunning)
-    #expect(row[2].frame == start)
-    var positions = [start.minX]
+    let firstFrame = try #require(row[2].frame)
+    #expect(firstFrame.minX < start.minX)
+    #expect(firstFrame.minX > start.minX - 100)
+    var positions = [start.minX, firstFrame.minX]
     while fixture.clock.isRunning && positions.count < 600 {
       fixture.clock.tick()
       positions.append(try #require(row[2].frame).minX)
@@ -109,8 +111,58 @@ struct AnimationTests {
     fixture.launch()
 
     #expect(fixture.clock.isRunning)
-    #expect(try #require(window.frame).minX == 300)
+    let firstFrame = try #require(window.frame).minX
+    #expect(firstFrame < 300 && firstFrame > 200)
     while fixture.clock.isRunning { fixture.clock.tick() }
     #expect(window.frame == ExpectedStrip(columns: [1]).frame(of: 1))
+  }
+
+  @Test func speedsUseTheTunedSpringResponses() {
+    #expect(AnimationSpeed.fast.springResponse == 0.25)
+    #expect(AnimationSpeed.standard.springResponse == 0.30)
+    #expect(AnimationSpeed.relaxed.springResponse == 0.42)
+    #expect(Preferences().animationSpeed == .fast)
+  }
+
+  private func submissionsDuringFocusLast(applySeconds: Double) throws -> (Int, [FakeWindow]) {
+    let (fixture, row) = try launchedRow(speed: .fast)
+    while fixture.clock.isRunning { fixture.clock.tick(by: 1.0 / 120) }
+    fixture.placer.slowestRecentApplySeconds = applySeconds
+    fixture.manager.perform(.focusLast)
+    let before = row[2].framesSet.count
+    var ticks = 0
+    while fixture.clock.isRunning && ticks < 600 {
+      fixture.clock.tick(by: 1.0 / 120)
+      ticks += 1
+    }
+    #expect(row[2].frame == finalFrames()[3])
+    return (row[2].framesSet.count - before, row)
+  }
+
+  @Test func slowApplyTimesThinFrameSubmissionButTheFinalFrameLands() throws {
+    let (everyTick, _) = try submissionsDuringFocusLast(applySeconds: 0)
+    let (thinned, _) = try submissionsDuringFocusLast(applySeconds: 0.006)
+    let (quartered, _) = try submissionsDuringFocusLast(applySeconds: 0.02)
+
+    #expect(thinned < everyTick)
+    #expect(quartered < thinned)
+  }
+
+  @Test func theFocusBorderWaitsForTheWindowThenAppearsAtItsTarget() throws {
+    let (fixture, row) = try launchedRow(speed: .fast)
+    while fixture.clock.isRunning { fixture.clock.tick(by: 1.0 / 120) }
+
+    fixture.manager.perform(.focusLast)
+    #expect(fixture.overlays.focusBorder == nil)
+
+    let target = try #require(finalFrames()[3])
+    var shownFrames: [CGRect] = []
+    while fixture.clock.isRunning {
+      fixture.clock.tick(by: 1.0 / 120)
+      if let border = fixture.overlays.focusBorder { shownFrames.append(border.frame) }
+    }
+    #expect(!shownFrames.isEmpty)
+    #expect(shownFrames.allSatisfy { $0 == target })
+    #expect(fixture.windowShowingFocusBorder(among: row) === row[2])
   }
 }

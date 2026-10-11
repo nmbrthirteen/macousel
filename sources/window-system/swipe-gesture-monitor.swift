@@ -8,6 +8,7 @@ private struct WeakMonitor {
 }
 
 private var activeMonitors: [WeakMonitor] = []
+private nonisolated let frameGate = SwipeFrameGate()
 
 private nonisolated func contactFrameCallback(
   _ device: UnsafeMutableRawPointer, _ touches: UnsafeMutableRawPointer, _ count: Int32,
@@ -24,6 +25,7 @@ private nonisolated func contactFrameCallback(
     sumX += touch.positionX
     sumY += touch.positionY
   }
+  guard frameGate.admits(fingers: fingers) else { return 0 }
   let count = fingers
   let x = fingers > 0 ? Double(sumX) / Double(fingers) : 0
   let y = fingers > 0 ? Double(sumY) / Double(fingers) : 0
@@ -52,7 +54,10 @@ public final class SwipeGestureMonitor {
     let stopDevice: MTDeviceStopFunction
   }
 
-  public var fingerCount = 3
+  public var fingerCount: Int {
+    get { frameGate.fingerCount }
+    set { frameGate.fingerCount = newValue }
+  }
   public var onSwipe: ((_ deltaX: Double, _ phase: ScrollGestureTap.Phase) -> Void)?
 
   private var api: Api?
@@ -99,6 +104,7 @@ public final class SwipeGestureMonitor {
     self.api = api
     devices = list
     candidate = .idle
+    frameGate.reset()
     activeMonitors.append(WeakMonitor(monitor: self))
     return true
   }
@@ -115,6 +121,7 @@ public final class SwipeGestureMonitor {
     self.api = nil
     self.devices = nil
     candidate = .idle
+    frameGate.reset()
   }
 
   fileprivate func handle(fingers: Int, x: Double, y: Double) {

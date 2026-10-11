@@ -121,4 +121,36 @@ struct PointerAndGestureTests {
     #expect(row[2].focusCount == 0)
     #expect(fixture.windowShowingFocusBorder(among: row) === row[1])
   }
+
+  @Test func displayFollowsPointerDoesNotObserveMovementOnASingleDisplay() throws {
+    let fixture = try ControllerFixture { $0.displayFollowsPointer = true }
+    _ = fixture.openRow(2)
+
+    fixture.launch()
+
+    #expect(!fixture.pointer.isObservingMovement)
+  }
+
+  @Test func displayFollowsPointerObservesMovementOnTwoDisplays() throws {
+    let fixture = try ControllerFixture(displays: [.leftOfPair, .rightOfPair]) {
+      $0.displayFollowsPointer = true
+    }
+    _ = fixture.openRow(2)
+
+    fixture.launch()
+
+    #expect(fixture.pointer.isObservingMovement)
+  }
+
+  @Test func focusFollowsMouseObservesMovementOnASingleDisplay() throws {
+    let fixture = try ControllerFixture {
+      $0.displayFollowsPointer = false
+      $0.focusFollowsMouse = true
+    }
+    _ = fixture.openRow(2)
+
+    fixture.launch()
+
+    #expect(fixture.pointer.isObservingMovement)
+  }
 }

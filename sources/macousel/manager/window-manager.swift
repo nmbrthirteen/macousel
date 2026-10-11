@@ -12,7 +12,6 @@ final class WindowManager {
   }
 
   private static let permissionPollInterval = Duration.seconds(1)
-  private static let synchronizationDelays: [Duration] = [.milliseconds(60), .milliseconds(340)]
 
   private(set) var status: Status = .needsPermission
   private(set) var displays: [Display] = []
@@ -31,7 +30,7 @@ final class WindowManager {
   private let crashRecovery: any CrashRecovery
 
   @ObservationIgnored private var appliedPreferences: Preferences?
-  @ObservationIgnored private var synchronization: Task<Void, Never>?
+  @ObservationIgnored private let synchronization = SynchronizationScheduler()
   @ObservationIgnored private var permissionPoll: Task<Void, Never>?
 
   convenience init(store: PreferencesStore) {
@@ -43,14 +42,19 @@ final class WindowManager {
       store: store, environment: ports.environment, pointer: ports.pointer)
     let overlays = OverlayPresenter(
       state: state, source: ports.source, store: store, host: ports.overlays)
+    let admissionFrames = AdmissionFrames()
+    let clock = ports.clock
     let presenter = LayoutPresenter(
       state: state, source: ports.source, environment: ports.environment, store: store,
-      placer: ports.placer, clock: ports.clock, overlays: overlays)
+      placer: ports.placer, clock: clock, overlays: overlays, admissionFrames: admissionFrames)
     let restorer = WindowRestorer(defaults: defaults)
     let reconciler = WindowReconciler(
       state: state, source: ports.source, environment: ports.environment, store: store,
-      restorer: restorer, sessions: SessionStore(defaults: defaults))
-    focus = FocusDriver(state: state, source: ports.source, store: store, pointer: ports.pointer)
+      restorer: restorer, sessions: SessionStore(defaults: defaults),
+      admissionFrames: admissionFrames, now: { clock.now })
+    focus = FocusDriver(
+      state: state, source: ports.source, store: store, pointer: ports.pointer,
+      now: { clock.now })
     self.store = store
     self.source = ports.source
     self.environment = ports.environment
@@ -97,7 +101,8 @@ final class WindowManager {
 
   func shutdown() {
     permissionPoll?.cancel()
-    synchronization?.cancel()
+    synchronization.cancel()
+    focus.stop()
     crashRecovery.disarm()
     guard status != .needsPermission else { return }
     if status == .running {
@@ -106,7 +111,7 @@ final class WindowManager {
     }
     restorer.forgetAll()
     shortcuts.removeAll()
-    stopInteractions()
+    interactions.stop()
     source.stop()
     environment.stopObserving()
   }
@@ -135,11 +140,16 @@ final class WindowManager {
   }
 
   private func connectEvents() {
+    synchronization.onSynchronize = { [weak self] in self?.synchronize() }
     source.onEvent = { [weak self] event in self?.handle(event) }
-    environment.onSpaceChanged = { [weak self] in self?.scheduleSynchronization() }
+    environment.onSpaceChanged = { [weak self] in self?.synchronization.schedule() }
     environment.onDisplaysChanged = { [weak self] in
       self?.presenter.invalidateAll()
-      self?.scheduleSynchronization()
+      self?.synchronization.schedule()
+    }
+    focus.onUnconfirmedFocus = { [weak self] window in
+      guard self?.status == .running else { return }
+      self?.focusChanged(to: window)
     }
     presenter.overlays.onTabSelected = { [weak self] window in self?.router.select(window) }
     store.onChange = { [weak self] in self?.preferencesChanged() }
@@ -149,7 +159,7 @@ final class WindowManager {
     status = .paused
     logger.info("Tiling paused")
     crashRecovery.disarm()
-    synchronization?.cancel()
+    synchronization.cancel()
     releaseWindows()
     applyInputs()
   }
@@ -166,10 +176,6 @@ final class WindowManager {
     presenter.halt()
     let managed = state.workspaces.values.flatMap(\.strip.windows)
     restorer.restore(managed.compactMap { source.window($0.rawValue) }, on: state.displays)
-  }
-
-  private func stopInteractions() {
-    interactions.stop()
   }
 
   private func applyInputs() {
@@ -200,20 +206,10 @@ final class WindowManager {
     synchronize()
   }
 
-  private func scheduleSynchronization() {
-    synchronization?.cancel()
-    synchronization = Task {
-      for delay in Self.synchronizationDelays {
-        try? await Task.sleep(for: delay)
-        if Task.isCancelled { return }
-        synchronize()
-      }
-    }
-  }
-
   private func synchronize() {
     guard status == .running else { return }
     reconciler.reconcile()
+    interactions.displaysSynchronized()
     if displays != state.displays { displays = state.displays }
     presenter.retain(only: Set(source.windows.keys))
     presenter.overlays.refreshTitles()
@@ -223,13 +219,16 @@ final class WindowManager {
   private func handle(_ event: WindowSourceEvent) {
     guard status == .running else { return }
     switch event {
-    case .created, .destroyed, .minimized, .restored, .appHidden, .appShown:
-      scheduleSynchronization()
+    case .created:
+      synchronization.schedule(delays: SynchronizationScheduler.creationDelays)
+    case .destroyed, .minimized, .restored, .appHidden, .appShown:
+      synchronization.schedule()
     case .focused(let window):
       focusChanged(to: WindowID(window))
     case .moved(let window):
       interactions.windowMoved(window)
     case .resized(let window):
+      reconciler.invalidateFullScreen(window)
       interactions.windowResized(window)
     }
   }

@@ -56,6 +56,7 @@ public final class WindowTracker {
 
   public func start() {
     guard workspaceTokens.isEmpty else { return }
+    AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), Self.messagingTimeout)
     workspaceTokens = [
       observeWorkspace(NSWorkspace.didLaunchApplicationNotification) { [weak self] pid in
         self?.appLaunched(pid: pid)
@@ -119,6 +120,7 @@ public final class WindowTracker {
 
   private func appActivated(pid: pid_t) {
     guard let entry = apps[pid],
+      NSWorkspace.shared.frontmostApplication?.processIdentifier == pid,
       let element = entry.element.elementAttribute(kAXFocusedWindowAttribute),
       let id = trackedID(of: element, in: entry, announce: true)
     else { return }

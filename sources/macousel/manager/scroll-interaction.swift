@@ -7,14 +7,13 @@ final class ScrollInteraction {
   private static let scrollModifiers: Hotkey.Modifiers = [.control, .option]
   private static let velocitySmoothing = 0.7
   private static let longestVelocitySample = Duration.milliseconds(100)
-  private static let momentumProjection = 0.22
   private static let fastestMomentum = 5000.0
 
   private struct Gesture {
     var key: Workspace.Key
     var unresistedOffset: Double
     var velocity = 0.0
-    var lastSample = ContinuousClock.now
+    var lastSample: ContinuousClock.Instant
     var idleTimeout: Task<Void, Never>?
   }
 
@@ -23,17 +22,19 @@ final class ScrollInteraction {
   private let focus: FocusDriver
   private let store: PreferencesStore
   private let gestures: any GestureInput
+  private let now: () -> ContinuousClock.Instant
   private var gesture: Gesture?
 
   init(
     state: TilingState, presenter: LayoutPresenter, focus: FocusDriver, store: PreferencesStore,
-    gestures: any GestureInput
+    gestures: any GestureInput, now: @escaping () -> ContinuousClock.Instant
   ) {
     self.state = state
     self.presenter = presenter
     self.focus = focus
     self.store = store
     self.gestures = gestures
+    self.now = now
     gestures.onScroll = { [weak self] deltaX, phase in self?.scrolled(by: deltaX, phase: phase) }
     gestures.onSwipe = { [weak self] share, phase in self?.swiped(byPadShare: share, phase: phase) }
   }
@@ -72,7 +73,7 @@ final class ScrollInteraction {
       guard begin() else { return }
     }
     guard let key = gesture?.key else { return }
-    drag(key, by: deltaX)
+    drag(key, by: deltaX, updatesVelocity: deltaX != 0 || phase != .ended)
     presenter.track(key)
     presenter.overlays.flashMinimap(for: key)
 
@@ -88,16 +89,18 @@ final class ScrollInteraction {
       !workspace.strip.isEmpty
     else { return false }
     gesture?.idleTimeout?.cancel()
-    gesture = Gesture(key: key, unresistedOffset: workspace.scrollOffset)
+    gesture = Gesture(key: key, unresistedOffset: workspace.scrollOffset, lastSample: now())
     presenter.pauseAnimation()
     return true
   }
 
-  private func drag(_ key: Workspace.Key, by deltaX: Double) {
+  private func drag(_ key: Workspace.Key, by deltaX: Double, updatesVelocity: Bool) {
     guard var gesture, let display = state.display(for: key) else { return }
     gesture.unresistedOffset -= deltaX
-    gesture.velocity = smoothedVelocity(of: gesture, after: -deltaX)
-    gesture.lastSample = .now
+    if updatesVelocity {
+      gesture.velocity = smoothedVelocity(of: gesture, after: -deltaX)
+      gesture.lastSample = now()
+    }
     self.gesture = gesture
     let resisted = RubberBand.resisted(
       gesture.unresistedOffset, within: state.scrollRange(of: key),
@@ -106,7 +109,7 @@ final class ScrollInteraction {
   }
 
   private func smoothedVelocity(of gesture: Gesture, after travel: Double) -> Double {
-    let elapsed = ContinuousClock.now - gesture.lastSample
+    let elapsed = gesture.lastSample.duration(to: now())
     guard elapsed > .zero, elapsed < Self.longestVelocitySample else { return gesture.velocity }
     let seconds =
       Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
@@ -131,10 +134,12 @@ final class ScrollInteraction {
     guard let display = state.display(for: key), var workspace = state.workspaces[key]
     else { return }
 
+    let isStale = gesture.lastSample.duration(to: now()) > Self.longestVelocitySample
     let velocity =
-      carryingMomentum
+      carryingMomentum && !isStale
       ? min(max(gesture.velocity, -Self.fastestMomentum), Self.fastestMomentum) : 0
-    let restingOffset = workspace.scrollOffset + velocity * Self.momentumProjection
+    let projection = Spring.projectionTime(response: workspace.motion.response)
+    let restingOffset = workspace.scrollOffset + velocity * projection
     let previousFocus = workspace.strip.focusedWindow
     workspace.gestureOffset = nil
     workspace.strip.settle(

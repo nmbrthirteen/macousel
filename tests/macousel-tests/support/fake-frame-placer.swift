@@ -10,6 +10,7 @@ final class FakeFramePlacer: FramePlacer {
   }
 
   var isIdle = true
+  var slowestRecentApplySeconds = 0.0
   private(set) var submissions: [Submission] = []
   private(set) var forgotten: [CGWindowID] = []
   private(set) var flushCount = 0

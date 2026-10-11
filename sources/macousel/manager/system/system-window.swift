@@ -17,6 +17,10 @@ final class SystemWindow: WindowHandle {
   var isTileable: Bool { window.isTileable }
   var isFullScreen: Bool { window.isFullScreen }
 
+  func consumeReadTimeout() -> Bool {
+    window.takeReadTimeout()
+  }
+
   func setFrame(_ frame: CGRect) {
     window.setFrame(frame)
   }

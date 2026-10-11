@@ -14,7 +14,8 @@ final class ManagerInteractions {
     let drag = DragInteraction(
       state: state, source: source, presenter: presenter, pointer: ports.pointer)
     let scrolling = ScrollInteraction(
-      state: state, presenter: presenter, focus: focus, store: store, gestures: ports.gestures)
+      state: state, presenter: presenter, focus: focus, store: store, gestures: ports.gestures,
+      now: { ports.clock.now })
     let hover = FocusFollowsPointer(
       state: state, presenter: presenter, focus: focus, store: store, pointer: ports.pointer)
     let displayFollowsPointer = DisplayFollowsPointer(
@@ -26,7 +27,7 @@ final class ManagerInteractions {
     self.scrolling = scrolling
     self.displayFollowsPointer = displayFollowsPointer
     pointerMovement = PointerMovementDispatcher(
-      store: store, pointer: ports.pointer,
+      store: store, pointer: ports.pointer, tiledDisplayCount: { state.tiledDisplays.count },
       handlers: [
         { point in hover.pointerMoved(to: point) },
         { point in displayFollowsPointer.pointerMoved(to: point) },
@@ -54,6 +55,10 @@ final class ManagerInteractions {
     pointerMovement.stop()
     displayFollowsPointer.stop()
     resizes.stop()
+  }
+
+  func displaysSynchronized() {
+    pointerMovement.refresh()
   }
 
   func windowMoved(_ window: CGWindowID) {

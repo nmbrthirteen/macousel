@@ -66,7 +66,7 @@ struct MotionFieldTests {
     }
   }
 
-  @Test func launchCoversMostOfTheDistanceEarly() throws {
+  @Test func launchStartsMotionImmediatelyWithoutCoveringMostOfTheDistance() throws {
     var strip = makeStrip(2)
     var field = MotionField()
     field.retarget(to: layout(strip))
@@ -75,9 +75,10 @@ struct MotionFieldTests {
     let target = layout(strip)
     field.retarget(to: target)
     let endX = try #require(target[id(2)]?.frame.minX)
-    for _ in 0..<6 { field.advance(by: frameDuration) }
+    field.advance(by: frameDuration)
     let x = try #require(field.animated(target, in: testViewport)[id(2)]?.frame.minX)
-    #expect((startX - x) / (startX - endX) > 0.5)
+    let covered = (startX - x) / (startX - endX)
+    #expect(covered > 0.03 && covered < 0.12)
   }
 
   @Test func enteringWindowsSlideInFromWhereTheyAre() throws {

@@ -9,6 +9,7 @@ protocol WindowHandle: AnyObject {
   var frame: CGRect? { get }
   var isTileable: Bool { get }
   var isFullScreen: Bool { get }
+  func consumeReadTimeout() -> Bool
   func setFrame(_ frame: CGRect)
   func focus()
 }

@@ -11,6 +11,8 @@ final class SystemFramePlacer: FramePlacer {
 
   var isIdle: Bool { applier.isIdle }
 
+  var slowestRecentApplySeconds: Double { applier.slowestRecentApplySeconds }
+
   func submit(_ frame: CGRect, for window: any WindowHandle) {
     guard let managed = tracker.windows[window.id] else { return }
     applier.submit(frame, for: managed)

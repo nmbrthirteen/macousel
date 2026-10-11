@@ -10,6 +10,7 @@ struct ResizeAdoptionTests {
     let fixture = try ControllerFixture { $0.layout.defaultWidth = 0.25 }
     let row = fixture.openRow(3)
     fixture.launch()
+    fixture.clock.advance(by: .milliseconds(300))
     return (fixture, row)
   }
 
@@ -99,5 +100,17 @@ struct ResizeAdoptionTests {
     var expected = ExpectedStrip(columns: [1, 2, 3], fraction: 0.25)
     expected.apply { $0.setFixedWidth(700, of: WindowID(2)) }
     #expect(await fixture.becomes { fixture.frames(of: row) == expected.frames })
+  }
+
+  @Test func resizeNotificationRightAfterOurOwnSizeRequestIsIgnored() async throws {
+    let fixture = try ControllerFixture { $0.layout.defaultWidth = 0.25 }
+    let row = fixture.openRow(3)
+    fixture.launch()
+    let resized = try widened(row[1], to: try #require(row[1].frame).width + 100)
+
+    fixture.source.userResized(row[1], to: resized)
+    try await Task.sleep(for: .milliseconds(450))
+
+    #expect(row[1].framesSet.count == 1)
   }
 }

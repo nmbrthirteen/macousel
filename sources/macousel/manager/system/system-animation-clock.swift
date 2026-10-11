@@ -10,6 +10,10 @@ final class SystemAnimationClock: AnimationClock {
 
   var isRunning: Bool { ticker.isRunning }
 
+  var frameInterval: Double { ticker.frameInterval }
+
+  var now: ContinuousClock.Instant { .now }
+
   func start() {
     ticker.start()
   }

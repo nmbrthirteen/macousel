@@ -14,14 +14,24 @@ public struct Spring: Sendable, Equatable {
     self.value = value
     velocity = 0
     target = value
-    angularFrequency = 6 / response
+    angularFrequency = Self.angularFrequency(forResponse: response)
   }
 
   public mutating func retarget(to newTarget: Double, launch: Double = 0) {
-    let isResting = abs(velocity) < Self.restingVelocity
     target = newTarget
-    guard isResting, launch > 0 else { return }
-    velocity = -min(launch, Self.strongestLaunch) * angularFrequency * (value - target)
+    guard launch > 0 else { return }
+    let launchVelocity = -min(launch, Self.strongestLaunch) * angularFrequency * (value - target)
+    let alreadyFasterTowardTarget =
+      velocity * launchVelocity > 0 && abs(velocity) >= abs(launchVelocity)
+    if !alreadyFasterTowardTarget { velocity = launchVelocity }
+  }
+
+  public static func projectionTime(response: Double) -> Double {
+    2 / angularFrequency(forResponse: response)
+  }
+
+  private static func angularFrequency(forResponse response: Double) -> Double {
+    6 / response
   }
 
   public var isSettled: Bool {

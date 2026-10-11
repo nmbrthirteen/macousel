@@ -92,6 +92,7 @@ struct WindowLifecycleTests {
     let (fixture, windows) = try launchedFixture(windows: 3)
 
     windows[1].isFullScreen = true
+    fixture.source.userResized(windows[1], to: try #require(windows[1].frame))
     fixture.source.minimize(windows[1])
     fixture.source.restore(windows[1])
 
