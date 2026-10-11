@@ -11,7 +11,7 @@ struct OnboardingView: View {
       OnboardingFooter(flow: flow)
     }
     .padding(Metrics.Spacing.spacious)
-    .frame(width: Metrics.Size.onboardingWidth, height: Metrics.Size.onboardingHeight)
+    .frame(width: OnboardingMetrics.width, height: OnboardingMetrics.height)
   }
 
   @ViewBuilder

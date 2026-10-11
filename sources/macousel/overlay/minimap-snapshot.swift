@@ -14,6 +14,10 @@ struct MinimapSnapshot: Equatable {
     var activeRow: Int
     var isTabbed: Bool
     var isFocused: Bool
+
+    var activeWindow: WindowID? {
+      (rows.indices.contains(activeRow) ? rows[activeRow] : rows.first)?.window
+    }
   }
 
   static let empty = MinimapSnapshot(
@@ -24,4 +28,10 @@ struct MinimapSnapshot: Equatable {
   var viewportOffset: Double
   var viewportWidth: Double
   var animationResponse: Double?
+  var innerGap = 0.0
+
+  var focusedWindow: WindowID? {
+    guard let column = columns.first(where: \.isFocused) else { return nil }
+    return column.activeWindow
+  }
 }

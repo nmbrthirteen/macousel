@@ -68,7 +68,7 @@ final class OverviewModel {
       unanimated(change)
       return
     }
-    withAnimation(.spring(response: response, dampingFraction: Metrics.Overview.springDamping)) {
+    withAnimation(.spring(response: response, dampingFraction: OverlayTiming.springDamping)) {
       change()
     }
   }

@@ -6,17 +6,13 @@ struct AccessStep: View {
 
   var body: some View {
     OnboardingStepLayout(title: "Allow Accessibility access") {
-      Text(
-        "macOS only lets an app move other apps' windows through the Accessibility API. Macousel needs this permission to place your windows."
-      )
-      Form {
+      Text("Macousel needs this permission to move and resize your windows.")
+      OnboardingForm(height: OnboardingMetrics.accessHeight) {
         AccessibilityStatusRow(
           status: status,
           grant: .init(title: "Grant access", perform: AccessibilityPermission.requestWithPrompt)
         )
       }
-      .formStyle(.grouped)
-      .scrollDisabled(true)
     }
   }
 }

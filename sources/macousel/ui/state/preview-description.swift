@@ -4,7 +4,7 @@ import WindowSystem
 enum PreviewDescription {
   static func layout(_ config: LayoutConfig) -> String {
     "Preview: \(points(config.innerGap)) between windows, \(points(config.outerGap)) at screen edges, "
-      + "new windows \(width(config.defaultWidth)), focused column centred \(centring(config.centerMode))"
+      + "new windows \(width(config.defaultWidth)), focused column centered \(centering(config.centerMode))"
   }
 
   static func motion(_ preferences: Preferences) -> String {
@@ -17,6 +17,8 @@ enum PreviewDescription {
     }
     return "Preview: " + parts.joined(separator: ", ")
   }
+
+  static let welcome = "Preview: a strip of columns scrolls so the focused column stays in view"
 
   static func swipe(fingers: Int, reversed: Bool, sensitivity: Double) -> String {
     let direction = reversed ? "right" : "left"
@@ -45,7 +47,7 @@ enum PreviewDescription {
     abs(fraction - 0.5) < 0.005 ? "half the screen wide" : "\(fraction.wholePercent)% of the screen wide"
   }
 
-  private static func centring(_ mode: CenterMode) -> String {
+  private static func centering(_ mode: CenterMode) -> String {
     switch mode {
     case .never: "never"
     case .onOverflow: "when it does not all fit"

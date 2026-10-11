@@ -2,6 +2,7 @@ nonisolated struct MenuBarPresentation: Equatable {
   enum Content: Equatable {
     case symbol(String)
     case pills(StripPosition)
+    case pages(StripPosition)
     case symbolWithCount(symbol: String, text: String)
   }
 
@@ -38,7 +39,9 @@ nonisolated struct MenuBarPresentation: Equatable {
       return .symbol(symbolName)
     case .position where MenuBarPillGeometry(position: position) != nil:
       return .pills(position)
-    case .position, .count:
+    case .pages where MenuBarPagesGeometry(position: position) != nil:
+      return .pages(position)
+    case .position, .pages, .count:
       return .symbolWithCount(
         symbol: symbolName, text: "\(position.columnNumber)/\(position.columnCount)")
     }

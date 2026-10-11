@@ -16,7 +16,7 @@ struct MacouselApp: App {
     Window("Settings", id: SettingsWindow.id) {
       PersistedSettingsView(
         store: delegate.store, manager: delegate.manager, updater: delegate.updater,
-        onShowWelcome: delegate.onboarding.show)
+        diagnostics: delegate.diagnostics, onShowWelcome: delegate.onboarding.show)
     }
     .defaultSize(width: Metrics.Size.settingsWidth, height: Metrics.Size.settingsHeight)
     .windowResizability(.contentMinSize)

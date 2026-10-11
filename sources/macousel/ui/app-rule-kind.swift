@@ -16,7 +16,7 @@ enum AppRuleKind: CaseIterable {
     switch self {
     case .float: "Float"
     case .width: "Open at width"
-    case .slot: "Open in slot"
+    case .slot: "Open in column"
     }
   }
 

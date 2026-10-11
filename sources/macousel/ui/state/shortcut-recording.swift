@@ -5,6 +5,8 @@ import WindowSystem
 
 @Observable
 final class ShortcutRecording {
+  static let prompt = "Press keys or Esc"
+
   private(set) var isRecording = false
   private(set) var message: String?
 

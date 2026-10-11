@@ -18,6 +18,16 @@ final class OverlayPresenter {
     set { host.onTabSelected = newValue }
   }
 
+  var onMinimapSelect: ((WindowID) -> Void)? {
+    get { host.onMinimapSelect }
+    set { host.onMinimapSelect = newValue }
+  }
+
+  var onMinimapMove: ((WindowID, DropTarget) -> Void)? {
+    get { host.onMinimapMove }
+    set { host.onMinimapMove = newValue }
+  }
+
   private let state: TilingState
   private let source: any WindowSource
   private let store: PreferencesStore

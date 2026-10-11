@@ -17,14 +17,16 @@ struct StatusRow: View {
         .foregroundStyle(isPassing ? Color.green : Color.orange)
         .frame(width: Metrics.Size.statusIcon)
         .accessibilityLabel(isPassing ? "Passed" : "Needs attention")
-      VStack(alignment: .leading, spacing: Metrics.Spacing.hairline) {
-        Text(title)
-        CaptionText(detail)
+      VStack(alignment: .leading, spacing: Metrics.Spacing.regular) {
+        VStack(alignment: .leading, spacing: Metrics.Spacing.hairline) {
+          Text(title)
+          CaptionText(detail)
+        }
+        if let action {
+          Button(action.title, action: action.perform)
+        }
       }
-      Spacer(minLength: Metrics.Spacing.regular)
-      if let action {
-        Button(action.title, action: action.perform)
-      }
+      Spacer(minLength: 0)
     }
   }
 }

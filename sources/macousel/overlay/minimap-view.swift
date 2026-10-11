@@ -15,7 +15,7 @@ struct MinimapView: View {
 
   private var transition: AnyTransition {
     reduceMotion
-      ? .opacity : .opacity.combined(with: .scale(scale: Metrics.Minimap.hiddenScale))
+      ? .opacity : .opacity.combined(with: .scale(scale: OverlayTiming.hiddenScale))
   }
 
   var body: some View {
@@ -30,21 +30,39 @@ struct MinimapView: View {
   }
 
   private var container: some View {
-    let geometry = MinimapGeometry(snapshot: model.snapshot)
+    let geometry = MinimapGeometry(snapshot: model.arrangement)
     return ZStack(alignment: .topLeading) {
       lens(geometry.lens, radius: geometry.lensRadius)
       ForEach(geometry.cells) { cell in
-        MinimapCellView(cell: cell, icons: model.icons)
+        MinimapCellView(
+          cell: cell, icons: model.icons, isPlaceholder: model.lift?.cell == cell.id)
+      }
+      if let lift = model.lift, let cell = liftedCell(lift) {
+        MinimapCellView(cell: cell, icons: model.icons, isLifted: true, liftOffset: lift.offset)
       }
     }
     .frame(width: geometry.containerWidth, height: Metrics.Minimap.height, alignment: .topLeading)
     .background {
       if reduceTransparency {
-        RoundedRectangle(cornerRadius: Metrics.Minimap.containerRadius, style: .continuous)
+        RoundedRectangle(cornerRadius: OverlayRadius.minimapContainer, style: .continuous)
           .fill(Color(nsColor: .windowBackgroundColor))
       }
     }
-    .animation(model.updateAnimation, value: model.snapshot)
+    .contentShape(Rectangle())
+    .gesture(pointerGesture, isEnabled: model.isInteractive)
+  }
+
+  private func liftedCell(_ lift: MinimapModel.Lift) -> MinimapCell? {
+    MinimapGeometry(snapshot: model.snapshot).cells.first { $0.id == lift.cell }
+  }
+
+  private var pointerGesture: some Gesture {
+    DragGesture(minimumDistance: 0)
+      .onChanged { value in
+        if case .idle = model.interaction { model.pressed(at: value.startLocation) }
+        model.dragged(to: value.location)
+      }
+      .onEnded { model.released(at: $0.location) }
   }
 
   private func lens(_ rect: CGRect, radius: Double) -> some View {

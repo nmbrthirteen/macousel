@@ -10,6 +10,8 @@ final class SystemOverlayHost: OverlayHost {
   private var dropPreview: DropPreviewOverlay?
 
   var onTabSelected: ((WindowID) -> Void)?
+  var onMinimapSelect: ((WindowID) -> Void)?
+  var onMinimapMove: ((WindowID, DropTarget) -> Void)?
   var onOverviewSelect: ((WindowID) -> Void)?
   var onOverviewKey: ((OverviewKey) -> Void)?
   var onOverviewDismiss: (() -> Void)?
@@ -38,7 +40,7 @@ final class SystemOverlayHost: OverlayHost {
   }
 
   func showMinimap(_ snapshot: MinimapSnapshot, update: MinimapUpdate, on displayFrame: CGRect) {
-    let overlay = minimap ?? MinimapOverlay()
+    let overlay = minimap ?? makeMinimap()
     minimap = overlay
     overlay.show(snapshot, update: update, on: displayFrame)
   }
@@ -71,6 +73,13 @@ final class SystemOverlayHost: OverlayHost {
 
   func hideOverview() {
     overview?.hide()
+  }
+
+  private func makeMinimap() -> MinimapOverlay {
+    let overlay = MinimapOverlay()
+    overlay.onSelect = { [weak self] window in self?.onMinimapSelect?(window) }
+    overlay.onMove = { [weak self] window, target in self?.onMinimapMove?(window, target) }
+    return overlay
   }
 
   private func makeOverview() -> OverviewOverlay {

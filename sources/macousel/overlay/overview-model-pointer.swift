@@ -25,7 +25,7 @@ extension OverviewModel {
   func dragged(to point: CGPoint, in size: CGSize) {
     switch interaction {
     case .pressed(let press, let origin):
-      guard hypot(point.x - origin.x, point.y - origin.y) > Metrics.Overview.dragThreshold else {
+      guard hypot(point.x - origin.x, point.y - origin.y) > Metrics.Overlay.dragThreshold else {
         return
       }
       interaction = begin(press, from: origin, size: size)

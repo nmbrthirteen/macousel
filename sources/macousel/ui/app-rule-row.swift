@@ -16,28 +16,38 @@ struct AppRuleRow: View {
   var body: some View {
     LabeledContent {
       HStack {
-        Picker("Behavior", selection: kind) {
+        Picker("Rule for \(identity.name)", selection: kind) {
           ForEach(AppRuleKind.allCases, id: \.self) { option in
             Text(option.title).tag(option)
           }
         }
         .labelsHidden()
-        .fixedSize()
-        switch rule.behavior {
-        case .float:
-          EmptyView()
-        case .width:
-          PercentPicker(title: "Width", selection: width)
-            .labelsHidden()
-            .fixedSize()
-        case .slot:
-          Stepper("Slot \(slot.wrappedValue)", value: slot, in: Self.slotRange)
-            .fixedSize()
-        }
-        RemoveButton(label: "Remove \(identity.name)", action: onRemove)
+        .frame(width: SettingsMetrics.ruleKindWidth, alignment: .trailing)
+        value
+          .frame(width: SettingsMetrics.ruleValueWidth, alignment: .trailing)
+        RemoveButton(label: "Remove rule for \(identity.name)", action: onRemove)
       }
     } label: {
       AppLabel(identity: identity)
+    }
+  }
+
+  @ViewBuilder
+  private var value: some View {
+    switch rule.behavior {
+    case .float:
+      EmptyView()
+    case .width:
+      PercentPicker(title: "Width for \(identity.name)", selection: width)
+        .labelsHidden()
+        .fixedSize()
+    case .slot:
+      HStack(spacing: Metrics.Spacing.regular) {
+        Text("\(slot.wrappedValue)")
+          .monospacedDigit()
+        Stepper("Column for \(identity.name)", value: slot, in: Self.slotRange)
+          .labelsHidden()
+      }
     }
   }
 

@@ -1,7 +1,7 @@
 extension UpdateState {
   var statusText: String {
     switch self {
-    case .idle: "Macousel has not checked for updates yet"
+    case .idle: "No update check yet"
     case .checking: "Checking for updates…"
     case .upToDate: "Macousel is up to date"
     case .available(let release): "Version \(release.version) is available"

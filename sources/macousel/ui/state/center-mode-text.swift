@@ -11,10 +11,10 @@ extension CenterMode {
 
   var summary: String {
     switch self {
-    case .never: "Never: the strip moves only as far as needed to show the focused window."
+    case .never: "The strip moves only as far as needed to show the focused column."
     case .onOverflow:
-      "When it does not all fit: a strip that fits is centred as a whole. Otherwise the focused window sits in the middle."
-    case .always: "Always: the focused window sits in the middle of the screen."
+      "A strip that fits is centered as a whole. Otherwise the focused column sits in the middle."
+    case .always: "The focused column always sits in the middle of the screen."
     }
   }
 }

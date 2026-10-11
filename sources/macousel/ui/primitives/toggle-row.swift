@@ -6,11 +6,8 @@ struct ToggleRow: View {
   var caption: String?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: Metrics.Spacing.tight) {
+    CaptionedRow(caption: caption) {
       Toggle(title, isOn: $isOn)
-      if let caption {
-        CaptionText(caption)
-      }
     }
   }
 }

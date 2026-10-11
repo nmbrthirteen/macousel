@@ -3,6 +3,9 @@ import StripCore
 
 struct MinimapCell: Identifiable, Equatable {
   let id: WindowID
+  let window: WindowID
+  let column: Int
+  let row: Int
   let rect: CGRect
   let cornerRadius: Double
   let isFocused: Bool
@@ -10,10 +13,14 @@ struct MinimapCell: Identifiable, Equatable {
   let tabDots: [CGRect]
 
   init(
-    id: WindowID, rect: CGRect, isFocused: Bool, columnNumber: Int, isLeadRow: Bool,
-    dotCount: Int, bundleIdentifier: String?, containerSize: CGSize, isStacked: Bool
+    id: WindowID, window: WindowID, column: Int, row: Int, rect: CGRect, isFocused: Bool,
+    isLeadRow: Bool, dotCount: Int, bundleIdentifier: String?, containerSize: CGSize,
+    isStacked: Bool
   ) {
     self.id = id
+    self.window = window
+    self.column = column
+    self.row = row
     self.rect = rect
     let concentricRadius = MinimapConcentricRadius.radius(of: rect, in: containerSize)
     cornerRadius =
@@ -27,8 +34,16 @@ struct MinimapCell: Identifiable, Equatable {
     let contentArea = CGRect(
       x: rect.minX, y: rect.minY, width: rect.width, height: contentBottom - rect.minY)
     content = MinimapCellContent(
-      area: contentArea, columnNumber: columnNumber, isLeadRow: isLeadRow,
+      area: contentArea, columnNumber: column + 1, isLeadRow: isLeadRow,
       bundleIdentifier: bundleIdentifier)
+  }
+
+  var hitRect: CGRect {
+    rect.insetBy(dx: -Metrics.Minimap.columnGap / 2, dy: -Metrics.Minimap.rowGap / 2)
+  }
+
+  func isUpperHalf(at point: CGPoint) -> Bool {
+    point.y < rect.midY
   }
 
   private static func dots(count: Int, in rect: CGRect) -> [CGRect] {

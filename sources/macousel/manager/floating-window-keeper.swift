@@ -98,6 +98,7 @@ final class FloatingWindowKeeper {
   private func raiseFloatingWindows(above window: WindowID) {
     guard !isSuppressed() else { return }
     let covered = overlappingWindows(of: window)
+    guard !covered.isEmpty else { return }
     for id in covered.reversed() { source.window(id)?.raise() }
     Self.logger.info("Raised \(covered.count, privacy: .public) floating windows")
   }

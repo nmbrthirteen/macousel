@@ -99,7 +99,11 @@ final class TilingState {
   }
 
   var activePosition: StripPosition? {
-    (focusedKey ?? pointerKey).flatMap { workspaces[$0]?.strip }.flatMap { StripPosition(strip: $0) }
+    guard let key = focusedKey ?? pointerKey, let strip = workspaces[key]?.strip,
+      let display = display(for: key)
+    else { return nil }
+    return StripPosition(
+      strip: strip, layout: targetLayout(for: key), usableWidth: usableWidth(of: display))
   }
 
   func scrollToFocus(_ key: Workspace.Key) {

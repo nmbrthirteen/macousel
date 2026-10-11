@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct AboutPane: View {
+  private static let repositoryURL = URL(string: "https://github.com/nmbrthirteen/macousel")
+
   let updater: Updater
+  let diagnostics: DiagnosticsAction
   let onShowWelcome: () -> Void
   private let info = AppInfo()
 
@@ -15,13 +18,11 @@ struct AboutPane: View {
             .frame(width: Metrics.Size.aboutIcon, height: Metrics.Size.aboutIcon)
             .accessibilityHidden(true)
           Text(info.name)
-            .font(.title.bold())
+            .font(.title2.bold())
           Text(info.version)
             .foregroundStyle(.secondary)
-          Text(
-            "A scrolling window manager for macOS. Windows sit side by side on one strip, and the strip scrolls."
-          )
-          .multilineTextAlignment(.center)
+          Text("A scrolling window manager for macOS.")
+            .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Metrics.Spacing.comfortable)
@@ -29,8 +30,12 @@ struct AboutPane: View {
 
       UpdateSection(updater: updater)
 
-      Section {
+      SettingsGroup(title: "Help") {
         Button("Show welcome guide", action: onShowWelcome)
+        ReportProblemRow(diagnostics: diagnostics)
+        if let repositoryURL = Self.repositoryURL {
+          Link("View on GitHub", destination: repositoryURL)
+        }
       }
     }
   }

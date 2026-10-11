@@ -8,8 +8,9 @@ struct ErrorText: View {
   }
 
   var body: some View {
-    Text(message)
+    Label(message, systemImage: "exclamationmark.triangle.fill")
       .font(.callout)
       .foregroundStyle(.red)
+      .fixedSize(horizontal: false, vertical: true)
   }
 }

@@ -15,12 +15,11 @@ struct SettingsPreviewScenarioTests {
     return geometry.windows.sorted { $0.column < $1.column }.map { $0.rect.width }
   }
 
-  @Test func layoutSampleHasFourColumnsAtTheDefaultWidth() {
+  @Test func layoutSampleHasSixColumnsAtTheDefaultWidth() {
     var config = LayoutConfig()
     config.defaultWidth = 0.25
     let scenario = PreviewScenarios.layout(config: config, focusTrail: [1], hoveredPreset: nil)
-    let expected: [ColumnWidth] = [.fraction(0.25), .fraction(0.25), .fraction(0.25), .fraction(0.25)]
-    #expect(scenario.columnWidths == expected)
+    #expect(scenario.columnWidths == Array(repeating: ColumnWidth.fraction(0.25), count: 6))
     #expect(scenario.focusedColumn == 1)
   }
 
@@ -53,8 +52,7 @@ struct SettingsPreviewScenarioTests {
     let hovered = PreviewScenarios.layout(config: config, focusTrail: [1], hoveredPreset: 0.25)
     let restored = PreviewScenarios.layout(config: config, focusTrail: [1], hoveredPreset: nil)
     #expect(hovered != restored)
-    let expected: [ColumnWidth] = [.fraction(0.5), .fraction(0.5), .fraction(0.5), .fraction(0.5)]
-    #expect(restored.columnWidths == expected)
+    #expect(restored.columnWidths == Array(repeating: ColumnWidth.fraction(0.5), count: 6))
   }
 
   @Test func motionSampleScrollsWhenFocusMovesRight() throws {

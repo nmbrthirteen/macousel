@@ -1,10 +1,10 @@
 import Foundation
 
 nonisolated struct BurstTiming: Sendable {
-  private static let millisecondsPerSecond = 1_000.0
-  private static let attosecondsPerMillisecond = 1e15
+  static let timeoutMilliseconds = 240.0
 
   private(set) var count = 0
+  private(set) var timedOutCount = 0
   private(set) var totalMilliseconds = 0.0
   private(set) var maximumMilliseconds = 0.0
 
@@ -12,12 +12,9 @@ nonisolated struct BurstTiming: Sendable {
     count == 0 ? 0 : totalMilliseconds / Double(count)
   }
 
-  mutating func record(_ duration: Duration) {
-    let components = duration.components
-    let milliseconds =
-      Double(components.seconds) * Self.millisecondsPerSecond
-      + Double(components.attoseconds) / Self.attosecondsPerMillisecond
+  mutating func record(milliseconds: Double) {
     count += 1
+    if milliseconds >= Self.timeoutMilliseconds { timedOutCount += 1 }
     totalMilliseconds += milliseconds
     maximumMilliseconds = max(maximumMilliseconds, milliseconds)
   }

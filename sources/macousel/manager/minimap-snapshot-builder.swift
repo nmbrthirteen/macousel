@@ -16,7 +16,7 @@ struct MinimapSnapshotBuilder {
       contentWidth: layout.contentWidth,
       viewportOffset: workspace.scrollOffset,
       viewportWidth: state.usableWidth(of: display),
-      animationResponse: animationResponse)
+      animationResponse: animationResponse, innerGap: state.config.innerGap)
   }
 
   private var animationResponse: Double? {

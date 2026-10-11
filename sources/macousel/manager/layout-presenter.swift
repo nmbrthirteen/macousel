@@ -21,8 +21,7 @@ final class LayoutPresenter {
   private var requestedFrames: [CGWindowID: CGRect] = [:]
   private var sizeRequestTimes: [CGWindowID: ContinuousClock.Instant] = [:]
   private let growth = GrowthPlanner()
-  private var cadence = SubmissionCadence()
-  private var tickCount = 0
+  private var slowSubmissions = SlowSubmissionLimiter()
 
   init(
     state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
@@ -57,26 +56,27 @@ final class LayoutPresenter {
     state.activeKeys.forEach { retarget($0, snapping: snapping) }
     admissionFrames.clear()
     if !snapping { advanceMotion(by: clock.frameInterval) }
-    tickCount = 0
+    slowSubmissions.endTracking()
     render()
     if hasUnsettledMotion { clock.start() }
   }
 
   func track(_ key: Workspace.Key) {
     retarget(key, snapping: true)
+    slowSubmissions.beginTracking()
     render()
   }
 
-  func render(submitting: Bool = true) {
+  func render() {
     let interval = Self.signposter.beginInterval("render")
     defer { Self.signposter.endInterval("render", interval) }
     var layouts: [Workspace.Key: StripLayout] = [:]
     for key in state.activeKeys {
       guard let display = state.display(for: key), let layout = state.animatedLayout(for: key)
       else { continue }
-      if submitting {
-        place(layout, on: display, holdingGrowth: state.workspaces[key]?.motion.isSettled == false)
-      }
+      place(
+        layout, on: display, key: key,
+        holdingGrowth: state.workspaces[key]?.motion.isSettled == false)
       layouts[key] = layout
     }
     overlays.render(layouts)
@@ -101,6 +101,7 @@ final class LayoutPresenter {
       placer.forget(window)
     }
     sizeRequestTimes = sizeRequestTimes.filter { alive.contains($0.key) }
+    slowSubmissions.retain(only: alive)
   }
 
   func halt() {
@@ -154,23 +155,22 @@ final class LayoutPresenter {
 
   private func advance(by deltaTime: Double) {
     advanceMotion(by: deltaTime)
-    let divisor = cadence.update(
-      frameInterval: clock.frameInterval, slowestAverage: placer.slowestRecentApplySeconds)
-    tickCount += 1
-    var submitting = tickCount % divisor == 0
     if !hasUnsettledMotion {
       for key in state.activeKeys { state.workspaces[key]?.motion.snap() }
       clock.stop()
-      submitting = true
     }
-    render(submitting: submitting)
+    render()
   }
 
-  private func place(_ layout: StripLayout, on display: Display, holdingGrowth: Bool) {
+  private func place(
+    _ layout: StripLayout, on display: Display, key: Workspace.Key, holdingGrowth: Bool
+  ) {
     let policy = state.parkingPolicy(for: display)
-    let planned = layout.placements.compactMap { placement -> PlannedFrame? in
-      let id = placement.window.rawValue
+    let settled = settledPlacements(ofSlowWindowsIn: layout, key: key, on: display)
+    let planned = layout.placements.compactMap { animated -> PlannedFrame? in
+      let id = animated.window.rawValue
       guard id != excludedWindow, source.window(id) != nil else { return nil }
+      let placement = settled[animated.window] ?? animated
       let target = policy.frame(for: placement, in: display.visibleFrame)
       return PlannedFrame(
         window: id, placement: placement, target: target, previous: requestedFrames[id],
@@ -179,10 +179,29 @@ final class LayoutPresenter {
     growth.submissions(for: planned, holdingGrowth: holdingGrowth).forEach { submit($0) }
   }
 
+  private func settledPlacements(
+    ofSlowWindowsIn layout: StripLayout, key: Workspace.Key, on display: Display
+  ) -> [WindowID: Placement] {
+    let slow = layout.placements.map(\.window).filter { window in
+      source.window(window.rawValue).map { placer.isSlowApp(of: $0) } ?? false
+    }
+    guard !slow.isEmpty, let target = state.targetLayout(for: key) else { return [:] }
+    var settled: [WindowID: Placement] = [:]
+    for placement in target.placements where slow.contains(placement.window) {
+      settled[placement.window] = placement.moved(
+        to: placement.frame.origin, in: display.visibleFrame)
+    }
+    return settled
+  }
+
   private func submit(_ submission: FrameSubmission) {
     let id = submission.window
     let previous = requestedFrames[id]
     guard previous != submission.frame, let window = source.window(id) else { return }
+    if placer.isSlowApp(of: window) {
+      guard slowSubmissions.permits(id, at: clock.now) else { return }
+      slowSubmissions.record(id, at: clock.now)
+    }
     if previous?.size != submission.frame.size { sizeRequestTimes[id] = clock.now }
     requestedFrames[id] = submission.frame
     placer.submit(submission.frame, for: window)

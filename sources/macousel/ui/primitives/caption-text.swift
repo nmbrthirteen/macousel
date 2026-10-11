@@ -11,5 +11,6 @@ struct CaptionText: View {
     Text(text)
       .font(.callout)
       .foregroundStyle(.secondary)
+      .fixedSize(horizontal: false, vertical: true)
   }
 }

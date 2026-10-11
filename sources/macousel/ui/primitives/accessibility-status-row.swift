@@ -15,7 +15,7 @@ struct AccessibilityStatusRow: View {
       )
       if !status.isGranted {
         CaptionText(
-          "Already switched on in System Settings? macOS ties the permission to one exact build, so a new version needs it again."
+          "Already on in System Settings? macOS ties the permission to this exact build, so each update needs it again."
         )
         Button("Reset and ask again", action: resetAndAsk)
       }

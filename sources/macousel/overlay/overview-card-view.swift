@@ -6,7 +6,7 @@ struct OverviewCardView: View {
   var isLifted = false
 
   private var shape: RoundedRectangle {
-    RoundedRectangle(cornerRadius: Metrics.Radius.panel)
+    RoundedRectangle(cornerRadius: OverlayRadius.card, style: .continuous)
   }
 
   private var isRoomy: Bool { card.rect.height >= Metrics.Overview.roomyCardMinimumHeight }
@@ -26,10 +26,8 @@ struct OverviewCardView: View {
       }
     }
     .opacity(isLifted ? Metrics.Overview.liftOpacity : 1)
-    .scaleEffect(isLifted ? Metrics.Overview.liftScale : 1)
-    .shadow(
-      color: .black.opacity(isLifted ? Metrics.Overview.liftShadowOpacity : 0),
-      radius: Metrics.Overview.liftShadowRadius, y: Metrics.Spacing.compact)
+    .overlayLift(
+      isLifted, scale: OverlayTiming.liftScale, shadowRadius: Metrics.Overview.liftShadowRadius)
     .contentShape(shape)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(card.content.title)
@@ -60,7 +58,7 @@ struct OverviewCardView: View {
   private var badge: some View {
     if let number = card.number, showsBadge {
       Text("\(number)")
-        .font(.caption.weight(.semibold).monospacedDigit())
+        .font(.overlay(.small, weight: .semibold))
         .padding(.horizontal, Metrics.Spacing.compact)
         .padding(.vertical, Metrics.Spacing.hairline)
         .background(Color.primary.opacity(Metrics.Opacity.overviewBadge), in: Capsule())
@@ -79,9 +77,9 @@ struct OverviewCardView: View {
 
   private func title(alignment: TextAlignment) -> some View {
     Text(card.content.title)
-      .font(.callout)
+      .font(.overlay(.regular))
       .lineLimit(alignment == .center ? Metrics.Overview.titleLineLimit : 1)
       .multilineTextAlignment(alignment)
-      .truncationMode(.tail)
+      .truncationMode(.middle)
   }
 }

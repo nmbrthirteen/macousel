@@ -20,26 +20,28 @@ nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
   private let apply: @Sendable (CGWindowID, Request) -> Void
   private let beginBurst: @Sendable (pid_t) -> Void
   private let endBurst: @Sendable (pid_t) -> Void
-  private let restoreDelay: TimeInterval
+  private let release: @Sendable (pid_t) -> Void
+  private let quietDelay: TimeInterval
+  private let idleDelay: TimeInterval
 
   init(
-    restoreDelay: TimeInterval = 0.3,
+    quietDelay: TimeInterval = 0.3,
+    idleDelay: TimeInterval = 30,
     apply: @escaping @Sendable (CGWindowID, Request) -> Void,
     beginBurst: @escaping @Sendable (pid_t) -> Void,
-    endBurst: @escaping @Sendable (pid_t) -> Void
+    endBurst: @escaping @Sendable (pid_t) -> Void,
+    release: @escaping @Sendable (pid_t) -> Void
   ) {
-    self.restoreDelay = restoreDelay
+    self.quietDelay = quietDelay
+    self.idleDelay = idleDelay
     self.apply = apply
     self.beginBurst = beginBurst
     self.endBurst = endBurst
+    self.release = release
   }
 
   var isIdle: Bool {
     state.withLock { $0.running.isEmpty && $0.pending.isEmpty }
-  }
-
-  var busyPIDs: Set<pid_t> {
-    state.withLock { Set($0.pending.keys).union($0.running) }
   }
 
   func submit(_ request: Request, window: CGWindowID, pid: pid_t) {
@@ -65,14 +67,18 @@ nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
   }
 
   func flush() {
-    let queues = state.withLock { Array($0.queues.values) }
-    for queue in queues { queue.sync {} }
-    let quiet = state.withLock { state -> [pid_t] in
-      let quiet = state.bursting.filter { state.pending[$0] == nil && !state.running.contains($0) }
-      state.bursting.subtract(quiet)
-      return Array(quiet)
+    let queues = state.withLock { Array($0.queues) }
+    for (pid, queue) in queues { queue.sync { self.finish(pid) } }
+  }
+
+  private func finish(_ pid: pid_t) {
+    let burstWasOpen = state.withLock { state -> Bool? in
+      guard !state.running.contains(pid), state.pending[pid] == nil else { return nil }
+      return state.bursting.remove(pid) != nil
     }
-    for pid in quiet { endBurst(pid) }
+    guard let burstWasOpen else { return }
+    if burstWasOpen { endBurst(pid) }
+    release(pid)
   }
 
   private func drain(_ pid: pid_t) {
@@ -93,19 +99,30 @@ nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
       case .work(let window, let request):
         apply(window, request)
       case .done(let generation, let queue):
-        queue.asyncAfter(deadline: .now() + restoreDelay) {
-          self.restoreIfQuiet(pid, generation: generation)
+        queue.asyncAfter(deadline: .now() + quietDelay) {
+          self.endBurstIfQuiet(pid, generation: generation)
+        }
+        queue.asyncAfter(deadline: .now() + idleDelay) {
+          self.releaseIfIdle(pid, generation: generation)
         }
         return
       }
     }
   }
 
-  private func restoreIfQuiet(_ pid: pid_t, generation: Int) {
-    let restore = state.withLock { state in
+  private func endBurstIfQuiet(_ pid: pid_t, generation: Int) {
+    let quiet = state.withLock { state in
       state.generation[pid] == generation && !state.running.contains(pid)
         && state.bursting.remove(pid) != nil
     }
-    if restore { endBurst(pid) }
+    if quiet { endBurst(pid) }
+  }
+
+  private func releaseIfIdle(_ pid: pid_t, generation: Int) {
+    let idle = state.withLock { state in
+      state.generation[pid] == generation && !state.running.contains(pid)
+        && !state.bursting.contains(pid)
+    }
+    if idle { release(pid) }
   }
 }

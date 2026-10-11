@@ -24,7 +24,7 @@ enum PreviewMetrics {
 
   enum Sample {
     static let focusTrailLength = 3
-    static let layoutColumnCount = 4
+    static let layoutColumnCount = 6
     static let layoutRestingColumn = 1
     static let layoutAlternateColumn = 3
     static let motionColumnCount = 5
@@ -34,6 +34,8 @@ enum PreviewMetrics {
     static let rulesColumnCount = 4
     static let rulesColumnWidth = 0.4
     static let rulesFocusedColumn = 1
+    static let motionLeadingColumns = 2
+    static let rulesLeadingColumns = 3
     static let tiledColumnWidths = [0.4, 0.3, 0.3]
     static let tiledStackedColumn = 1
     static let tiledFocusedColumn = 0

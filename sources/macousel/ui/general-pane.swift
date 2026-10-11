@@ -9,14 +9,14 @@ struct GeneralPane: View {
 
   var body: some View {
     SettingsForm {
-      Section("Permissions") {
+      SettingsGroup(title: "Permissions") {
         AccessibilityStatusRow(
           status: accessibility,
           grant: .init(
             title: "Open System Settings", perform: AccessibilityPermission.openSystemSettings))
       }
 
-      Section("Startup") {
+      SettingsGroup(title: "Startup") {
         ToggleRow(title: "Launch at login", isOn: launchAtLoginBinding)
         if let message = launchAtLogin.errorMessage {
           ErrorText(message)
@@ -24,7 +24,7 @@ struct GeneralPane: View {
         ToggleRow(title: "Restore layout on launch", isOn: $store.preferences.restoresSession)
       }
 
-      Section("Updates") {
+      SettingsGroup(title: "Updates") {
         ToggleRow(
           title: "Check for updates automatically", isOn: $store.preferences.checksForUpdates)
       }

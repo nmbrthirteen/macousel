@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MinimapPreview: View {
   let config: LayoutConfig
+  let isEnabled: Bool
   @State private var model = MinimapModel()
 
   private var snapshot: MinimapSnapshot {
@@ -23,7 +24,8 @@ struct MinimapPreview: View {
             Color.primary.opacity(PreviewMetrics.outlineOpacity),
             lineWidth: Metrics.Size.hairlineStroke)
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
+      .opacity(isEnabled ? 1 : SettingsMetrics.disabledPreviewOpacity)
+      .frame(maxWidth: .infinity, alignment: .center)
       .onAppear(perform: refresh)
       .onChange(of: config) { refresh() }
       .accessibilityElement(children: .ignore)

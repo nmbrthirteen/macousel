@@ -68,9 +68,27 @@ struct StripPositionTests {
     let (fixture, _) = try launched(windows: 3)
     fixture.manager.perform(.focusRight)
     fixture.manager.perform(.stackLeft)
-    #expect(
-      fixture.manager.position
-        == StripPosition(columnCount: 2, focusedIndex: 0, windowsInFocusedColumn: 2))
+    let position = try #require(fixture.manager.position)
+    #expect(position.columnCount == 2)
+    #expect(position.focusedIndex == 0)
+    #expect(position.windowsInFocusedColumn == 2)
+  }
+
+  @Test func everyColumnReportsItsWidthShareAndRowCount() throws {
+    let (fixture, _) = try launched(windows: 3)
+    fixture.manager.perform(.focusRight)
+    fixture.manager.perform(.stackLeft)
+    let pages = try #require(fixture.manager.position).pages
+    #expect(pages.map(\.rowCount) == [2, 1])
+    #expect(pages.allSatisfy { $0.widthShare > 0 && $0.widthShare <= 1 })
+  }
+
+  @Test func resizingAColumnChangesItsWidthShare() throws {
+    let (fixture, _) = try launched(windows: 3)
+    let before = try #require(fixture.manager.position).pages[0].widthShare
+    fixture.manager.perform(.cycleWidth)
+    let after = try #require(fixture.manager.position).pages[0].widthShare
+    #expect(after != before)
   }
 
   @Test func aNewWindowAddsAColumn() async throws {
@@ -122,10 +140,13 @@ struct StripPositionTests {
     let observer = PositionObserver(fixture.manager)
     fixture.manager.perform(.focusFirst)
     fixture.manager.perform(.focusLeft)
-    fixture.manager.perform(.cycleWidth)
     fixture.manager.perform(.focusFirst)
     #expect(observer.changes == 0)
-    fixture.manager.perform(.focusRight)
+    fixture.manager.perform(.cycleWidth)
     #expect(observer.changes == 1)
+    fixture.manager.perform(.focusFirst)
+    #expect(observer.changes == 1)
+    fixture.manager.perform(.focusRight)
+    #expect(observer.changes == 2)
   }
 }

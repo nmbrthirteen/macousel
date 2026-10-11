@@ -22,12 +22,15 @@ final class FakeOverlayHost: OverlayHost {
   }
 
   var onTabSelected: ((WindowID) -> Void)?
+  var onMinimapSelect: ((WindowID) -> Void)?
+  var onMinimapMove: ((WindowID, DropTarget) -> Void)?
   var onOverviewSelect: ((WindowID) -> Void)?
   var onOverviewKey: ((OverviewKey) -> Void)?
   var onOverviewDismiss: (() -> Void)?
   var onOverviewMove: ((WindowID, DropTarget) -> Void)?
   var onOverviewColumnWidth: ((WindowID, Double) -> Void)?
   var onOverviewRowHeight: ((WindowID, Double, VerticalNeighbor) -> Void)?
+  var onMinimapShown: ((MinimapSnapshot, MinimapUpdate) -> Void)?
   private(set) var overview: Overview?
   private(set) var dropPreview: CGRect?
   private(set) var dropPreviewHistory: [CGRect?] = []
@@ -56,6 +59,7 @@ final class FakeOverlayHost: OverlayHost {
   func showMinimap(_ snapshot: MinimapSnapshot, update: MinimapUpdate, on displayFrame: CGRect) {
     minimap = snapshot
     minimapUpdate = update
+    onMinimapShown?(snapshot, update)
   }
 
   func hideMinimap() {
@@ -92,6 +96,14 @@ final class FakeOverlayHost: OverlayHost {
 
   func click(_ window: WindowID) {
     onOverviewSelect?(window)
+  }
+
+  func clickMinimap(_ window: WindowID) {
+    onMinimapSelect?(window)
+  }
+
+  func dropFromMinimap(_ window: WindowID, as target: DropTarget) {
+    onMinimapMove?(window, target)
   }
 
   func clickBackdrop() {

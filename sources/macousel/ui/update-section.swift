@@ -4,7 +4,7 @@ struct UpdateSection: View {
   let updater: Updater
 
   var body: some View {
-    Section("Updates") {
+    SettingsGroup(title: "Updates") {
       status
       Button("Check for updates") {
         Task(priority: .utility) { await updater.check() }
@@ -37,7 +37,7 @@ struct UpdateSection: View {
         }
       }
       CaptionText(
-        "macOS asks for Accessibility access again after an update, because each release has a new signature."
+        "macOS asks for Accessibility access again after an update. Each release has a new signature."
       )
     }
   }

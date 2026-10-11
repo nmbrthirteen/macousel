@@ -6,8 +6,8 @@ struct ActionButtonStyle: ViewModifier {
   @ViewBuilder
   func body(content: Content) -> some View {
     switch role {
-    case .primary: content.buttonStyle(.glassProminent)
-    case .secondary: content.buttonStyle(.glass)
+    case .primary: content.buttonStyle(.borderedProminent)
+    case .secondary: content.buttonStyle(.bordered)
     }
   }
 }

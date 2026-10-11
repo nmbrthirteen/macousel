@@ -126,7 +126,7 @@ Layout restore keeps the app identifiers and a hash of each window title in the 
 
 ## Reporting a problem
 
-Choose "Save diagnostics…" from the menu bar icon. It writes one text file to your Desktop with the app's log, your settings, your displays, and the names of any crash reports. Attach it to the issue.
+Choose "Save diagnostics…" from the menu bar icon. It writes one text file to your Desktop with the app's log, your settings, your displays, the names of any crash reports, and the names of any apps that respond slowly. Attach it to the issue.
 
 ## Scripting
 

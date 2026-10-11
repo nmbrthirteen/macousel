@@ -15,7 +15,10 @@ struct LayoutPreview: View {
     PreviewSection(description: PreviewDescription.layout(config)) {
       StripPreview(
         scenario: PreviewScenarios.layout(
-          config: config, focusTrail: loop.trail, hoveredPreset: hoveredPreset),
+          config: config, focusTrail: loop.trail, hoveredPreset: hoveredPreset
+        ).withLeadingColumns(
+          StripPreviewScenario.leadingColumnCount(forWidth: config.defaultWidth),
+          width: .fraction(config.defaultWidth)),
         config: config,
         animation: PreviewAnimation.spring(for: animationSpeed, reduceMotion: reduceMotion))
         .onAppear { loop.start(reduceMotion: reduceMotion) }

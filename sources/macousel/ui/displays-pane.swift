@@ -8,7 +8,7 @@ struct DisplaysPane: View {
     if manager.displays.isEmpty {
       ContentUnavailableView(
         "No displays found", systemImage: "display",
-        description: Text("Displays appear here once Macousel has Accessibility access."))
+        description: Text("Displays appear here after you allow Accessibility access."))
     } else {
       SettingsForm {
         DisplaysPreview(
@@ -16,7 +16,7 @@ struct DisplaysPane: View {
           config: store.preferences.layout, animationSpeed: store.preferences.animationSpeed)
 
         ForEach(manager.displays, id: \.uuid) { display in
-          Section(display.name) {
+          SettingsGroup(title: display.name) {
             ToggleRow(title: "Tile windows on this display", isOn: tilingBinding(for: display.uuid))
           }
         }

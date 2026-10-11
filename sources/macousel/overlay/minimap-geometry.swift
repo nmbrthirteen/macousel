@@ -25,7 +25,7 @@ struct MinimapGeometry {
     let scale = (containerWidth - 2 * padding) / (end - start)
     cells = snapshot.columns.enumerated().flatMap { index, column in
       Self.cells(
-        of: column, number: index + 1, start: start, scale: scale, containerSize: containerSize)
+        of: column, index: index, start: start, scale: scale, containerSize: containerSize)
     }
     let outset = Metrics.Minimap.lensOutset
     let lensLeft = padding + (snapshot.viewportOffset - start) * scale - outset
@@ -36,12 +36,20 @@ struct MinimapGeometry {
     lensRadius = MinimapConcentricRadius.radius(of: lens, in: containerSize)
   }
 
+  var bounds: CGRect {
+    CGRect(x: 0, y: 0, width: containerWidth, height: Metrics.Minimap.height)
+  }
+
+  func cell(at point: CGPoint) -> MinimapCell? {
+    cells.first { $0.hitRect.contains(point) }
+  }
+
   private static var innerHeight: Double {
     Metrics.Minimap.height - 2 * Metrics.Minimap.verticalPadding
   }
 
   private static func cells(
-    of column: MinimapSnapshot.Column, number: Int, start: Double, scale: Double,
+    of column: MinimapSnapshot.Column, index: Int, start: Double, scale: Double,
     containerSize: CGSize
   ) -> [MinimapCell] {
     let gap = Metrics.Minimap.columnGap
@@ -52,6 +60,7 @@ struct MinimapGeometry {
     let active = column.rows.indices.contains(column.activeRow) ? column.rows[column.activeRow] : first
     let drawn = column.isTabbed ? [active] : column.rows
     let identities = column.isTabbed ? [first.window] : drawn.map(\.window)
+    let firstRow = column.isTabbed ? column.rows.firstIndex(of: active) ?? 0 : 0
     let total = drawn.reduce(0) { $0 + $1.height }
     guard total > 0 else { return [] }
     let rowGap = Metrics.Minimap.rowGap
@@ -64,10 +73,9 @@ struct MinimapGeometry {
       let height = max((y + rawHeight).rounded() - top, 1)
       defer { y += rawHeight + rowGap }
       return MinimapCell(
-        id: identities[row],
+        id: identities[row], window: entry.window, column: index, row: firstRow + row,
         rect: CGRect(x: left, y: top, width: width, height: height),
         isFocused: column.isFocused,
-        columnNumber: number,
         isLeadRow: row == 0,
         dotCount: column.isTabbed ? min(column.rows.count, Metrics.Minimap.tabDotLimit) : 0,
         bundleIdentifier: entry.bundleIdentifier, containerSize: containerSize,

@@ -2,19 +2,30 @@ import SwiftUI
 
 struct ShortcutsPane: View {
   @Bindable var store: PreferencesStore
+  @State private var filter = ShortcutsFilter()
 
   var body: some View {
     SettingsForm {
-      ForEach(Action.Group.allCases, id: \.self) { group in
-        Section(group.title) {
-          ForEach(Action.allCases.filter { $0.group == group }, id: \.self) { action in
+      Section {
+        SearchField(label: "Filter shortcuts", text: $filter.query)
+      }
+
+      if filter.entries.isEmpty {
+        ContentUnavailableView.search(text: filter.query)
+      }
+
+      ForEach(filter.entries) { entry in
+        SettingsGroup(title: entry.section.title) {
+          ForEach(entry.actions, id: \.self) { action in
             ShortcutRow(action: action, store: store)
           }
         }
       }
 
-      Section {
-        Button("Restore defaults", action: store.resetShortcuts)
+      if !filter.isFiltering {
+        Section {
+          Button("Restore default shortcuts", action: store.resetShortcuts)
+        }
       }
     }
   }

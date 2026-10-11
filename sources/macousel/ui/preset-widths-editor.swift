@@ -10,34 +10,34 @@ struct PresetWidthsEditor: View {
   @State private var newPercent = initialPercent
 
   var body: some View {
-    VStack(alignment: .leading, spacing: Metrics.Spacing.regular) {
-      Text("Preset widths")
-      FlowLayout(spacing: Metrics.Spacing.compact) {
-        ForEach(widths, id: \.self) { width in
-          RemovableChip(title: "\(width.wholePercent)%") {
-            widths.removeAll { $0 == width }
-          }
-          .disabled(widths.count <= 1)
-          .onHover { isInside in
-            if isInside {
-              hoveredWidth = width
-            } else if hoveredWidth == width {
-              hoveredWidth = nil
-            }
-          }
-          .onDisappear {
-            if hoveredWidth == width { hoveredWidth = nil }
+    FlowLayout(spacing: Metrics.Spacing.compact) {
+      ForEach(widths, id: \.self) { width in
+        RemovableChip(title: "\(width.wholePercent)%", removeLabel: "Remove \(width.wholePercent)% preset") {
+          widths.removeAll { $0 == width }
+        }
+        .disabled(widths.count <= 1)
+        .onHover { isInside in
+          if isInside {
+            hoveredWidth = width
+          } else if hoveredWidth == width {
+            hoveredWidth = nil
           }
         }
+        .onDisappear {
+          if hoveredWidth == width { hoveredWidth = nil }
+        }
       }
-      HStack {
+    }
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel("Preset widths")
+    LabeledContent("Add a preset") {
+      HStack(spacing: Metrics.Spacing.regular) {
         Text("\(newPercent)%")
           .monospacedDigit()
-        Stepper("New width", value: $newPercent, in: Self.allowedPercents, step: Self.percentStep)
+        Stepper("New preset width", value: $newPercent, in: Self.allowedPercents, step: Self.percentStep)
           .labelsHidden()
         Button("Add", action: add)
           .disabled(widths.contains { $0.wholePercent == newPercent })
-        Spacer()
       }
     }
   }

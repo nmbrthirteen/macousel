@@ -4,6 +4,7 @@ struct SettingsView: View {
   let store: PreferencesStore
   let manager: WindowManager
   let updater: Updater
+  let diagnostics: DiagnosticsAction
   let onShowWelcome: () -> Void
   @Binding var selection: SettingsSection
   @State private var query = ""
@@ -11,7 +12,7 @@ struct SettingsView: View {
   var body: some View {
     NavigationSplitView {
       SettingsSidebar(selection: $selection, query: query)
-        .searchable(text: $query, placement: .sidebar, prompt: "Search")
+        .searchable(text: $query, placement: .sidebar, prompt: "Search settings")
         .navigationSplitViewColumnWidth(
           min: Metrics.Size.sidebarMinWidth, ideal: Metrics.Size.sidebarIdealWidth,
           max: Metrics.Size.sidebarMaxWidth
@@ -19,7 +20,7 @@ struct SettingsView: View {
     } detail: {
       SettingsDetail(
         section: selection, store: store, manager: manager, updater: updater,
-        onShowWelcome: onShowWelcome)
+        diagnostics: diagnostics, onShowWelcome: onShowWelcome)
         .navigationTitle(selection.title)
     }
     .frame(minWidth: Metrics.Size.settingsMinWidth, minHeight: Metrics.Size.settingsMinHeight)

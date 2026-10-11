@@ -16,7 +16,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .displays: "Displays"
     case .shortcuts: "Shortcuts"
     case .appShortcuts: "App shortcuts"
-    case .pointer: "Pointer and gestures"
+    case .pointer: "Pointer"
     case .macSetup: "Mac setup"
     case .about: "About"
     }
@@ -66,13 +66,13 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .general: ["permissions", "accessibility", "login", "startup", "launch", "restore", "session", "update", "automatic"]
     case .layout: ["gap", "width", "preset", "center", "default", "column", "spacing"]
     case .motion: ["animation", "speed", "focus", "border", "dim", "minimap", "overview", "reduce motion"]
-    case .appRules: ["app", "float", "rule", "slot", "width", "exception"]
+    case .appRules: ["app", "float", "rule", "column", "width", "exception"]
     case .displays: ["monitor", "screen", "display", "tile", "disable"]
     case .shortcuts: ["keyboard", "hotkey", "keys", "binding", "record"]
     case .appShortcuts: ["app", "launch", "switch"]
     case .pointer: ["mouse", "trackpad", "scroll", "swipe", "gesture", "finger", "focus follows mouse"]
     case .macSetup: ["spaces", "stage manager", "edge tiling", "mission control", "check", "accessibility"]
-    case .about: ["version", "welcome", "guide", "icon", "update", "release", "install"]
+    case .about: ["version", "welcome", "guide", "update", "release", "report", "problem", "diagnostics", "github"]
     }
   }
 

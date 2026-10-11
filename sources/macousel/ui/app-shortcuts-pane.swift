@@ -8,31 +8,23 @@ struct AppShortcutsPane: View {
 
   var body: some View {
     SettingsForm {
-      if store.preferences.appShortcuts.isEmpty && draft == nil {
-        Section {
-          ContentUnavailableView(
-            "No app shortcuts", systemImage: "arrow.up.forward.app",
-            description: Text(
-              "Add an app to jump to it with one key. If it is not running, the key opens it."))
+      SettingsGroup(
+        title: "Apps", footer: "Press the key again to cycle through the app's windows."
+      ) {
+        if store.preferences.appShortcuts.isEmpty && draft == nil {
+          CaptionText("No app shortcuts yet. If an app is not running, its key opens it.")
         }
-      } else {
-        Section {
-          ForEach(store.preferences.appShortcuts) { shortcut in
-            AppShortcutRow(
-              bundleIdentifier: shortcut.bundleIdentifier, hotkey: shortcut.hotkey, store: store,
-              onRemove: { remove(shortcut) })
-          }
-          if let draft {
-            AppShortcutRow(
-              bundleIdentifier: draft, hotkey: nil, store: store, startsRecording: true,
-              onStop: { self.draft = nil }, onRemove: { self.draft = nil }
-            )
-            .id(draft)
-          }
-        } header: {
-          Text("Apps")
-        } footer: {
-          CaptionText("Press the key again to cycle through the app's windows.")
+        ForEach(store.preferences.appShortcuts) { shortcut in
+          AppShortcutRow(
+            bundleIdentifier: shortcut.bundleIdentifier, hotkey: shortcut.hotkey, store: store,
+            onRemove: { remove(shortcut) })
+        }
+        if let draft {
+          AppShortcutRow(
+            bundleIdentifier: draft, hotkey: nil, store: store, startsRecording: true,
+            onStop: { self.draft = nil }, onRemove: { self.draft = nil }
+          )
+          .id(draft)
         }
       }
 

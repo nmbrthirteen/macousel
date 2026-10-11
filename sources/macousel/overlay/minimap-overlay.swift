@@ -1,36 +1,50 @@
 import AppKit
+import StripCore
 import SwiftUI
 
 final class MinimapOverlay {
-  private let model = MinimapModel()
+  var onSelect: ((WindowID) -> Void)?
+  var onMove: ((WindowID, DropTarget) -> Void)?
+
+  private let model: MinimapModel
   private let panel: OverlayPanel
-  private var hideTask: Task<Void, Never>?
+  private let hoverTracker = MinimapHoverTracker()
 
   init() {
+    let model = MinimapModel { delay, action in
+      Task {
+        try? await Task.sleep(for: delay)
+        action()
+      }
+    }
+    self.model = model
+    model.isInteractive = true
     panel = OverlayPanel(
-      content: MinimapView(model: model), interactive: false,
-      glassCornerRadius: Metrics.Minimap.containerRadius)
+      content: MinimapView(model: model), interactive: true,
+      glassCornerRadius: OverlayRadius.minimapContainer)
     panel.hasShadow = true
+    model.onSelect = { [weak self] window in self?.onSelect?(window) }
+    model.onMove = { [weak self] window, target in self?.onMove?(window, target) }
+    model.onVisibilityChange = { [weak self] isShown in
+      if isShown {
+        self?.panel.present(fadeDuration: OverlayTiming.minimapAppear)
+      } else {
+        self?.panel.dismiss(fadeDuration: OverlayTiming.slowFade)
+      }
+    }
+    hoverTracker.onEnter = { [weak model] in model?.pointerEntered() }
+    hoverTracker.onExit = { [weak model] in model?.pointerExited() }
+    if let view = panel.contentView { hoverTracker.attach(to: view) }
   }
 
   func show(_ snapshot: MinimapSnapshot, update: MinimapUpdate, on displayFrame: CGRect) {
-    hideTask?.cancel()
-    model.apply(snapshot, update: model.isShown ? update : .immediate)
+    model.show(snapshot, update: update)
     place(snapshot, on: displayFrame)
     panel.present(fadeDuration: OverlayTiming.minimapAppear)
-    model.isShown = true
-    hideTask = Task { [weak self] in
-      try? await Task.sleep(for: OverlayTiming.minimapLinger)
-      guard !Task.isCancelled else { return }
-      self?.model.isShown = false
-      self?.panel.dismiss(fadeDuration: OverlayTiming.slowFade)
-    }
   }
 
   func hide() {
-    hideTask?.cancel()
-    hideTask = nil
-    model.isShown = false
+    model.hide()
     panel.dismiss(fadeDuration: 0)
   }
 

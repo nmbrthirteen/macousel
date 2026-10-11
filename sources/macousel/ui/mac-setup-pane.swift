@@ -9,7 +9,7 @@ struct MacSetupPane: View {
 
   var body: some View {
     SettingsForm {
-      Section {
+      SettingsGroup(title: "Checks", footer: "Macousel checks again when you return to this window.") {
         ForEach(setup.checks) { check in
           StatusRow(
             isPassing: check.isPassing, title: check.title, detail: check.detail,

@@ -3,10 +3,17 @@ import SwiftUI
 struct MenuBarVariantsPreview: View {
   let selection: MenuBarIndicator
 
+  private static let widthShares = [0.4, 0.3, 0.5, 0.3, 0.4]
+  private static let stackedIndex = 3
+
   private var position: StripPosition {
     StripPosition(
-      columnCount: PreviewMetrics.Sample.menuBarColumnCount,
-      focusedIndex: PreviewMetrics.Sample.menuBarFocusedIndex, windowsInFocusedColumn: 1)
+      pages: (0..<PreviewMetrics.Sample.menuBarColumnCount).map {
+        StripPosition.Page(
+          widthShare: Self.widthShares[$0 % Self.widthShares.count],
+          rowCount: $0 == Self.stackedIndex ? 2 : 1)
+      },
+      focusedIndex: PreviewMetrics.Sample.menuBarFocusedIndex)
   }
 
   var body: some View {

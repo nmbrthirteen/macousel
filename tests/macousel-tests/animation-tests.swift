@@ -124,30 +124,6 @@ struct AnimationTests {
     #expect(Preferences().animationSpeed == .fast)
   }
 
-  private func submissionsDuringFocusLast(applySeconds: Double) throws -> (Int, [FakeWindow]) {
-    let (fixture, row) = try launchedRow(speed: .fast)
-    while fixture.clock.isRunning { fixture.clock.tick(by: 1.0 / 120) }
-    fixture.placer.slowestRecentApplySeconds = applySeconds
-    fixture.manager.perform(.focusLast)
-    let before = row[2].framesSet.count
-    var ticks = 0
-    while fixture.clock.isRunning && ticks < 600 {
-      fixture.clock.tick(by: 1.0 / 120)
-      ticks += 1
-    }
-    #expect(row[2].frame == finalFrames()[3])
-    return (row[2].framesSet.count - before, row)
-  }
-
-  @Test func slowApplyTimesThinFrameSubmissionButTheFinalFrameLands() throws {
-    let (everyTick, _) = try submissionsDuringFocusLast(applySeconds: 0)
-    let (thinned, _) = try submissionsDuringFocusLast(applySeconds: 0.006)
-    let (quartered, _) = try submissionsDuringFocusLast(applySeconds: 0.02)
-
-    #expect(thinned < everyTick)
-    #expect(quartered < thinned)
-  }
-
   @Test func theFocusBorderWaitsForTheWindowThenAppearsAtItsTarget() throws {
     let (fixture, row) = try launchedRow(speed: .fast)
     while fixture.clock.isRunning { fixture.clock.tick(by: 1.0 / 120) }

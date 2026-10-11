@@ -10,7 +10,8 @@ public final class FrameApplier {
     queue = LatestWinsQueue(
       apply: { worker.apply($0, $1) },
       beginBurst: { worker.beginBurst(of: $0) },
-      endBurst: { worker.endBurst(of: $0) })
+      endBurst: { worker.endBurst(of: $0) },
+      release: { worker.restoreEnhancedInterface(of: $0) })
   }
 
   public func submit(_ frame: CGRect, for window: ManagedWindow) {
@@ -24,8 +25,8 @@ public final class FrameApplier {
     queue.isIdle
   }
 
-  public var slowestRecentApplySeconds: Double {
-    worker.slowestRecentAverage(busy: queue.busyPIDs)
+  public func isSlow(pid: pid_t) -> Bool {
+    worker.isSlow(pid)
   }
 
   public func flush() {

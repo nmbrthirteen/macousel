@@ -139,6 +139,14 @@ final class CommandRouter {
     reconciler.scheduleSessionSave()
   }
 
+  func moveFromMinimap(_ window: WindowID, to target: DropTarget) {
+    guard let key = state.activeKey(containing: window),
+      OverviewEdits(state: state).move(window, to: target, in: key)
+    else { return }
+    present(key, activating: nil)
+    reconciler.scheduleSessionSave()
+  }
+
   private func toggleFloatingOfFocusedWindow() {
     guard let window = source.focusedWindow() else { return }
     reconciler.toggleFloating(window.id)

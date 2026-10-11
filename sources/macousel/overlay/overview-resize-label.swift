@@ -6,7 +6,7 @@ struct OverviewResizeLabel: View {
 
   var body: some View {
     Text(text)
-      .font(.callout.weight(.semibold).monospacedDigit())
+      .font(.overlay(.large, weight: .semibold))
       .padding(.horizontal, Metrics.Spacing.comfortable)
       .frame(height: Metrics.Overview.labelHeight)
       .overlaySurface(in: Capsule())

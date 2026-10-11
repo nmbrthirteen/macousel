@@ -19,7 +19,10 @@ struct MotionPreview: View {
     PreviewSection(description: PreviewDescription.motion(preferences)) {
       VStack(spacing: PreviewMetrics.captionSpacing) {
         StripPreview(
-          scenario: PreviewScenarios.motion(focusTrail: loop.trail), config: preferences.layout,
+          scenario: PreviewScenarios.motion(focusTrail: loop.trail).withLeadingColumns(
+            PreviewMetrics.Sample.motionLeadingColumns,
+            width: .fraction(PreviewMetrics.Sample.motionColumnWidth)),
+          config: preferences.layout,
           decoration: decoration,
           animation: PreviewAnimation.spring(for: preferences.animationSpeed, reduceMotion: reduceMotion))
         if reduceMotion {

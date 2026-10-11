@@ -5,6 +5,7 @@ struct SettingsDetail: View {
   let store: PreferencesStore
   let manager: WindowManager
   let updater: Updater
+  let diagnostics: DiagnosticsAction
   let onShowWelcome: () -> Void
 
   var body: some View {
@@ -18,7 +19,7 @@ struct SettingsDetail: View {
     case .appShortcuts: AppShortcutsPane(store: store)
     case .pointer: PointerPane(store: store)
     case .macSetup: MacSetupPane(store: store)
-    case .about: AboutPane(updater: updater, onShowWelcome: onShowWelcome)
+    case .about: AboutPane(updater: updater, diagnostics: diagnostics, onShowWelcome: onShowWelcome)
     }
   }
 }

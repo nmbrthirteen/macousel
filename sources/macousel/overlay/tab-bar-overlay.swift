@@ -1,24 +1,5 @@
 import AppKit
 import StripCore
-import SwiftUI
-
-struct TabBarModel: Equatable, Identifiable {
-  struct Tab: Equatable, Identifiable {
-    var id: WindowID
-    var title: String
-    var isActive: Bool
-  }
-
-  var id: WindowID
-  var frame: CGRect
-  var tabs: [Tab]
-}
-
-@Observable
-final class TabBarContent {
-  var tabs: [TabBarModel.Tab] = []
-  @ObservationIgnored var onSelect: (WindowID) -> Void = { _ in }
-}
 
 final class TabBarOverlay {
   private struct Entry {
@@ -70,32 +51,5 @@ final class TabBarOverlay {
     }
     if bar.tabs != entry.content.tabs { entry.content.tabs = bar.tabs }
     entry.model = bar
-  }
-}
-
-struct TabBarView: View {
-  let content: TabBarContent
-
-  var body: some View {
-    HStack(spacing: Metrics.Spacing.hairline) {
-      ForEach(content.tabs) { tab in
-        Text(tab.title)
-          .font(.callout)
-          .lineLimit(1)
-          .truncationMode(.middle)
-          .foregroundStyle(tab.isActive ? Color.primary : Color.secondary)
-          .padding(.horizontal, Metrics.Spacing.regular)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(
-            tab.isActive ? Color.accentColor.opacity(Metrics.Opacity.activeTab) : .clear,
-            in: Capsule()
-          )
-          .contentShape(Rectangle())
-          .onTapGesture { content.onSelect(tab.id) }
-          .accessibilityAddTraits(tab.isActive ? [.isButton, .isSelected] : .isButton)
-      }
-    }
-    .padding(Metrics.Spacing.hairline)
-    .overlaySurface(in: Capsule())
   }
 }

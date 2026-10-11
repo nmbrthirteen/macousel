@@ -10,24 +10,20 @@ struct AppRulesPane: View {
         config: store.preferences.layout,
         keepsFloatingOnTop: store.preferences.keepsFloatingWindowsOnTop)
 
-      Section {
+      SettingsGroup(title: "Floating windows") {
         ToggleRow(
           title: "Keep floating windows above tiled windows",
           isOn: $store.preferences.keepsFloatingWindowsOnTop,
           caption: "After you focus a tiled window, floating windows it covers come back to the front.")
       }
 
-      Section {
+      SettingsGroup(title: "Apps", footer: "A rule applies to every window of the app.") {
         if store.preferences.appRules.isEmpty {
-          CaptionText("No app rules yet.")
+          CaptionText("No app rules yet. Add a running app to set one.")
         }
         ForEach($store.preferences.appRules) { $rule in
           AppRuleRow(rule: $rule) { remove(rule) }
         }
-      } header: {
-        Text("Apps")
-      } footer: {
-        CaptionText("Windows of these apps float, open at a set width, or open in a set slot on the strip.")
       }
 
       Section {

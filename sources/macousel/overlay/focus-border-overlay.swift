@@ -1,10 +1,4 @@
 import AppKit
-import SwiftUI
-
-@Observable
-private final class FocusBorderModel {
-  var lineWidth: Double = 3
-}
 
 final class FocusBorderOverlay {
   private let model = FocusBorderModel()
@@ -35,14 +29,5 @@ final class FocusBorderOverlay {
     lastFrame = nil
     lastLineWidth = nil
     panel.dismiss(fadeDuration: OverlayTiming.fade)
-  }
-}
-
-private struct FocusBorderView: View {
-  let model: FocusBorderModel
-
-  var body: some View {
-    RoundedRectangle(cornerRadius: Metrics.Radius.focusBorder + model.lineWidth)
-      .strokeBorder(Color.accentColor, lineWidth: model.lineWidth)
   }
 }

@@ -3,29 +3,27 @@ import WindowSystem
 
 struct StarterShortcutsStep: View {
   private static let starterActions: [Action] = [
-    .focusLeft, .focusRight, .moveLeft, .moveRight, .cycleWidth, .stackLeft,
+    .focusLeft, .focusRight, .moveLeft, .moveRight, .stackLeft, .cycleWidth, .toggleOverview,
   ]
 
   let store: PreferencesStore
 
   var body: some View {
-    OnboardingStepLayout(title: "Seven shortcuts to start") {
-      Form {
-        ForEach(Self.starterActions, id: \.self) { action in
-          LabeledContent(action.title) {
-            Text(binding(for: action))
-              .monospacedDigit()
-          }
+    OnboardingStepLayout(title: "Shortcuts to start") {
+      OnboardingForm(height: OnboardingMetrics.shortcutsHeight) {
+        ForEach(Self.starterActions.prefix(4), id: \.self) { action in
+          row(for: action)
         }
         LabeledContent("Jump to a column") {
           Text(Self.columnJumpKeys(in: store.preferences.shortcuts))
             .monospacedDigit()
         }
+        ForEach(Self.starterActions.dropFirst(4), id: \.self) { action in
+          row(for: action)
+        }
       }
-      .formStyle(.grouped)
-      .scrollDisabled(true)
-      CaptionText("Or drag a window onto the middle of another to stack them.")
-      CaptionText("Change any of them in Settings > Shortcuts.")
+      CaptionText("Drag a window onto the middle of another to stack them.")
+      CaptionText("Change any shortcut in Settings > Shortcuts.")
     }
   }
 
@@ -36,7 +34,10 @@ struct StarterShortcutsStep: View {
     return "\(first.displayString) to \(last.displayString)"
   }
 
-  private func binding(for action: Action) -> String {
-    store.preferences.shortcuts[action]?.first?.displayString ?? "Not set"
+  private func row(for action: Action) -> some View {
+    LabeledContent(action.title) {
+      Text(store.preferences.shortcuts[action]?.first?.displayString ?? "Not set")
+        .monospacedDigit()
+    }
   }
 }

@@ -3,6 +3,8 @@ import StripCore
 
 protocol OverlayHost: AnyObject {
   var onTabSelected: ((WindowID) -> Void)? { get set }
+  var onMinimapSelect: ((WindowID) -> Void)? { get set }
+  var onMinimapMove: ((WindowID, DropTarget) -> Void)? { get set }
   var onOverviewSelect: ((WindowID) -> Void)? { get set }
   var onOverviewKey: ((OverviewKey) -> Void)? { get set }
   var onOverviewDismiss: (() -> Void)? { get set }

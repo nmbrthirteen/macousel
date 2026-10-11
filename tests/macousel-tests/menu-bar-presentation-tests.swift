@@ -20,6 +20,12 @@ struct MenuBarPresentationTests {
     #expect(result.accessibilityLabel == "Macousel, column 3 of 7")
   }
 
+  @Test func pagesModeShowsThePages() {
+    let result = presentation(.pages, position: position)
+    #expect(result.content == .pages(position))
+    #expect(result.accessibilityLabel == "Macousel, column 3 of 7")
+  }
+
   @Test func countModeShowsTheSymbolAndTheColumnNumber() {
     let result = presentation(.count, position: position)
     #expect(result.content == .symbolWithCount(symbol: "rectangle.split.3x1", text: "3/7"))
@@ -35,6 +41,12 @@ struct MenuBarPresentationTests {
     let long = StripPosition(columnCount: 13, focusedIndex: 4, windowsInFocusedColumn: 1)
     let result = presentation(.position, position: long)
     #expect(result.content == .symbolWithCount(symbol: "rectangle.split.3x1", text: "5/13"))
+  }
+
+  @Test func anInvalidFocusedIndexInPagesModeFallsBackToTheCount() {
+    let broken = StripPosition(columnCount: 3, focusedIndex: 5, windowsInFocusedColumn: 1)
+    let result = presentation(.pages, position: broken)
+    #expect(result.content == .symbolWithCount(symbol: "rectangle.split.3x1", text: "6/3"))
   }
 
   @Test(arguments: MenuBarIndicator.allCases)
@@ -75,7 +87,20 @@ struct MenuBarPresentationTests {
     #expect(try JSONDecoder().decode(Preferences.self, from: data).menuBarIndicator == .count)
   }
 
-  @Test func titlesNameEachOption() {
-    #expect(MenuBarIndicator.allCases.map(\.title) == ["Icon only", "Position on the strip", "Column number"])
+  @Test func titlesNameEachOptionInPickerOrder() {
+    #expect(
+      MenuBarIndicator.allCases.map(\.title)
+        == ["Icon only", "Position on the strip", "Pages", "Column number"])
+  }
+
+  @Test func savedRawValuesStayStable() {
+    #expect(MenuBarIndicator.allCases.map(\.rawValue) == ["icon", "position", "pages", "count"])
+  }
+
+  @Test func thePagesSettingRoundTrips() throws {
+    var preferences = Preferences()
+    preferences.menuBarIndicator = .pages
+    let data = try JSONEncoder().encode(preferences)
+    #expect(try JSONDecoder().decode(Preferences.self, from: data).menuBarIndicator == .pages)
   }
 }

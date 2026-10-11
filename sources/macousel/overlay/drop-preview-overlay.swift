@@ -29,7 +29,7 @@ final class DropPreviewOverlay {
       withAnimation(
         .spring(
           response: OverlayTiming.dropPreviewResponse,
-          dampingFraction: OverlayTiming.dropPreviewDamping)
+          dampingFraction: OverlayTiming.springDamping)
       ) { model.frame = local }
     }
   }

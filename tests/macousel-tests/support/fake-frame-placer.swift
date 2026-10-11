@@ -10,7 +10,7 @@ final class FakeFramePlacer: FramePlacer {
   }
 
   var isIdle = true
-  var slowestRecentApplySeconds = 0.0
+  private var slowApps: Set<pid_t> = []
   private(set) var submissions: [Submission] = []
   private(set) var forgotten: [CGWindowID] = []
   private(set) var flushCount = 0
@@ -18,6 +18,18 @@ final class FakeFramePlacer: FramePlacer {
   func submit(_ frame: CGRect, for window: any WindowHandle) {
     submissions.append(Submission(window: window.id, frame: frame))
     window.setFrame(frame)
+  }
+
+  func isSlowApp(of window: any WindowHandle) -> Bool {
+    slowApps.contains(window.pid)
+  }
+
+  func setSlow(_ isSlow: Bool, forAppOf window: any WindowHandle) {
+    if isSlow {
+      slowApps.insert(window.pid)
+    } else {
+      slowApps.remove(window.pid)
+    }
   }
 
   func flush() {

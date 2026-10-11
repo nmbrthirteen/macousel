@@ -30,7 +30,7 @@ final class OnboardingWindowController {
   private func makeWindow() -> NSWindow {
     let flow = OnboardingFlow { [weak self] in self?.finish() }
     let size = NSSize(
-      width: Metrics.Size.onboardingWidth, height: Metrics.Size.onboardingHeight)
+      width: OnboardingMetrics.width, height: OnboardingMetrics.height)
     let window = NSWindow(
       contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable],
       backing: .buffered, defer: false)

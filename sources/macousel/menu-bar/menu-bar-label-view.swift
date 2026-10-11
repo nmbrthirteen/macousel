@@ -17,6 +17,10 @@ struct MenuBarLabelView: View {
       if let geometry = MenuBarPillGeometry(position: position) {
         Image(nsImage: MenuBarPillImage.make(geometry))
       }
+    case .pages(let position):
+      if let geometry = MenuBarPagesGeometry(position: position) {
+        Image(nsImage: MenuBarPagesImage.make(geometry))
+      }
     case .symbolWithCount(let symbol, let text):
       HStack(spacing: Metrics.Spacing.tight) {
         Image(systemName: symbol)

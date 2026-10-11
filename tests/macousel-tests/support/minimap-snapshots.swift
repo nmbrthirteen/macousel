@@ -23,6 +23,7 @@ enum MinimapSnapshots {
             activeRow: 0, isTabbed: false, isFocused: index == focused)
       },
       contentWidth: Double(columns) * pitch - (pitch - columnWidth),
-      viewportOffset: viewportOffset, viewportWidth: viewportWidth, animationResponse: 0.3)
+      viewportOffset: viewportOffset, viewportWidth: viewportWidth, animationResponse: 0.3,
+      innerGap: pitch - columnWidth)
   }
 }

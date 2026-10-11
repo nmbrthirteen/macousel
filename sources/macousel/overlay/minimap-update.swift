@@ -6,6 +6,6 @@ enum MinimapUpdate: Equatable {
 
   func animation(response: Double?) -> Animation? {
     guard self == .animated, let response else { return nil }
-    return .spring(response: response, dampingFraction: 1)
+    return .spring(response: response, dampingFraction: OverlayTiming.criticalDamping)
   }
 }

@@ -169,6 +169,10 @@ final class WindowManager {
       self?.systemFocus.changed(to: window)
     }
     presenter.overlays.onTabSelected = { [weak self] window in self?.router.select(window) }
+    presenter.overlays.onMinimapSelect = { [weak self] window in self?.router.reveal(window) }
+    presenter.overlays.onMinimapMove = { [weak self] window, target in
+      self?.router.moveFromMinimap(window, to: target)
+    }
     store.onChange = { [weak self] in self?.preferencesChanged() }
   }
 

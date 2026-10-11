@@ -13,7 +13,7 @@ struct LayoutPane: View {
         config: store.preferences.layout, animationSpeed: store.preferences.animationSpeed,
         hoveredPreset: hoveredPreset)
 
-      Section("Gaps") {
+      SettingsGroup(title: "Gaps") {
         LabelledSliderRow(
           title: "Gap between windows", value: $store.preferences.layout.innerGap,
           range: Self.gapRange, step: 1, readout: .points)
@@ -22,16 +22,22 @@ struct LayoutPane: View {
           range: Self.gapRange, step: 1, readout: .points)
       }
 
-      Section("Widths") {
+      SettingsGroup(title: "Widths") {
         PercentPicker(
           title: "Default width of new windows",
           selection: $store.preferences.layout.defaultWidth)
-        Picker("Center the focused column", selection: $store.preferences.layout.centerMode) {
-          ForEach(CenterMode.allCases, id: \.self) { mode in
-            Text(mode.title).tag(mode)
+        CaptionedRow(caption: store.preferences.layout.centerMode.summary) {
+          Picker("Center the focused column", selection: $store.preferences.layout.centerMode) {
+            ForEach(CenterMode.allCases, id: \.self) { mode in
+              Text(mode.title).tag(mode)
+            }
           }
         }
-        CaptionText(store.preferences.layout.centerMode.summary)
+      }
+
+      SettingsGroup(
+        title: "Preset widths", footer: "The cycle width shortcut steps through these."
+      ) {
         PresetWidthsEditor(
           widths: $store.preferences.layout.presetWidths, hoveredWidth: $hoveredPreset)
       }

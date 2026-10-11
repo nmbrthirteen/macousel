@@ -3,6 +3,9 @@ import SwiftUI
 struct MinimapCellView: View {
   let cell: MinimapCell
   let icons: MinimapIconCache
+  var isPlaceholder = false
+  var isLifted = false
+  var liftOffset = 0.0
 
   private var shape: RoundedRectangle {
     RoundedRectangle(cornerRadius: cell.cornerRadius, style: .continuous)
@@ -10,18 +13,25 @@ struct MinimapCellView: View {
 
   var body: some View {
     ZStack(alignment: .topLeading) {
-      shape.fill(
-        cell.isFocused ? Color.accentColor : Color.primary.opacity(Metrics.Opacity.minimapColumn))
-      content
-      ForEach(Array(cell.tabDots.enumerated()), id: \.offset) { _, dot in
-        Circle()
-          .fill(tabDotColor)
-          .frame(width: dot.width, height: dot.height)
-          .position(relative(CGPoint(x: dot.midX, y: dot.midY)))
+      if isPlaceholder {
+        PendingChangeView(radius: cell.cornerRadius)
+      } else {
+        shape.fill(
+          cell.isFocused ? Color.accentColor : Color.primary.opacity(Metrics.Opacity.minimapColumn))
+        content
+        ForEach(Array(cell.tabDots.enumerated()), id: \.offset) { _, dot in
+          Circle()
+            .fill(tabDotColor)
+            .frame(width: dot.width, height: dot.height)
+            .position(relative(CGPoint(x: dot.midX, y: dot.midY)))
+        }
       }
     }
     .frame(width: cell.rect.width, height: cell.rect.height)
-    .offset(x: cell.rect.minX, y: cell.rect.minY)
+    .overlayLift(
+      isLifted, scale: OverlayTiming.minimapLiftScale,
+      shadowRadius: Metrics.Minimap.liftShadowRadius)
+    .offset(x: cell.rect.minX + liftOffset, y: cell.rect.minY)
   }
 
   private var tabDotColor: Color {
@@ -43,10 +53,7 @@ struct MinimapCellView: View {
     }
     if let number = cell.content.number {
       Text("\(number.value)")
-        .font(
-          .system(size: Metrics.Minimap.numberFontSize, weight: .semibold, design: .rounded)
-            .monospacedDigit()
-        )
+        .font(.overlay(.small, weight: .semibold))
         .foregroundStyle(numberColor)
         .position(relative(number.center))
     }
