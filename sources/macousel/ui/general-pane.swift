@@ -23,6 +23,11 @@ struct GeneralPane: View {
         }
         ToggleRow(title: "Restore layout on launch", isOn: $store.preferences.restoresSession)
       }
+
+      Section("Updates") {
+        ToggleRow(
+          title: "Check for updates automatically", isOn: $store.preferences.checksForUpdates)
+      }
     }
     .onAppear(perform: launchAtLogin.refresh)
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in

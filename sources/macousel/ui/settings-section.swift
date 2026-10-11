@@ -3,6 +3,8 @@ import SwiftUI
 enum SettingsSection: String, CaseIterable, Identifiable {
   case general, layout, motion, appRules, displays, shortcuts, pointer, macSetup, about
 
+  static let storageKey = "selectedSettingsSection"
+
   var id: String { rawValue }
 
   var title: String {
@@ -58,7 +60,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
   var keywords: [String] {
     switch self {
-    case .general: ["permissions", "accessibility", "login", "startup", "launch", "restore", "session"]
+    case .general: ["permissions", "accessibility", "login", "startup", "launch", "restore", "session", "update", "automatic"]
     case .layout: ["gap", "width", "preset", "center", "default", "column", "spacing"]
     case .motion: ["animation", "speed", "focus", "border", "dim", "minimap", "overview", "reduce motion"]
     case .appRules: ["app", "float", "rule", "slot", "width", "exception"]
@@ -66,7 +68,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .shortcuts: ["keyboard", "hotkey", "keys", "binding", "record"]
     case .pointer: ["mouse", "trackpad", "scroll", "swipe", "gesture", "finger", "focus follows mouse"]
     case .macSetup: ["spaces", "stage manager", "edge tiling", "mission control", "check", "accessibility"]
-    case .about: ["version", "welcome", "guide", "icon"]
+    case .about: ["version", "welcome", "guide", "icon", "update", "release", "install"]
     }
   }
 

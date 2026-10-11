@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AboutPane: View {
+  let updater: Updater
   let onShowWelcome: () -> Void
   private let info = AppInfo()
 
@@ -25,6 +26,8 @@ struct AboutPane: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, Metrics.Spacing.comfortable)
       }
+
+      UpdateSection(updater: updater)
 
       Section {
         Button("Show welcome guide", action: onShowWelcome)

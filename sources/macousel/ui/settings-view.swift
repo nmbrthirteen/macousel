@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
   let store: PreferencesStore
   let manager: WindowManager
+  let updater: Updater
   let onShowWelcome: () -> Void
   @Binding var selection: SettingsSection
   @State private var query = ""
@@ -16,7 +17,9 @@ struct SettingsView: View {
           max: Metrics.Size.sidebarMaxWidth
         )
     } detail: {
-      SettingsDetail(section: selection, store: store, manager: manager, onShowWelcome: onShowWelcome)
+      SettingsDetail(
+        section: selection, store: store, manager: manager, updater: updater,
+        onShowWelcome: onShowWelcome)
         .navigationTitle(selection.title)
     }
     .frame(minWidth: Metrics.Size.settingsMinWidth, minHeight: Metrics.Size.settingsMinHeight)

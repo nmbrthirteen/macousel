@@ -7,18 +7,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   let store: PreferencesStore
   let manager: WindowManager
   let onboarding: OnboardingWindowController
+  let updater: Updater
 
   override init() {
     let store = PreferencesStore()
     self.store = store
     manager = WindowManager(store: store)
     onboarding = OnboardingWindowController(store: store)
+    updater = Updater(
+      feed: GitHubReleaseFeed(), installer: UpdateInstaller.running(),
+      currentVersion: BundleInfo(bundle: .main).version, store: store)
     super.init()
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     manager.start()
     onboarding.showIfNeeded()
+    updater.startAutomaticChecks()
   }
 
   func applicationWillTerminate(_ notification: Notification) {

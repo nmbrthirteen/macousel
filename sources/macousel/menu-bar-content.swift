@@ -3,6 +3,7 @@ import WindowSystem
 
 struct MenuBarContent: View {
   let manager: WindowManager
+  let updater: Updater
   let onShowWelcome: () -> Void
 
   var body: some View {
@@ -11,6 +12,10 @@ struct MenuBarContent: View {
 
     if manager.status == .needsPermission {
       Button("Grant Accessibility access…", action: AccessibilityPermission.requestWithPrompt)
+    }
+
+    if case .available(let release) = updater.state {
+      OpenUpdateButton(version: release.version)
     }
 
     Divider()

@@ -33,6 +33,7 @@ struct Preferences: Codable, Equatable {
   var appRules: [AppRule] = []
   var disabledDisplays: Set<String> = []
   var hasCompletedOnboarding = false
+  var checksForUpdates = true
 
   init() {}
 
@@ -59,6 +60,7 @@ struct Preferences: Codable, Equatable {
     appRules = value(.appRules, or: defaults.appRules)
     disabledDisplays = value(.disabledDisplays, or: defaults.disabledDisplays)
     hasCompletedOnboarding = value(.hasCompletedOnboarding, or: defaults.hasCompletedOnboarding)
+    checksForUpdates = value(.checksForUpdates, or: defaults.checksForUpdates)
   }
 
   func rule(for bundleIdentifier: String?) -> AppRule.Behavior? {

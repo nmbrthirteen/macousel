@@ -56,6 +56,10 @@ Or download `Macousel.dmg` from the [releases page](https://github.com/nmbrthirt
 
 Then open Macousel and grant Accessibility access when macOS asks.
 
+### Updating
+
+Open Settings > About and click "Check for updates". Macousel checks once a day on its own, and you can turn that off in Settings > General. You can also run the installer again. After either one, macOS asks for Accessibility access again, because every release has a new signature.
+
 ### The app is not notarized
 
 I do not have an Apple Developer ID, so releases are signed ad hoc. Two things follow from that:
