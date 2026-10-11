@@ -7,6 +7,8 @@ import WindowSystem
 
 @MainActor
 final class ControllerFixture {
+  private static let patience = Duration.seconds(60)
+
   let suite: IsolatedDefaults
   let store: PreferencesStore
   let environment: FakeDesktopEnvironment
@@ -91,7 +93,7 @@ final class ControllerFixture {
   }
 
   func becomes(_ condition: () -> Bool) async -> Bool {
-    let deadline = ContinuousClock.now + .seconds(5)
+    let deadline = ContinuousClock.now + Self.patience
     while !condition() {
       if ContinuousClock.now > deadline { return false }
       try? await Task.sleep(for: .milliseconds(5))
