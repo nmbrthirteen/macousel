@@ -46,7 +46,24 @@ Early. I wrote it on macOS 27 with two displays. The layout engine is well teste
 
 ## Install
 
-There is no signed download yet. I do not have a Developer ID, so the app is not notarized. Build it yourself:
+Run the installer. It downloads the latest release, puts `Macousel.app` in `/Applications`, and replaces an older copy:
+
+```sh
+curl -fsSL https://github.com/nmbrthirteen/macousel/releases/latest/download/install.sh | bash
+```
+
+Or download `Macousel.dmg` from the [releases page](https://github.com/nmbrthirteen/macousel/releases) and drag the app to Applications.
+
+Then open Macousel and grant Accessibility access when macOS asks.
+
+### The app is not notarized
+
+I do not have an Apple Developer ID, so releases are signed ad hoc. Two things follow from that:
+
+- If you used the DMG, macOS blocks the first launch. Open System Settings > Privacy & Security and click "Open Anyway". The installer script clears the quarantine flag, so it skips this step.
+- macOS ties the Accessibility grant to the signature, and every release has a new one. After an update, remove Macousel from the Accessibility list and add it again.
+
+### Build from source
 
 ```sh
 git clone https://github.com/nmbrthirteen/macousel.git
@@ -55,7 +72,7 @@ scripts/bundle.sh
 open build/Macousel.app
 ```
 
-Then grant Accessibility access when macOS asks. The script signs the app ad hoc, so macOS asks again after every rebuild. To keep the permission across rebuilds, sign with a certificate of your own:
+To keep the Accessibility grant across your own rebuilds, sign with a certificate from your keychain:
 
 ```sh
 CODESIGN_IDENTITY="My Certificate" scripts/bundle.sh
@@ -115,6 +132,22 @@ The package has three targets:
 - `Macousel` is the app: the window manager, settings, and overlays.
 
 The code has no comments. Names carry the meaning.
+
+### Releasing
+
+Push a version tag. The release workflow runs the tests, builds the app with that version, and publishes `Macousel.dmg`, `Macousel.zip`, and `install.sh` to a GitHub release.
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+To build the same files locally:
+
+```sh
+VERSION=0.1.0 scripts/bundle.sh
+scripts/package.sh
+```
 
 ### Private APIs
 
