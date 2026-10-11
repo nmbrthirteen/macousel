@@ -16,6 +16,7 @@ final class DragInteraction {
   private let source: any WindowSource
   private let presenter: LayoutPresenter
   private let pointer: any PointerDevice
+  private let log = DragLog()
   private var drag: Drag?
 
   init(
@@ -48,6 +49,7 @@ final class DragInteraction {
       actual.insetBy(dx: -Self.grabMargin, dy: -Self.grabMargin).contains(pointer.location)
     else { return }
     drag = Drag(window: window, startFrame: requested)
+    log.recognised(window)
     presenter.excludedWindow = window
   }
 
@@ -82,44 +84,65 @@ final class DragInteraction {
   private func resize(
     _ window: WindowID, in key: Workspace.Key, from start: CGRect, to end: CGRect
   ) {
-    if abs(end.width - start.width) > Self.frameTolerance {
+    let resizedWidth = abs(end.width - start.width) > Self.frameTolerance
+    let resizedHeight = abs(end.height - start.height) > Self.frameTolerance
+    if resizedWidth {
       state.workspaces[key]?.strip.setFixedWidth(end.width, of: window)
     }
-    if abs(end.height - start.height) > Self.frameTolerance,
-      let display = state.display(for: key)
-    {
+    if resizedHeight, let display = state.display(for: key) {
       let draggedTopEdge = abs(end.minY - start.minY) > Self.frameTolerance
       state.workspaces[key]?.strip.setHeight(
         end.height, of: window, borrowingFrom: draggedTopEdge ? .above : .below,
         viewportHeight: display.visibleFrame.height, config: state.config)
     }
     state.scrollToFocus(key)
+    let branch: DragBranch =
+      resizedWidth && resizedHeight ? .resizedWidthAndHeight
+      : resizedWidth ? .resizedWidth : .resizedHeight
+    log.ended(window.rawValue, as: branch, pointerFraction: nil)
   }
 
   private func drop(_ window: WindowID, from key: Workspace.Key) {
     let destination = state.pointerKey ?? key
+    let fraction = pointerFraction(over: destination, excluding: window)
+    let branch: DragBranch
     if destination == key {
-      if !stackOntoWindowUnderPointer(window, in: key) { reorder(window, in: key) }
+      branch = stackOntoWindowUnderPointer(window, in: key) ?? reorder(window, in: key)
     } else {
       state.workspaces[key]?.strip.remove(window)
       state.workspaces[destination]?.strip.insert(window, config: state.config)
       state.scrollToFocus(key)
+      branch = .movedToDisplay
     }
+    log.ended(window.rawValue, as: branch, pointerFraction: fraction)
     state.scrollToFocus(destination)
     state.focusedKey = destination
   }
 
-  private func reorder(_ window: WindowID, in key: Workspace.Key) {
-    guard let layout = state.targetLayout(for: key) else { return }
+  private func pointerFraction(over key: Workspace.Key, excluding window: WindowID) -> Double? {
+    let point = pointer.location
+    guard let target = state.targetLayout(for: key)?.placements.first(where: {
+      $0.window != window && !$0.isBehindTab && $0.frame.contains(point)
+    }), target.frame.width > 0
+    else { return nil }
+    return (point.x - target.frame.minX) / target.frame.width
+  }
+
+  private func reorder(_ window: WindowID, in key: Workspace.Key) -> DragBranch {
+    guard let layout = state.targetLayout(for: key) else { return .reordered(column: 0) }
     let pointerX = pointer.location.x
     let remainingColumns = Set(layout.placements.filter { $0.window != window }.map(\.column))
     let columnsLeftOfPointer = remainingColumns.filter { column in
       layout.placements.first { $0.column == column }.map { $0.frame.midX < pointerX } ?? false
     }
     state.workspaces[key]?.strip.move(window, toColumn: columnsLeftOfPointer.count)
+    let column = state.workspaces[key]?.strip.columnIndex(of: window) ?? 0
+    return .reordered(column: column + 1)
   }
 
-  private func stackOntoWindowUnderPointer(_ window: WindowID, in key: Workspace.Key) -> Bool {
+  private func stackOntoWindowUnderPointer(_ window: WindowID, in key: Workspace.Key)
+    -> DragBranch?
+  {
     let point = pointer.location
     guard let layout = state.targetLayout(for: key),
       let strip = state.workspaces[key]?.strip,
@@ -129,7 +152,7 @@ final class DragInteraction {
       isInStackZone(point.x, of: target.frame),
       let column = strip.columnIndex(of: target.window),
       let targetRow = strip.columns[column].windows.firstIndex(of: target.window)
-    else { return false }
+    else { return nil }
     let isAbove = point.y < target.frame.midY
     var row = isAbove ? targetRow : targetRow + 1
     if let draggedRow = strip.columns[column].windows.firstIndex(of: window),
@@ -138,7 +161,7 @@ final class DragInteraction {
       row -= 1
     }
     state.workspaces[key]?.strip.stack(window, ontoColumnOf: target.window, atRow: row)
-    return true
+    return .stacked(above: isAbove)
   }
 
   private func isInStackZone(_ x: CGFloat, of frame: CGRect) -> Bool {

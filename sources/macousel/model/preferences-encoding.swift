@@ -1,8 +1,8 @@
 extension Preferences {
   enum CodingKeys: String, CodingKey {
     case layout, shortcuts, animationSpeed, showsFocusBorder, focusBorderWidth
-    case dimsInactiveWindows, dimAmount, showsMinimap, restoresSession
-    case scrollGestureEnabled, swipeGestureEnabled, swipeFingers, reversesSwipeDirection
+    case dimsInactiveWindows, dimAmount, showsMinimap, menuBarIndicator, restoresSession
+    case scrollGestureEnabled, swipeGestureEnabled, swipeFingers, swipeSensitivity, reversesSwipeDirection
     case displayFollowsPointer, focusFollowsMouse, mouseFollowsFocus
     case appRules, appShortcuts, disabledDisplays, hasCompletedOnboarding, checksForUpdates
   }
@@ -27,10 +27,12 @@ extension Preferences {
     try values.encode(dimsInactiveWindows, forKey: .dimsInactiveWindows)
     try values.encode(dimAmount, forKey: .dimAmount)
     try values.encode(showsMinimap, forKey: .showsMinimap)
+    try values.encode(menuBarIndicator, forKey: .menuBarIndicator)
     try values.encode(restoresSession, forKey: .restoresSession)
     try values.encode(scrollGestureEnabled, forKey: .scrollGestureEnabled)
     try values.encode(swipeGestureEnabled, forKey: .swipeGestureEnabled)
     try values.encode(swipeFingers, forKey: .swipeFingers)
+    try values.encode(swipeSensitivity, forKey: .swipeSensitivity)
     try values.encode(reversesSwipeDirection, forKey: .reversesSwipeDirection)
     try values.encode(displayFollowsPointer, forKey: .displayFollowsPointer)
     try values.encode(focusFollowsMouse, forKey: .focusFollowsMouse)

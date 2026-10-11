@@ -9,6 +9,7 @@ final class CommandRouter {
   private let reconciler: WindowReconciler
   private let scratchpad: Scratchpad
   private let overview: OverviewController
+  private let log = CommandLog()
 
   init(
     state: TilingState, source: any WindowSource, presenter: LayoutPresenter, focus: FocusDriver,
@@ -28,8 +29,15 @@ final class CommandRouter {
     overview.close()
   }
 
+  func dropped(_ action: Action, because reason: DroppedCommandReason) {
+    log.dropped(action, because: reason)
+  }
+
   func perform(_ action: Action) {
-    if action != .toggleOverview { overview.close() }
+    if action != .toggleOverview {
+      if overview.isOpen { log.closedOverview(before: action) }
+      overview.close()
+    }
     switch action {
     case .sendToNextDisplay: sendFocusedWindowToNextDisplay()
     case .toggleFloating: toggleFloatingOfFocusedWindow()
@@ -52,10 +60,15 @@ final class CommandRouter {
   private func performOnFocusedStrip(_ action: Action) {
     guard let key = state.focusedKey ?? state.pointerKey, let display = state.display(for: key),
       var strip = state.workspaces[key]?.strip
-    else { return }
+    else {
+      log.dropped(action, because: .noActiveWorkspace)
+      return
+    }
     let previousFocus = strip.focusedWindow
+    let before = strip
     let outcome = strip.apply(
       action, viewportWidth: display.visibleFrame.width, config: state.config)
+    log.performed(action, outcome: outcome, before: before, after: strip)
 
     switch outcome {
     case .ignored:
@@ -139,6 +152,6 @@ final class CommandRouter {
     }
     presenter.overlays.readMissingTitles()
     presenter.relayout()
-    presenter.overlays.flashMinimap(for: key)
+    presenter.overlays.flashMinimap(for: key, update: .animated)
   }
 }

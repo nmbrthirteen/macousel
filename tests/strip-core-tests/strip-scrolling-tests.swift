@@ -65,24 +65,27 @@ struct StripScrollingTests {
     strip.scrollOffset = 77
     strip.scrollToFocus(viewportWidth: 1016, config: config)
     switch mode {
-    case .never, .onOverflow:
+    case .never:
       #expect(strip.scrollOffset == 0)
+    case .onOverflow:
+      let spare = 1000 - strip.contentWidth(viewportWidth: 1016, config: config)
+      #expect(strip.scrollOffset == -spare / 2)
     case .always:
       #expect(strip.scrollOffset == 752 - 500)
     }
   }
 
-  @Test func onOverflowCentresAndClamps() {
+  @Test func onOverflowCentresWithoutClampingWhenTheStripDoesNotFit() {
     var (strip, config) = wideStrip(mode: .onOverflow)
     strip.focus(id(3))
     strip.scrollToFocus(viewportWidth: 1016, config: config)
     #expect(strip.scrollOffset == 816 + 200 - 500)
     strip.focus(id(1))
     strip.scrollToFocus(viewportWidth: 1016, config: config)
-    #expect(strip.scrollOffset == 0)
+    #expect(strip.scrollOffset == 200 - 500)
     strip.focus(id(5))
     strip.scrollToFocus(viewportWidth: 1016, config: config)
-    #expect(strip.scrollOffset == 1032)
+    #expect(strip.scrollOffset == 1632 + 200 - 500)
   }
 
   @Test func alwaysCentresWithoutClamping() {

@@ -30,6 +30,11 @@ struct MotionPane: View {
           range: Self.dimRange, step: 0.05, readout: .percent)
           .disabled(!store.preferences.dimsInactiveWindows)
         ToggleRow(title: "Show strip minimap", isOn: $store.preferences.showsMinimap)
+        Picker("Menu bar shows", selection: $store.preferences.menuBarIndicator) {
+          ForEach(MenuBarIndicator.allCases, id: \.self) { indicator in
+            Text(indicator.title).tag(indicator)
+          }
+        }
       }
     }
   }

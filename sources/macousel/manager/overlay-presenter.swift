@@ -22,18 +22,21 @@ final class OverlayPresenter {
   private let source: any WindowSource
   private let store: PreferencesStore
   private let host: any OverlayHost
+  private let minimapBuilder: MinimapSnapshotBuilder
   private var tabTitles: [WindowID: String] = [:]
   private var shownDim: DimRequest?
   private var isBorderWaitingForWindow = false
 
   init(
     state: TilingState, source: any WindowSource, store: PreferencesStore,
-    host: any OverlayHost
+    environment: any DesktopEnvironment, host: any OverlayHost
   ) {
     self.state = state
     self.source = source
     self.store = store
     self.host = host
+    minimapBuilder = MinimapSnapshotBuilder(
+      state: state, source: source, store: store, environment: environment)
   }
 
   func render(_ layouts: [Workspace.Key: StripLayout]) {
@@ -76,21 +79,14 @@ final class OverlayPresenter {
     }
   }
 
-  func flashMinimap(for key: Workspace.Key) {
+  func flashMinimap(for key: Workspace.Key, update: MinimapUpdate) {
     guard store.preferences.showsMinimap, let display = state.display(for: key),
-      let workspace = state.workspaces[key], let layout = state.targetLayout(for: key),
-      layout.contentWidth > state.usableWidth(of: display)
+      let snapshot = minimapBuilder.snapshot(for: key, on: display)
     else {
       host.hideMinimap()
       return
     }
-    host.showMinimap(
-      MinimapSnapshot(
-        columns: minimapColumns(of: workspace, in: layout, on: display),
-        contentWidth: layout.contentWidth,
-        viewportOffset: workspace.scrollOffset,
-        viewportWidth: state.usableWidth(of: display)),
-      on: display.visibleFrame)
+    host.showMinimap(snapshot, update: update, on: display.visibleFrame)
   }
 
   private func tabbedWindows() -> Set<WindowID> {
@@ -185,21 +181,5 @@ final class OverlayPresenter {
       tabs: column.windows.map {
         TabBarModel.Tab(id: $0, title: tabTitles[$0] ?? "", isActive: $0 == active.window)
       })
-  }
-
-  private func minimapColumns(
-    of workspace: Workspace, in layout: StripLayout, on display: Display
-  ) -> [MinimapSnapshot.Column] {
-    let stripOrigin = display.visibleFrame.minX + state.config.outerGap - workspace.scrollOffset
-    return workspace.strip.columns.indices.compactMap { index in
-      let rows = layout.placements.filter { $0.column == index }
-      guard let first = rows.first else { return nil }
-      let isTabbed = workspace.strip.columns[index].display == .tabbed
-      return MinimapSnapshot.Column(
-        x: first.frame.minX - stripOrigin,
-        width: first.frame.width,
-        rowShares: isTabbed ? [1] : rows.map { Double($0.frame.height) },
-        isFocused: index == workspace.strip.focusedColumn)
-    }
   }
 }

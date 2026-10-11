@@ -13,7 +13,7 @@ struct StripSettlingTests {
     return (strip, config)
   }
 
-  @Test(arguments: [CenterMode.never, .onOverflow])
+  @Test(arguments: [CenterMode.never])
   func restsFlushOnTheNearestColumnLeftEdge(mode: CenterMode) {
     var (strip, config) = wideStrip(mode: mode)
     strip.settle(at: 450, viewportWidth: 1016, config: config)
@@ -22,7 +22,7 @@ struct StripSettlingTests {
     #expect(strip.scrollOffset == 816)
   }
 
-  @Test(arguments: [CenterMode.never, .onOverflow])
+  @Test(arguments: [CenterMode.never])
   func restsAtTheEndOfTheStripWhenThatIsNearest(mode: CenterMode) {
     var (strip, config) = wideStrip(mode: mode)
     strip.settle(at: 1000, viewportWidth: 1016, config: config)
@@ -31,7 +31,7 @@ struct StripSettlingTests {
     #expect(strip.scrollOffset == 1032)
   }
 
-  @Test(arguments: [CenterMode.never, .onOverflow])
+  @Test(arguments: [CenterMode.never])
   func restsAtTheStartWhenProjectedBeforeIt(mode: CenterMode) {
     var (strip, config) = wideStrip(mode: mode)
     strip.settle(at: -2000, viewportWidth: 1016, config: config)
@@ -39,7 +39,7 @@ struct StripSettlingTests {
     #expect(strip.focusedWindow == id(1))
   }
 
-  @Test(arguments: [CenterMode.never, .onOverflow])
+  @Test(arguments: [CenterMode.never])
   func keepsFocusWhenTheFocusedColumnStaysFullyVisible(mode: CenterMode) {
     var (strip, config) = wideStrip(mode: mode)
     strip.focus(id(3))
@@ -48,7 +48,7 @@ struct StripSettlingTests {
     #expect(strip.focusedWindow == id(3))
   }
 
-  @Test(arguments: [CenterMode.never, .onOverflow])
+  @Test(arguments: [CenterMode.never])
   func movesFocusToTheFirstFullyVisibleColumnWhenTheFocusedOneLeaves(mode: CenterMode) {
     var (strip, config) = wideStrip(mode: mode)
     strip.focus(id(1))

@@ -118,7 +118,7 @@ struct AnimationTests {
   }
 
   @Test func speedsUseTheTunedSpringResponses() {
-    #expect(AnimationSpeed.fast.springResponse == 0.25)
+    #expect(AnimationSpeed.fast.springResponse == 0.20)
     #expect(AnimationSpeed.standard.springResponse == 0.30)
     #expect(AnimationSpeed.relaxed.springResponse == 0.42)
     #expect(Preferences().animationSpeed == .fast)

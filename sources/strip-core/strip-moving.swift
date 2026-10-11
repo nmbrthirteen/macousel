@@ -34,8 +34,10 @@ extension Strip {
   @discardableResult
   public mutating func stackFocused(into direction: HorizontalDirection) -> Bool {
     guard let focused = focusedColumn else { return false }
-    let neighbour = direction == .left ? focused - 1 : focused + 1
-    guard columns.indices.contains(neighbour) else { return false }
+    let preferred = direction == .left ? focused - 1 : focused + 1
+    let fallback = direction == .left ? focused + 1 : focused - 1
+    guard let neighbour = [preferred, fallback].first(where: { columns.indices.contains($0) })
+    else { return false }
 
     let window = columns[focused].activeWindow
     var target = neighbour

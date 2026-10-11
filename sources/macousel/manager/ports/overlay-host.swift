@@ -10,7 +10,7 @@ protocol OverlayHost: AnyObject {
   func hideFocusBorder()
   func showDim(on displayFrames: [CGRect], below window: CGWindowID, amount: Double)
   func hideDim()
-  func showMinimap(_ snapshot: MinimapSnapshot, on displayFrame: CGRect)
+  func showMinimap(_ snapshot: MinimapSnapshot, update: MinimapUpdate, on displayFrame: CGRect)
   func hideMinimap()
   func updateTabBars(_ bars: [TabBarModel])
   func showOverview(_ snapshot: OverviewSnapshot, on displayFrame: CGRect)

@@ -22,10 +22,11 @@ struct LayoutPane: View {
           title: "Default width of new windows",
           selection: $store.preferences.layout.defaultWidth)
         Picker("Center the focused column", selection: $store.preferences.layout.centerMode) {
-          Text("Never").tag(CenterMode.never)
-          Text("When the strip overflows").tag(CenterMode.onOverflow)
-          Text("Always").tag(CenterMode.always)
+          ForEach(CenterMode.allCases, id: \.self) { mode in
+            Text(mode.title).tag(mode)
+          }
         }
+        CaptionText(store.preferences.layout.centerMode.summary)
         PresetWidthsEditor(widths: $store.preferences.layout.presetWidths)
       }
     }

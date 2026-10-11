@@ -8,6 +8,7 @@ final class LayoutPresenter {
   private static let signposter = OSSignposter(subsystem: "dev.macousel.app", category: "layout")
 
   let overlays: OverlayPresenter
+  private let indicator: StripPositionIndicator
   var excludedWindow: CGWindowID?
 
   private let state: TilingState
@@ -26,7 +27,8 @@ final class LayoutPresenter {
   init(
     state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
     store: PreferencesStore, placer: any FramePlacer, clock: any AnimationClock,
-    overlays: OverlayPresenter, admissionFrames: AdmissionFrames
+    overlays: OverlayPresenter, indicator: StripPositionIndicator,
+    admissionFrames: AdmissionFrames
   ) {
     self.state = state
     self.source = source
@@ -35,6 +37,7 @@ final class LayoutPresenter {
     self.placer = placer
     self.clock = clock
     self.overlays = overlays
+    self.indicator = indicator
     self.admissionFrames = admissionFrames
     clock.onFrame = { [weak self] deltaTime in self?.advance(by: deltaTime) }
   }
@@ -77,6 +80,7 @@ final class LayoutPresenter {
       layouts[key] = layout
     }
     overlays.render(layouts)
+    indicator.refresh()
   }
 
   func pauseAnimation() {

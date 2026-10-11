@@ -109,7 +109,7 @@ Most of them use Control-Option, including the column numbers. Plain Option plus
 | Cycle width, full width, center | ⌃⌥ R, F, C |
 | Wider, narrower | ⌃⌥ = and - |
 | Taller, shorter, equalize | ⌃⌥⇧ = and -, ⌃⌥ 0 |
-| Stack into the left or right column | ⌃⌥ ] and [ |
+| Stack with the column on the left or right | ⌃⌥ ] and [ |
 | Pop out to the right or left | ⌃⌥⇧ ] and [ |
 | Tabbed column | ⌃⌥⇧ T |
 | Float | ⌃⌥ T |

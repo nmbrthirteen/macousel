@@ -102,16 +102,16 @@ struct SpringTests {
   }
 
   @Test func fastSpeedMoveCoversTheTunedShareOfTheDistance() {
-    var spring = Spring(value: 0, response: 0.25)
+    var spring = Spring(value: 0, response: 0.20)
     spring.retarget(to: 960, launch: MotionField.launch)
     spring.advance(by: 1.0 / 120.0)
-    #expect(spring.value > 60 && spring.value < 90)
+    #expect(spring.value > 70 && spring.value < 100)
     for _ in 0..<7 { spring.advance(by: 1.0 / 120.0) }
     #expect(spring.value > 480)
   }
 
   @Test func retargetMidFlightNeverOvershootsTheNewTarget() {
-    var spring = Spring(value: 0, response: 0.25)
+    var spring = Spring(value: 0, response: 0.20)
     spring.retarget(to: 500, launch: MotionField.launch)
     for _ in 0..<5 { spring.advance(by: 1.0 / 120.0) }
     spring.retarget(to: 1000, launch: MotionField.launch)
@@ -125,22 +125,22 @@ struct SpringTests {
   }
 
   @Test func retargetKeepsAFasterVelocityTowardTheTarget() {
-    var spring = Spring(value: 0, response: 0.25)
+    var spring = Spring(value: 0, response: 0.20)
     spring.target = 1000
-    spring.velocity = 9000
+    spring.velocity = 12000
     spring.retarget(to: 1000, launch: MotionField.launch)
-    #expect(spring.velocity == 9000)
+    #expect(spring.velocity == 12000)
   }
 
   @Test func retargetReplacesAVelocityPointingAwayFromTheTarget() {
-    var spring = Spring(value: 0, response: 0.25)
+    var spring = Spring(value: 0, response: 0.20)
     spring.velocity = -300
     spring.retarget(to: 100, launch: MotionField.launch)
     #expect(spring.velocity > 0)
   }
 
   @Test func secondPressReachesHalfItsDistanceAboutAsFastAsTheFirst() {
-    var spring = Spring(value: 0, response: 0.25)
+    var spring = Spring(value: 0, response: 0.20)
     spring.retarget(to: 960, launch: MotionField.launch)
     let first = framesToCoverHalf(of: spring, from: 0)
     for _ in 0..<4 { spring.advance(by: 1.0 / 120.0) }

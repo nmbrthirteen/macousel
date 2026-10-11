@@ -108,14 +108,54 @@ struct StripMovingTests {
     #expect(!moved2)
   }
 
-  @Test func stackFocusedLeftOfFirstColumnFails() {
-    var strip = makeStrip(2)
+  @Test func stackFocusedLeftOfFirstColumnStacksIntoTheRightNeighbour() {
+    var strip = makeStrip(3)
     strip.focus(id(1))
     let moved = strip.stackFocused(into: .left)
-    #expect(!moved)
+    #expect(moved)
+    #expect(strip.columns.map(\.windows) == [[id(2), id(1)], [id(3)]])
+    #expect(strip.focusedColumn == 0)
+    #expect(strip.focusedWindow == id(1))
+    #expect(invariantViolations(strip).isEmpty)
+  }
+
+  @Test func stackFocusedRightOfLastColumnStacksIntoTheLeftNeighbour() {
+    var strip = makeStrip(3)
+    strip.focus(id(3))
+    let moved = strip.stackFocused(into: .right)
+    #expect(moved)
+    #expect(strip.columns.map(\.windows) == [[id(1)], [id(2), id(3)]])
+    #expect(strip.focusedColumn == 1)
+    #expect(invariantViolations(strip).isEmpty)
+  }
+
+  @Test func stackFocusedPrefersTheRequestedSide() {
+    var strip = makeStrip(3)
     strip.focus(id(2))
-    let moved2 = strip.stackFocused(into: .right)
-    #expect(!moved2)
+    strip.stackFocused(into: .right)
+    #expect(strip.columns.map(\.windows) == [[id(1)], [id(3), id(2)]])
+  }
+
+  @Test(arguments: [HorizontalDirection.left, .right])
+  func stackFocusedDoesNothingWithASingleColumn(direction: HorizontalDirection) {
+    var strip = makeStrip(1)
+    let before = strip
+    let moved = strip.stackFocused(into: direction)
+    #expect(!moved)
+    #expect(strip == before)
+    var empty = Strip()
+    let emptyMoved = empty.stackFocused(into: direction)
+    #expect(!emptyMoved)
+  }
+
+  @Test func stackFocusedKeepsAColumnWithOtherWindowsAndStillFindsANeighbour() {
+    var strip = makeStrip(2)
+    strip.stackFocused(into: .left)
+    strip.insert(id(3), config: LayoutConfig())
+    strip.focus(id(1))
+    let moved = strip.stackFocused(into: .left)
+    #expect(moved)
+    #expect(strip.columns.map(\.windows) == [[id(2)], [id(3), id(1)]])
   }
 
   @Test(arguments: [HorizontalDirection.left, .right])

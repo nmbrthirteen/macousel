@@ -37,7 +37,7 @@ struct MomentumTests {
     let (fixture, row) = try launchedRow()
     let initial = fixture.frames(of: row)
 
-    drag(fixture, steps: 3, spacing: .milliseconds(90))
+    drag(fixture, steps: 3, spacing: .milliseconds(90), delta: -10)
     fixture.clock.advance(by: .milliseconds(50))
     fixture.gestures.onScroll?(0, .ended)
 
@@ -49,7 +49,7 @@ struct MomentumTests {
     let (fixture, row) = try launchedRow()
     let initial = fixture.frames(of: row)
 
-    drag(fixture, steps: 5, spacing: .milliseconds(10))
+    drag(fixture, steps: 5, spacing: .milliseconds(10), delta: -15)
     fixture.clock.advance(by: .milliseconds(150))
     fixture.gestures.onScroll?(0, .ended)
 

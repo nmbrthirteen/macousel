@@ -44,7 +44,7 @@ extension Strip {
       scrollOffset = min(max(offset, 0), maxOffset)
     case .onOverflow:
       let centred = span.x + span.width / 2 - usable / 2
-      scrollOffset = content <= usable ? 0 : min(max(centred, 0), maxOffset)
+      scrollOffset = content <= usable ? (content - usable) / 2 : centred
     case .always:
       scrollOffset = span.x + span.width / 2 - usable / 2
     }

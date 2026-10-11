@@ -8,16 +8,20 @@ struct ManagerComponents {
   let release: WindowRelease
   let router: CommandRouter
   let appShortcuts: AppShortcutLauncher
+  let indicator: StripPositionIndicator
 
   init(store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults) {
     let state = TilingState(store: store, environment: ports.environment, pointer: ports.pointer)
     let overlays = OverlayPresenter(
-      state: state, source: ports.source, store: store, host: ports.overlays)
+      state: state, source: ports.source, store: store, environment: ports.environment,
+      host: ports.overlays)
     let admissionFrames = AdmissionFrames()
+    let indicator = StripPositionIndicator(state: state)
     let clock = ports.clock
     let presenter = LayoutPresenter(
       state: state, source: ports.source, environment: ports.environment, store: store,
-      placer: ports.placer, clock: clock, overlays: overlays, admissionFrames: admissionFrames)
+      placer: ports.placer, clock: clock, overlays: overlays,
+      indicator: indicator, admissionFrames: admissionFrames)
     let restorer = WindowRestorer(
       defaults: defaults, bootSession: ports.environment.bootSessionIdentifier)
     let focus = FocusDriver(
@@ -33,6 +37,7 @@ struct ManagerComponents {
       state: state, source: ports.source, host: ports.overlays,
       titles: { reconciler.capturedTitles })
     self.state = state
+    self.indicator = indicator
     self.presenter = presenter
     self.reconciler = reconciler
     self.focus = focus

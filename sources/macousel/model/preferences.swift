@@ -11,10 +11,12 @@ struct Preferences: Codable, Equatable {
   var dimsInactiveWindows = false
   var dimAmount: Double = 0.25
   var showsMinimap = true
+  var menuBarIndicator = MenuBarIndicator.position
   var restoresSession = true
   var scrollGestureEnabled = true
   var swipeGestureEnabled = true
   var swipeFingers = 4
+  var swipeSensitivity = 1.0
   var reversesSwipeDirection = false
   var displayFollowsPointer = true
   var focusFollowsMouse = false
@@ -24,6 +26,8 @@ struct Preferences: Codable, Equatable {
   var disabledDisplays: Set<String> = []
   var hasCompletedOnboarding = false
   var checksForUpdates = true
+
+  static let swipeSensitivityRange = 0.5...2.0
 
   init() {}
 
@@ -42,10 +46,12 @@ struct Preferences: Codable, Equatable {
     dimsInactiveWindows = value(.dimsInactiveWindows, or: defaults.dimsInactiveWindows)
     dimAmount = value(.dimAmount, or: defaults.dimAmount)
     showsMinimap = value(.showsMinimap, or: defaults.showsMinimap)
+    menuBarIndicator = value(.menuBarIndicator, or: defaults.menuBarIndicator)
     restoresSession = value(.restoresSession, or: defaults.restoresSession)
     scrollGestureEnabled = value(.scrollGestureEnabled, or: defaults.scrollGestureEnabled)
     swipeGestureEnabled = value(.swipeGestureEnabled, or: defaults.swipeGestureEnabled)
     swipeFingers = value(.swipeFingers, or: defaults.swipeFingers)
+    swipeSensitivity = value(.swipeSensitivity, or: defaults.swipeSensitivity)
     reversesSwipeDirection = value(.reversesSwipeDirection, or: defaults.reversesSwipeDirection)
     displayFollowsPointer = value(.displayFollowsPointer, or: defaults.displayFollowsPointer)
     focusFollowsMouse = value(.focusFollowsMouse, or: defaults.focusFollowsMouse)

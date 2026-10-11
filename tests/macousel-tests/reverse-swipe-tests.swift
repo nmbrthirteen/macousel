@@ -49,7 +49,7 @@ struct ReverseSwipeTests {
 
     fixture.gestures.onSwipe?(0.1, .began)
 
-    #expect(fixture.frames(of: row) == expectedFrames(offset: 0.1 * usableWidth * 1.6))
+    #expect(fixture.frames(of: row) == expectedFrames(offset: 0.1 * usableWidth * 2.4))
   }
 
   @Test func swipeKeepsItsDirectionWhenNotReversed() throws {
@@ -60,7 +60,7 @@ struct ReverseSwipeTests {
 
     fixture.gestures.onSwipe?(-0.1, .began)
 
-    #expect(fixture.frames(of: row) == expectedFrames(offset: 0.1 * usableWidth * 1.6))
+    #expect(fixture.frames(of: row) == expectedFrames(offset: 0.1 * usableWidth * 2.4))
   }
 
   @Test func togglingTheSettingAppliesToTheNextGesture() throws {

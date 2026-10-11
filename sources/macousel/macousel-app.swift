@@ -4,10 +4,12 @@ struct MacouselApp: App {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate
 
   var body: some Scene {
-    MenuBarExtra("Macousel", systemImage: "rectangle.split.3x1") {
+    MenuBarExtra {
       MenuBarContent(
         manager: delegate.manager, updater: delegate.updater,
         diagnostics: delegate.diagnostics, onShowWelcome: delegate.onboarding.show)
+    } label: {
+      MenuBarLabel(manager: delegate.manager, store: delegate.store)
     }
     .menuBarExtraStyle(.menu)
 

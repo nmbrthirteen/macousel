@@ -29,6 +29,7 @@ final class FakeOverlayHost: OverlayHost {
   private(set) var focusBorder: FocusBorder?
   private(set) var dim: Dim?
   private(set) var minimap: MinimapSnapshot?
+  private(set) var minimapUpdate: MinimapUpdate?
   private(set) var tabBars: [TabBarModel] = []
 
   func showFocusBorder(around frame: CGRect, lineWidth: Double) {
@@ -47,12 +48,14 @@ final class FakeOverlayHost: OverlayHost {
     dim = nil
   }
 
-  func showMinimap(_ snapshot: MinimapSnapshot, on displayFrame: CGRect) {
+  func showMinimap(_ snapshot: MinimapSnapshot, update: MinimapUpdate, on displayFrame: CGRect) {
     minimap = snapshot
+    minimapUpdate = update
   }
 
   func hideMinimap() {
     minimap = nil
+    minimapUpdate = nil
   }
 
   func updateTabBars(_ bars: [TabBarModel]) {

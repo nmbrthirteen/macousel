@@ -1,7 +1,7 @@
 import Carbon.HIToolbox
 import os
 
-private let logger = Logger(subsystem: "dev.macousel.app", category: "hotkey-center")
+private let logger = Logger(subsystem: "dev.macousel.app", category: "shortcuts")
 
 private nonisolated func hotKeyHandler(
   _ next: EventHandlerCallRef?, _ event: EventRef?, _ refcon: UnsafeMutableRawPointer?
@@ -27,13 +27,15 @@ public final class HotkeyCenter {
   private var handlerRef: EventHandlerRef?
   private var registrations: [EventHotKeyRef] = []
   private var actions: [UInt32: () -> Void] = [:]
+  private var hotkeys: [UInt32: Hotkey] = [:]
 
   public init() {}
 
-  public func setBindings(_ bindings: [Hotkey: () -> Void]) {
+  public func setBindings(_ bindings: [Hotkey: () -> Void]) -> Int {
     unregisterAll()
-    guard installHandler() else { return }
+    guard installHandler() else { return bindings.count }
 
+    var failures = 0
     for (index, entry) in bindings.enumerated() {
       let hotkey = entry.key
       let identifier = UInt32(index + 1)
@@ -43,13 +45,20 @@ public final class HotkeyCenter {
         EventHotKeyID(signature: Self.signature, id: identifier),
         GetApplicationEventTarget(), 0, &ref)
       guard status == noErr, let ref else {
+        failures += 1
         logger.error(
-          "RegisterEventHotKey failed for \(hotkey.displayString, privacy: .public): \(status)")
+          """
+          RegisterEventHotKey failed: key code \(hotkey.keyCode, privacy: .public), \
+          modifiers \(hotkey.modifiers.rawValue, privacy: .public), \
+          status \(status, privacy: .public)
+          """)
         continue
       }
       registrations.append(ref)
       actions[identifier] = entry.value
+      hotkeys[identifier] = hotkey
     }
+    return failures
   }
 
   public func removeAll() {
@@ -61,6 +70,13 @@ public final class HotkeyCenter {
   }
 
   fileprivate func fire(_ identifier: UInt32) {
+    if let hotkey = hotkeys[identifier] {
+      logger.info(
+        """
+        hotkey fired: key code \(hotkey.keyCode, privacy: .public), \
+        modifiers \(hotkey.modifiers.rawValue, privacy: .public)
+        """)
+    }
     actions[identifier]?()
   }
 
@@ -68,6 +84,7 @@ public final class HotkeyCenter {
     for ref in registrations { UnregisterEventHotKey(ref) }
     registrations = []
     actions = [:]
+    hotkeys = [:]
   }
 
   private func installHandler() -> Bool {

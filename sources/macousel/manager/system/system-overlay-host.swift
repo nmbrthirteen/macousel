@@ -33,10 +33,10 @@ final class SystemOverlayHost: OverlayHost {
     dim?.hide()
   }
 
-  func showMinimap(_ snapshot: MinimapSnapshot, on displayFrame: CGRect) {
+  func showMinimap(_ snapshot: MinimapSnapshot, update: MinimapUpdate, on displayFrame: CGRect) {
     let overlay = minimap ?? MinimapOverlay()
     minimap = overlay
-    overlay.show(snapshot, on: displayFrame)
+    overlay.show(snapshot, update: update, on: displayFrame)
   }
 
   func hideMinimap() {

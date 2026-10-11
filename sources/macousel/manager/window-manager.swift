@@ -11,7 +11,9 @@ final class WindowManager {
     case needsPermission, running, paused
   }
 
-  private(set) var status: Status = .needsPermission
+  private(set) var status: Status = .needsPermission {
+    didSet { indicator.isTiling = status == .running }
+  }
   private(set) var displays: [Display] = []
 
   private let store: PreferencesStore
@@ -27,6 +29,7 @@ final class WindowManager {
   private let interactions: ManagerInteractions
   private let inputs: InputBindings
   private let crashRecovery: any CrashRecovery
+  private let indicator: StripPositionIndicator
 
   @ObservationIgnored private var appliedPreferences: Preferences?
   @ObservationIgnored private let synchronization = SynchronizationScheduler()
@@ -60,7 +63,10 @@ final class WindowManager {
       store: store, shortcuts: ports.shortcuts, interactions: interactions,
       appShortcuts: parts.appShortcuts)
     crashRecovery = ports.crashRecovery
+    indicator = parts.indicator
   }
+
+  var position: StripPosition? { indicator.position }
 
   func start() {
     displays = environment.displays
@@ -69,11 +75,11 @@ final class WindowManager {
 
   func perform(_ action: Action) {
     switch (action, status) {
-    case (_, .needsPermission): break
+    case (_, .needsPermission): router.dropped(action, because: .needsPermission)
     case (.togglePaused, .running): pause()
     case (.togglePaused, .paused): resume()
     case (_, .running): router.perform(action)
-    case (_, .paused): break
+    case (_, .paused): router.dropped(action, because: .paused)
     }
   }
 
@@ -125,7 +131,10 @@ final class WindowManager {
     }
     hasLostAccess = false
     if crashRecovery.isRecoveringFromCrash {
-      pauseForRecovery()
+      status = .paused
+      restoresArrivingWindows = true
+      logger.info("Recovering windows after a crash, tiling paused")
+      applyInputs()
       return
     }
     status = .running
@@ -133,13 +142,6 @@ final class WindowManager {
     crashRecovery.arm()
     applyInputs()
     synchronize()
-  }
-
-  private func pauseForRecovery() {
-    status = .paused
-    restoresArrivingWindows = true
-    logger.info("Recovering windows after a crash, tiling paused")
-    applyInputs()
   }
 
   private func connectEvents() {

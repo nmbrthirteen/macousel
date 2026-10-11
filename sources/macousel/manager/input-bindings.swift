@@ -1,6 +1,9 @@
 import WindowSystem
+import os
 
 final class InputBindings {
+  private static let logger = Logger(subsystem: "dev.macousel.app", category: "shortcuts")
+
   private let store: PreferencesStore
   private let shortcuts: any ShortcutRegistry
   private let interactions: ManagerInteractions
@@ -17,7 +20,11 @@ final class InputBindings {
   }
 
   func apply(isTiling: Bool, perform: @escaping (Action) -> Void) {
-    shortcuts.setBindings(bindings(isTiling: isTiling, perform: perform))
+    let requested = bindings(isTiling: isTiling, perform: perform)
+    let failures = shortcuts.setBindings(requested)
+    let registered = requested.count - failures
+    Self.logger.info(
+      "registered \(registered, privacy: .public) shortcuts, \(failures, privacy: .public) failed")
     interactions.configure(isTiling: isTiling)
   }
 

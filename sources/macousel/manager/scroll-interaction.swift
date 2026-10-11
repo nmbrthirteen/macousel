@@ -3,7 +3,7 @@ import WindowSystem
 
 final class ScrollInteraction {
   private static let wheelIdleDelay = Duration.milliseconds(180)
-  private static let swipeTravelPerPadWidth = 1.6
+  private static let swipeTravelPerPadWidth = 2.4
   private static let scrollModifiers: Hotkey.Modifiers = [.control, .option]
   private static let velocitySmoothing = 0.7
   private static let longestVelocitySample = Duration.milliseconds(100)
@@ -11,6 +11,7 @@ final class ScrollInteraction {
 
   private struct Gesture {
     var key: Workspace.Key
+    var startOffset: Double
     var unresistedOffset: Double
     var velocity = 0.0
     var lastSample: ContinuousClock.Instant
@@ -63,7 +64,11 @@ final class ScrollInteraction {
   private func swiped(byPadShare share: Double, phase: ScrollGestureTap.Phase) {
     guard let key = gesture?.key ?? state.pointerKey, let display = state.display(for: key)
     else { return }
-    let travel = share * state.usableWidth(of: display) * Self.swipeTravelPerPadWidth
+    let sensitivity = min(
+      max(store.preferences.swipeSensitivity, Preferences.swipeSensitivityRange.lowerBound),
+      Preferences.swipeSensitivityRange.upperBound)
+    let travel =
+      share * state.usableWidth(of: display) * Self.swipeTravelPerPadWidth * sensitivity
     scrolled(by: travel, phase: phase)
   }
 
@@ -75,7 +80,7 @@ final class ScrollInteraction {
     guard let key = gesture?.key else { return }
     drag(key, by: deltaX, updatesVelocity: deltaX != 0 || phase != .ended)
     presenter.track(key)
-    presenter.overlays.flashMinimap(for: key)
+    presenter.overlays.flashMinimap(for: key, update: .immediate)
 
     if phase == .ended {
       finish(carryingMomentum: true)
@@ -89,7 +94,9 @@ final class ScrollInteraction {
       !workspace.strip.isEmpty
     else { return false }
     gesture?.idleTimeout?.cancel()
-    gesture = Gesture(key: key, unresistedOffset: workspace.scrollOffset, lastSample: now())
+    gesture = Gesture(
+      key: key, startOffset: workspace.scrollOffset, unresistedOffset: workspace.scrollOffset,
+      lastSample: now())
     presenter.pauseAnimation()
     return true
   }
@@ -140,10 +147,14 @@ final class ScrollInteraction {
       ? min(max(gesture.velocity, -Self.fastestMomentum), Self.fastestMomentum) : 0
     let projection = Spring.projectionTime(response: workspace.motion.response)
     let restingOffset = workspace.scrollOffset + velocity * projection
+    let intent = SwipeIntent(
+      travel: gesture.unresistedOffset - gesture.startOffset, velocity: velocity,
+      usableWidth: state.usableWidth(of: display))
     let previousFocus = workspace.strip.focusedWindow
     workspace.gestureOffset = nil
     workspace.strip.settle(
-      at: restingOffset, viewportWidth: display.visibleFrame.width, config: state.config)
+      at: restingOffset, intent: intent, viewportWidth: display.visibleFrame.width,
+      config: state.config)
     workspace.motion.impart(horizontalVelocity: -velocity)
     state.workspaces[key] = workspace
     state.focusedKey = key

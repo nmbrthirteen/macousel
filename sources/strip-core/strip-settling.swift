@@ -3,35 +3,42 @@ import Foundation
 extension Strip {
   private static let fullyVisibleTolerance = 0.5
 
-  public mutating func settle(at offset: Double, viewportWidth: Double, config: LayoutConfig) {
+  public mutating func settle(
+    at offset: Double, intent: SwipeIntent = .none, viewportWidth: Double, config: LayoutConfig
+  ) {
     guard !isEmpty else {
       scrollOffset = 0
       return
     }
-    if config.centerMode == .always {
-      settleOnNearestCentre(at: offset, viewportWidth: viewportWidth, config: config)
+    if config.centerMode == .never {
+      settleOnNearestLeftEdge(
+        at: offset, intent: intent, viewportWidth: viewportWidth, config: config)
     } else {
-      settleOnNearestLeftEdge(at: offset, viewportWidth: viewportWidth, config: config)
+      settleOnNearestCentre(
+        at: offset, intent: intent, viewportWidth: viewportWidth, config: config)
     }
   }
 
   private mutating func settleOnNearestCentre(
-    at offset: Double, viewportWidth: Double, config: LayoutConfig
+    at offset: Double, intent: SwipeIntent, viewportWidth: Double, config: LayoutConfig
   ) {
-    scrollOffset = offset
     let usable = usableWidth(viewportWidth: viewportWidth, config: config)
-    focusedColumn = columnNearestCentre(of: offset, usable: usable, config: config)
+    let anchors = columnSpans(usableWidth: usable, innerGap: config.innerGap)
+      .map { $0.x + $0.width / 2 - usable / 2 }
+    let start = focusedColumn.map { anchors[$0] } ?? scrollOffset
+    focusedColumn = intent.restingIndex(among: anchors, from: start, projected: offset)
     scrollToFocus(viewportWidth: viewportWidth, config: config)
   }
 
   private mutating func settleOnNearestLeftEdge(
-    at offset: Double, viewportWidth: Double, config: LayoutConfig
+    at offset: Double, intent: SwipeIntent, viewportWidth: Double, config: LayoutConfig
   ) {
     let usable = usableWidth(viewportWidth: viewportWidth, config: config)
     let spans = columnSpans(usableWidth: usable, innerGap: config.innerGap)
     let furthest = max(0, contentWidth(viewportWidth: viewportWidth, config: config) - usable)
     let candidates = spans.map { min(max($0.x, 0), furthest) }
-    let resting = candidates.min { abs($0 - offset) < abs($1 - offset) } ?? 0
+    let index = intent.restingIndex(among: candidates, from: scrollOffset, projected: offset)
+    let resting = index.map { candidates[$0] } ?? 0
     scrollOffset = resting
 
     let tolerance = Self.fullyVisibleTolerance

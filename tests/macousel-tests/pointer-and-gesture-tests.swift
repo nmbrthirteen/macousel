@@ -97,7 +97,7 @@ struct PointerAndGestureTests {
     fixture.launch()
     let initial = fixture.frames(of: row)
 
-    fixture.gestures.onScroll?(-120, .began)
+    fixture.gestures.onScroll?(-80, .began)
 
     #expect(await fixture.becomes { fixture.frames(of: row) == initial })
     #expect(row.allSatisfy { $0.focusCount == 0 })

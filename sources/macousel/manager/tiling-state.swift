@@ -83,8 +83,12 @@ final class TilingState {
     }
     let usableWidth = usableWidth(of: display)
     let furthest = max(layout.contentWidth - usableWidth, 0)
-    guard config.centerMode == .always else { return 0...furthest }
+    guard config.centerMode != .never else { return 0...furthest }
     return (-usableWidth / 2)...(max(layout.contentWidth - usableWidth / 2, 0))
+  }
+
+  var activePosition: StripPosition? {
+    (focusedKey ?? pointerKey).flatMap { workspaces[$0]?.strip }.flatMap { StripPosition(strip: $0) }
   }
 
   func scrollToFocus(_ key: Workspace.Key) {

@@ -29,6 +29,8 @@ final class OverviewController {
     host.onOverviewDismiss = { [weak self] in self?.close() }
   }
 
+  var isOpen: Bool { session != nil }
+
   func toggle() {
     if session == nil { open() } else { close() }
   }

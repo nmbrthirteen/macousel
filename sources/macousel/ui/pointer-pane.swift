@@ -32,6 +32,10 @@ struct PointerPane: View {
         }
         .pickerStyle(.segmented)
         .disabled(!store.preferences.swipeGestureEnabled)
+        LabelledSliderRow(
+          title: "Swipe sensitivity", value: $store.preferences.swipeSensitivity,
+          range: Preferences.swipeSensitivityRange, step: 0.1, readout: .multiplier)
+          .disabled(!store.preferences.swipeGestureEnabled)
         ToggleRow(
           title: "Reverse swipe direction", isOn: $store.preferences.reversesSwipeDirection,
           caption: "Applies to the trackpad swipe and the scroll gesture.")

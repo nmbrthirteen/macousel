@@ -17,8 +17,6 @@ enum Metrics {
     static let tab = 8.0
     static let focusBorder = 16.0
     static let panel = 12.0
-    static let column = 2.0
-    static let viewport = 3.0
     static let illustrationColumn = 4.0
   }
 
@@ -26,6 +24,39 @@ enum Metrics {
     static let activeTab = 0.35
     static let overviewBackdrop = 0.45
     static let overviewBadge = 0.18
+    static let minimapColumn = 0.22
+    static let minimapLens = 0.10
+    static let minimapLensBorder = 0.30
+    static let minimapTabDot = 0.5
+    static let minimapCaption = 0.6
+  }
+
+  enum Minimap {
+    static let height = 40.0
+    static let minimumWidth = 140.0
+    static let maximumWidth = 360.0
+    static let horizontalPadding = 14.0
+    static let verticalPadding = 7.0
+    static let stripScale = 0.1
+    static let columnGap = 3.0
+    static let rowGap = 2.0
+    static let cellRadius = 5.0
+    static let capsuleRadius = 20.0
+    static let lensOutset = 3.0
+    static let lensRadius = 8.0
+    static let iconSide = 14.0
+    static let iconMinimumWidth = 26.0
+    static let iconMinimumHeight = 18.0
+    static let numberMinimumWidth = 12.0
+    static let numberMinimumHeight = 10.0
+    static let highestNumberedColumn = 9
+    static let numberFontSize = 10.0
+    static let tabDotDiameter = 3.0
+    static let tabDotGap = 2.0
+    static let tabDotInset = 2.0
+    static let tabDotLimit = 3
+    static let panelMargin = 16.0
+    static let hiddenScale = 0.96
   }
 
   enum Overview {
@@ -61,7 +92,6 @@ enum Metrics {
     static let illustrationHeight = 120.0
     static let statusIcon = 20.0
     static let hairlineStroke = 0.5
-    static let outlineStroke = 1.0
     static let illustrationStroke = 2.0
   }
 }
