@@ -9,7 +9,7 @@ struct ColumnFocusTests {
     let row = fixture.openRow(4)
     fixture.launch()
 
-    fixture.manager.perform(.focusColumn3)
+    fixture.manager.perform(.focusColumn(3))
 
     var expected = ExpectedStrip(columns: [1, 2, 3, 4])
     expected.focus(3)
@@ -24,7 +24,7 @@ struct ColumnFocusTests {
     fixture.launch()
     let before = fixture.frames(of: row)
 
-    fixture.manager.perform(.focusColumn3)
+    fixture.manager.perform(.focusColumn(3))
 
     #expect(row.allSatisfy { $0.focusCount == 0 })
     #expect(fixture.frames(of: row) == before)
@@ -36,21 +36,41 @@ struct ColumnFocusTests {
     fixture.launch()
     fixture.manager.perform(.focusLast)
 
-    fixture.manager.perform(.focusColumn1)
+    fixture.manager.perform(.focusColumn(1))
 
     #expect(row[0].focusCount == 1)
   }
 
-  @Test func columnActionsMapToTheirZeroBasedIndex() {
-    let indexes = Action.allCases.compactMap(\.columnIndex)
-    #expect(indexes == Array(0..<9))
-    #expect(Action.focusColumn3.commandName == "focus-column-3")
-    #expect(Action.focusColumn3.title == "Focus column 3")
+  @Test func focusColumnNamesAndTitlesComeFromThePlace() {
+    #expect(Action.focusColumn(3).commandName == "focus-column-3")
+    #expect(Action.focusColumn(3).title == "Focus column 3")
+    #expect(Action.focusColumn(9).title == "Focus column 9 (last)")
+  }
+
+  @Test func focusColumn9FocusesTheLastColumn() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(4)
+    fixture.launch()
+
+    fixture.manager.perform(.focusColumn(9))
+
+    #expect(row[3].focusCount == 1)
+    #expect(fixture.windowShowingFocusBorder(among: row) === row[3])
+  }
+
+  @Test func focusColumn9FocusesTheLastColumnOfAShortStrip() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(2)
+    fixture.launch()
+
+    fixture.manager.perform(.focusColumn(9))
+
+    #expect(row[1].focusCount == 1)
   }
 
   @Test func columnShortcutsUsePlainOptionAndTheDigit() {
-    for action in Action.columnActions {
-      let keys = Action.defaultShortcuts[action] ?? []
+    for place in Action.places {
+      let keys = Action.defaultShortcuts[.focusColumn(place)] ?? []
       #expect(keys.count == 1)
       #expect(keys.allSatisfy { $0.modifiers == [.option] })
     }

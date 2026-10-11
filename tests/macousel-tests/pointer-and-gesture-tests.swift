@@ -1,4 +1,5 @@
 import CoreGraphics
+import StripCore
 import Testing
 
 @testable import Macousel
@@ -90,35 +91,34 @@ struct PointerAndGestureTests {
     #expect(fixture.frames(of: row) == expected.frames)
   }
 
-  @Test func scrollEndsAfterTheWheelGoesIdleAndFocusesTheColumnNearestTheCentre() async throws {
+  @Test func shortScrollRestsOnTheNearestLeftEdgeAndKeepsFocus() async throws {
     let fixture = try ControllerFixture()
     let row = fixture.openRow(4)
     fixture.launch()
+    let initial = fixture.frames(of: row)
 
     fixture.gestures.onScroll?(-120, .began)
 
-    #expect(await fixture.becomes { row[1].focusCount == 1 })
-    var expected = ExpectedStrip(columns: [1, 2, 3, 4])
-    let width = expected.display.visibleFrame.width
-    let config = expected.config
-    expected.apply { $0.settle(at: 120, viewportWidth: width, config: config) }
-    #expect(fixture.frames(of: row) == expected.frames)
-    #expect(fixture.windowShowingFocusBorder(among: row) === row[1])
+    #expect(await fixture.becomes { fixture.frames(of: row) == initial })
+    #expect(row.allSatisfy { $0.focusCount == 0 })
+    #expect(fixture.windowShowingFocusBorder(among: row) === row[0])
   }
 
-  @Test func longScrollFocusesTheColumnItSettlesOn() async throws {
+  @Test func longScrollRestsFlushLeftAndFocusesTheFirstFullyVisibleColumn() async throws {
     let fixture = try ControllerFixture()
     let row = fixture.openRow(4)
     fixture.launch()
 
     fixture.gestures.onScroll?(-700, .began)
 
-    #expect(await fixture.becomes { row[2].focusCount == 1 })
+    #expect(await fixture.becomes { row[1].focusCount == 1 })
     var expected = ExpectedStrip(columns: [1, 2, 3, 4])
     let width = expected.display.visibleFrame.width
     let config = expected.config
     expected.apply { $0.settle(at: 700, viewportWidth: width, config: config) }
     #expect(fixture.frames(of: row) == expected.frames)
-    #expect(row[1].focusCount == 0)
+    #expect(expected.strip.focusedWindow == WindowID(2))
+    #expect(row[2].focusCount == 0)
+    #expect(fixture.windowShowingFocusBorder(among: row) === row[1])
   }
 }

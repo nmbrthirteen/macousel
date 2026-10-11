@@ -9,7 +9,7 @@ struct StarterShortcutsStep: View {
   let store: PreferencesStore
 
   var body: some View {
-    OnboardingStepLayout(title: "Six shortcuts to start") {
+    OnboardingStepLayout(title: "Seven shortcuts to start") {
       Form {
         ForEach(Self.starterActions, id: \.self) { action in
           LabeledContent(action.title) {
@@ -17,12 +17,23 @@ struct StarterShortcutsStep: View {
               .monospacedDigit()
           }
         }
+        LabeledContent("Jump to a column") {
+          Text(Self.columnJumpKeys(in: store.preferences.shortcuts))
+            .monospacedDigit()
+        }
       }
       .formStyle(.grouped)
       .scrollDisabled(true)
       CaptionText("Or drag a window onto the middle of another to stack them.")
       CaptionText("Change any of them in Settings > Shortcuts.")
     }
+  }
+
+  static func columnJumpKeys(in shortcuts: [Action: [Hotkey]]) -> String {
+    guard let first = shortcuts[.focusColumn(Action.places.lowerBound)]?.first,
+      let last = shortcuts[.focusColumn(Action.places.upperBound)]?.first
+    else { return "Not set" }
+    return "\(first.displayString) to \(last.displayString)"
   }
 
   private func binding(for action: Action) -> String {

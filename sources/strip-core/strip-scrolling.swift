@@ -56,21 +56,4 @@ extension Strip {
     let span = columnSpans(usableWidth: usable, innerGap: config.innerGap)[focused]
     scrollOffset = span.x + span.width / 2 - usable / 2
   }
-
-  public mutating func settle(at offset: Double, viewportWidth: Double, config: LayoutConfig) {
-    scrollOffset = offset
-    guard !isEmpty else {
-      scrollOffset = 0
-      return
-    }
-    let usable = usableWidth(viewportWidth: viewportWidth, config: config)
-    let viewportCentre = offset + usable / 2
-    let spans = columnSpans(usableWidth: usable, innerGap: config.innerGap)
-    let nearest = spans.indices.min {
-      abs(spans[$0].x + spans[$0].width / 2 - viewportCentre)
-        < abs(spans[$1].x + spans[$1].width / 2 - viewportCentre)
-    }
-    focusedColumn = nearest
-    scrollToFocus(viewportWidth: viewportWidth, config: config)
-  }
 }

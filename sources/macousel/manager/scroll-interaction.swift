@@ -7,8 +7,8 @@ final class ScrollInteraction {
   private static let scrollModifiers: Hotkey.Modifiers = [.control, .option]
   private static let velocitySmoothing = 0.7
   private static let longestVelocitySample = Duration.milliseconds(100)
-  private static let momentumProjection = 0.18
-  private static let fastestMomentum = 6000.0
+  private static let momentumProjection = 0.22
+  private static let fastestMomentum = 5000.0
 
   private struct Gesture {
     var key: Workspace.Key
@@ -66,7 +66,8 @@ final class ScrollInteraction {
     scrolled(by: travel, phase: phase)
   }
 
-  private func scrolled(by deltaX: Double, phase: ScrollGestureTap.Phase) {
+  private func scrolled(by rawDeltaX: Double, phase: ScrollGestureTap.Phase) {
+    let deltaX = store.preferences.reversesSwipeDirection ? -rawDeltaX : rawDeltaX
     if phase == .began || gesture == nil {
       guard begin() else { return }
     }

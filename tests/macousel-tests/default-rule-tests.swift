@@ -44,12 +44,12 @@ struct DefaultRuleTests {
 
   @Test func savedShortcutsWithoutTheColumnActionsGainTheirDefaults() throws {
     var preferences = Preferences()
-    preferences.shortcuts[.focusColumn3] = nil
+    preferences.shortcuts[.focusColumn(3)] = nil
     preferences.shortcuts[.focusLeft] = []
 
     let decoded = try roundTripped(preferences)
 
-    #expect(decoded.shortcuts[.focusColumn3] == Action.defaultShortcuts[.focusColumn3])
+    #expect(decoded.shortcuts[.focusColumn(3)] == Action.defaultShortcuts[.focusColumn(3)])
     #expect(decoded.shortcuts[.focusLeft] == [])
   }
 

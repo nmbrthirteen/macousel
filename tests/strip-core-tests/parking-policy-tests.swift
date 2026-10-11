@@ -45,19 +45,50 @@ struct ParkingPolicyTests {
   }
 
   @Test func partialWindowStaysInPlaceOnAnOpenEdge() throws {
-    var strip = makeStrip(3)
-    strip.focus(id(2))
-    let layout = strip.layout(in: testViewport, config: config, scrollOffset: 250)
-    let partial = try #require(layout.placements.first { $0.visibility == .partial })
+    let partial = try placement(of: 1, scrolledTo: 300)
     #expect(policy().frame(for: partial, in: testViewport) == partial.frame)
   }
 
-  @Test func partialWindowParksInsteadOfOverhangingANeighbor() throws {
+  private func placement(of window: UInt32, scrolledTo offset: Double) throws -> Placement {
     var strip = makeStrip(3)
     strip.focus(id(2))
-    let layout = strip.layout(in: testViewport, config: config, scrollOffset: 250)
-    let partial = try #require(layout.placements.first { $0.visibility == .partial })
-    #expect(policy(left: true, right: true).isParked(partial, in: testViewport))
+    let layout = strip.layout(in: testViewport, config: config, scrollOffset: offset)
+    return try #require(layout[id(window)])
+  }
+
+  @Test func partialWindowOverhangingANeighborStaysWhileUnderHalfBeyondTheEdge() throws {
+    let placement = try placement(of: 1, scrolledTo: 255)
+    #expect(placement.visibility == .partial)
+    #expect(policy(left: true).frame(for: placement, in: testViewport) == placement.frame)
+    #expect(!policy(left: true).isParked(placement, in: testViewport))
+  }
+
+  @Test func partialWindowStaysWhenExactlyHalfIsBeyondTheEdge() throws {
+    let placement = try placement(of: 1, scrolledTo: 256)
+    #expect(!policy(left: true).isParked(placement, in: testViewport))
+  }
+
+  @Test func partialWindowParksOnceMoreThanHalfIsBeyondTheLeftEdge() throws {
+    let placement = try placement(of: 1, scrolledTo: 257)
+    #expect(placement.visibility == .partial)
+    #expect(policy(left: true).isParked(placement, in: testViewport))
+  }
+
+  @Test func partialWindowStaysWhileUnderHalfBeyondTheRightEdge() throws {
+    let placement = try placement(of: 3, scrolledTo: 249)
+    #expect(placement.visibility == .partial)
+    #expect(!policy(right: true).isParked(placement, in: testViewport))
+  }
+
+  @Test func partialWindowParksOnceMoreThanHalfIsBeyondTheRightEdge() throws {
+    let placement = try placement(of: 3, scrolledTo: 247)
+    #expect(placement.visibility == .partial)
+    #expect(policy(right: true).isParked(placement, in: testViewport))
+  }
+
+  @Test func partialWindowIgnoresNeighborsOnTheOtherSide() throws {
+    let placement = try placement(of: 1, scrolledTo: 300)
+    #expect(!policy(right: true).isParked(placement, in: testViewport))
   }
 
   @Test func insertHonorsAnExplicitWidth() {

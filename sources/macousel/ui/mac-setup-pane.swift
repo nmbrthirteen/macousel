@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct MacSetupPane: View {
-  @State private var setup = MacSetupChecks()
+  @State private var setup: MacSetupChecks
+
+  init(store: PreferencesStore) {
+    _setup = State(initialValue: MacSetupChecks(store: store))
+  }
 
   var body: some View {
     SettingsForm {

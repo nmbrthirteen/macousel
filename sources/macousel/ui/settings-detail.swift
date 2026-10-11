@@ -16,7 +16,7 @@ struct SettingsDetail: View {
     case .displays: DisplaysPane(store: store, manager: manager)
     case .shortcuts: ShortcutsPane(store: store)
     case .pointer: PointerPane(store: store)
-    case .macSetup: MacSetupPane()
+    case .macSetup: MacSetupPane(store: store)
     case .about: AboutPane(updater: updater, onShowWelcome: onShowWelcome)
     }
   }

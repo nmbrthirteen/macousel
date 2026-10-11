@@ -32,6 +32,9 @@ struct PointerPane: View {
         }
         .pickerStyle(.segmented)
         .disabled(!store.preferences.swipeGestureEnabled)
+        ToggleRow(
+          title: "Reverse swipe direction", isOn: $store.preferences.reversesSwipeDirection,
+          caption: "Applies to the trackpad swipe and the scroll gesture.")
       }
     }
   }

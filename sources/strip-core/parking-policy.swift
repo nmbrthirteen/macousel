@@ -16,13 +16,13 @@ public struct ParkingPolicy: Sendable, Equatable {
   public func frame(for placement: Placement, in viewport: CGRect) -> CGRect {
     switch placement.visibility {
     case .full:
-      placement.frame
+      return placement.frame
     case .partial:
-      overhangsNeighbor(placement.frame, in: viewport)
-        ? parked(placement.frame, toward: overhangSide(of: placement.frame, in: viewport))
-        : placement.frame
+      let side = overhangSide(of: placement.frame, in: viewport)
+      return hasNeighbor(on: side) && overhangsPastHalf(placement.frame, toward: side)
+        ? parked(placement.frame, toward: side) : placement.frame
     case .offscreen(let side):
-      parked(placement.frame, toward: side)
+      return parked(placement.frame, toward: side)
     }
   }
 
@@ -34,8 +34,9 @@ public struct ParkingPolicy: Sendable, Equatable {
     frame.minX < viewport.minX ? .left : .right
   }
 
-  private func overhangsNeighbor(_ frame: CGRect, in viewport: CGRect) -> Bool {
-    hasNeighbor(on: overhangSide(of: frame, in: viewport))
+  private func overhangsPastHalf(_ frame: CGRect, toward side: HorizontalDirection) -> Bool {
+    let overhang = side == .left ? displayBounds.minX - frame.minX : frame.maxX - displayBounds.maxX
+    return overhang > frame.width / 2
   }
 
   private func hasNeighbor(on side: HorizontalDirection) -> Bool {

@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   let manager: WindowManager
   let onboarding: OnboardingWindowController
   let updater: Updater
+  let diagnostics: DiagnosticsAction
   private let terminationSignals = TerminationSignals()
 
   override init() {
@@ -18,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     updater = Updater(
       feed: GitHubReleaseFeed(), installer: UpdateInstaller.running(),
       currentVersion: BundleInfo(bundle: .main).version, store: store)
+    diagnostics = DiagnosticsAction(store: store)
     super.init()
   }
 

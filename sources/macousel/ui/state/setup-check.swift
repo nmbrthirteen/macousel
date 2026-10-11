@@ -5,6 +5,7 @@ struct SetupCheck: Identifiable {
   let effect: String
   let location: String
   let isPassing: Bool
+  var passingDetail: String?
   var offenders: [String] = []
   var fix: StatusRow.ActionButton?
 
@@ -13,7 +14,7 @@ struct SetupCheck: Identifiable {
   }
 
   var detail: String {
-    guard !isPassing else { return effect }
+    guard !isPassing else { return passingDetail ?? effect }
     let found = offenders.isEmpty ? "" : "Found: \(offenders.joined(separator: ", ")). "
     return "\(found)\(effect) Change it in \(location)."
   }

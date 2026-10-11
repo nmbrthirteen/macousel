@@ -7,7 +7,7 @@ struct MacouselApp: App {
     MenuBarExtra("Macousel", systemImage: "rectangle.split.3x1") {
       MenuBarContent(
         manager: delegate.manager, updater: delegate.updater,
-        onShowWelcome: delegate.onboarding.show)
+        diagnostics: delegate.diagnostics, onShowWelcome: delegate.onboarding.show)
     }
     .menuBarExtraStyle(.menu)
 

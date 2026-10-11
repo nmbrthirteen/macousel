@@ -84,13 +84,16 @@ CODESIGN_IDENTITY="My Certificate" scripts/bundle.sh
 
 ## Default shortcuts
 
-All of them use Control-Option. Plain Option stays with macOS.
+Most of them use Control-Option. The column numbers use plain Option, which takes over the symbols macOS types with Option-1 to Option-9. Rebind them in Settings > Shortcuts if you need those symbols.
 
 | Action | Keys |
 | --- | --- |
 | Focus left, down, up, right | ⌃⌥ H J K L, or the arrows |
 | Move the window | ⌃⌥⇧ and the same keys |
 | First or last window | ⌃⌥⌘ ← → |
+| Jump to column 1 to 8, or 9 for the last | ⌥ 1 to 9 |
+| Move the window to that column | ⌥⇧ 1 to 9 |
+| Move the window to the first or last spot | ⌃⌥⌘⇧ ← → |
 | Cycle width, full width, center | ⌃⌥ R, F, C |
 | Wider, narrower | ⌃⌥ = and - |
 | Taller, shorter, equalize | ⌃⌥⇧ = and -, ⌃⌥ 0 |
@@ -100,6 +103,10 @@ All of them use Control-Option. Plain Option stays with macOS.
 | Float | ⌃⌥ T |
 | Send to the next display | ⌃⌥ N |
 | Pause tiling | ⌃⌥ Q |
+
+## Reporting a problem
+
+Choose "Save diagnostics…" from the menu bar icon. It writes one text file to your Desktop with the app's log, your settings, your displays, and the names of any crash reports. Attach it to the issue.
 
 ## Scripting
 

@@ -13,7 +13,9 @@ extension Action {
     let shifted: Hotkey.Modifiers = [.control, .option, .shift]
     let commanded: Hotkey.Modifiers = [.control, .option, .command]
     let optioned: Hotkey.Modifiers = [.option]
-    let columnKeys = [
+    let optionShifted: Hotkey.Modifiers = [.option, .shift]
+    let everyModifier: Hotkey.Modifiers = [.control, .option, .command, .shift]
+    let placeKeys = [
       kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5,
       kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9,
     ]
@@ -29,6 +31,8 @@ extension Action {
       .moveDown: [Hotkey(kVK_ANSI_J, shifted), Hotkey(kVK_DownArrow, shifted)],
       .moveUp: [Hotkey(kVK_ANSI_K, shifted), Hotkey(kVK_UpArrow, shifted)],
       .moveRight: [Hotkey(kVK_ANSI_L, shifted), Hotkey(kVK_RightArrow, shifted)],
+      .moveToFirst: [Hotkey(kVK_LeftArrow, everyModifier)],
+      .moveToLast: [Hotkey(kVK_RightArrow, everyModifier)],
       .sendToNextDisplay: [Hotkey(kVK_ANSI_N, base)],
       .togglePaused: [Hotkey(kVK_ANSI_Q, base)],
       .cycleWidth: [Hotkey(kVK_ANSI_R, base)],
@@ -46,8 +50,9 @@ extension Action {
       .toggleTabbed: [Hotkey(kVK_ANSI_T, shifted)],
       .toggleFloating: [Hotkey(kVK_ANSI_T, base)],
     ]
-    for (action, key) in zip(Action.columnActions, columnKeys) {
-      shortcuts[action] = [Hotkey(key, optioned)]
+    for (place, key) in zip(Action.places, placeKeys) {
+      shortcuts[.focusColumn(place)] = [Hotkey(key, optioned)]
+      shortcuts[.moveToColumn(place)] = [Hotkey(key, optionShifted)]
     }
     return shortcuts
   }()

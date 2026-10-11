@@ -121,29 +121,4 @@ struct StripScrollingTests {
     #expect(strip.scrollOffset == 0)
     #expect(strip.focusedColumn == nil)
   }
-
-  @Test func settleFocusesColumnNearestViewportCentre() {
-    var (strip, config) = wideStrip(mode: .never)
-    strip.settle(at: 700, viewportWidth: 1016, config: config)
-    #expect(strip.focusedWindow == id(3))
-    strip.settle(at: 0, viewportWidth: 1016, config: config)
-    #expect(strip.focusedWindow == id(2))
-    #expect(strip.scrollOffset == 0)
-  }
-
-  @Test func settleAppliesCenterModeToWinner() {
-    var (strip, config) = wideStrip(mode: .onOverflow)
-    strip.settle(at: 700, viewportWidth: 1016, config: config)
-    #expect(strip.focusedWindow == id(3))
-    #expect(strip.scrollOffset == 516)
-  }
-
-  @Test func settleBeyondEndsPicksEdgeColumns() {
-    var (strip, config) = wideStrip(mode: .never)
-    strip.settle(at: -2000, viewportWidth: 1016, config: config)
-    #expect(strip.focusedWindow == id(1))
-    strip.settle(at: 9000, viewportWidth: 1016, config: config)
-    #expect(strip.focusedWindow == id(5))
-    #expect(strip.scrollOffset == 1032)
-  }
 }

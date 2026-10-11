@@ -74,8 +74,19 @@ struct PlacementTests {
     #expect(fixture.frames(of: open) == expected.frames)
   }
 
-  @Test func partiallyVisibleColumnBesideADisplayParksOnTheOppositeSide() throws {
+  @Test func columnOverhangingANeighbourByLessThanHalfStaysWhereTheEngineSetsIt() throws {
     let fixture = try ControllerFixture(displays: pair) { $0.layout.defaultWidth = 0.6 }
+    let open = windows(2, in: fixture)
+
+    fixture.launch()
+
+    let expected = ExpectedStrip(columns: [1, 2], fraction: 0.6, on: .leftOfPair, among: pair)
+    #expect(try #require(open[1].frame).maxX > Display.leftOfPair.frame.maxX)
+    #expect(fixture.frames(of: open) == expected.frames)
+  }
+
+  @Test func columnOverhangingANeighbourByMoreThanHalfParksOnTheOppositeSide() throws {
+    let fixture = try ControllerFixture(displays: pair) { $0.layout.defaultWidth = 0.9 }
     let open = windows(2, in: fixture)
 
     fixture.launch()
