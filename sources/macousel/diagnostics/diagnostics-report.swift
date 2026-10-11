@@ -6,6 +6,7 @@ struct DiagnosticsReport {
   let preferencesJSON: String
   let crashReports: [String]
   let log: String
+  var engine: EngineReport?
 
   var text: String {
     [
@@ -16,7 +17,11 @@ struct DiagnosticsReport {
       section("Preferences", lines: [preferencesJSON]),
       section("Crash reports", lines: crashReports.isEmpty ? ["None"] : crashReports),
       section("Log, last 15 minutes", lines: [log]),
-    ].joined(separator: "\n\n") + "\n"
+    ].joined(separator: "\n\n") + engineText + "\n"
+  }
+
+  private var engineText: String {
+    engine.map { "\n\n" + $0.text } ?? ""
   }
 
   private func section(_ title: String, lines: [String]) -> String {

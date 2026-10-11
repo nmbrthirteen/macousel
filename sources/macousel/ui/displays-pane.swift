@@ -18,6 +18,7 @@ struct DisplaysPane: View {
         ForEach(manager.displays, id: \.uuid) { display in
           SettingsGroup(title: display.name) {
             ToggleRow(title: "Tile windows on this display", isOn: tilingBinding(for: display.uuid))
+              .engineGated(.perDisplayTiling, for: store.preferences.engine)
           }
         }
       }

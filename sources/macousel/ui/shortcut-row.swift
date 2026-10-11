@@ -2,6 +2,8 @@ import SwiftUI
 import WindowSystem
 
 struct ShortcutRow: View {
+  static let unavailableCaption = "Not available with the Paneru engine"
+
   let action: Action
   @Bindable var store: PreferencesStore
   @State private var recording: ShortcutRecording
@@ -24,11 +26,23 @@ struct ShortcutRow: View {
           ShortcutAddButton(recording: recording, label: "Add shortcut for \(action.title)")
         }
       }
+      .modifier(EngineGated(isSupported: action.isSupported(by: engine)))
       if let message = recording.message {
         ErrorText(message)
       }
+      if hasUnavailableHotkey {
+        CaptionText(Self.unavailableCaption)
+      }
     }
     .onDisappear(perform: recording.stop)
+  }
+
+  private var engine: WindowEngine { store.preferences.engine }
+
+  private var hasUnavailableHotkey: Bool {
+    engine == .paneru && action.isSupported(by: engine)
+      && action.paneruSupport != .handledByMacousel
+      && hotkeys.contains { !PaneruChord.isAvailable($0) }
   }
 
   private var hotkeys: [Hotkey] {

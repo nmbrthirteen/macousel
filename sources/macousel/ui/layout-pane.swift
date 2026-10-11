@@ -23,9 +23,11 @@ struct LayoutPane: View {
       }
 
       SettingsGroup(title: "Widths") {
-        PercentPicker(
-          title: "Default width of new windows",
-          selection: $store.preferences.layout.defaultWidth)
+        CaptionedRow(caption: defaultWidthCaption) {
+          PercentPicker(
+            title: "Default width of new windows",
+            selection: $store.preferences.layout.defaultWidth)
+        }
         CaptionedRow(caption: store.preferences.layout.centerMode.summary) {
           Picker("Center the focused column", selection: $store.preferences.layout.centerMode) {
             ForEach(CenterMode.allCases, id: \.self) { mode in
@@ -42,5 +44,10 @@ struct LayoutPane: View {
           widths: $store.preferences.layout.presetWidths, hoveredWidth: $hoveredPreset)
       }
     }
+  }
+
+  private var defaultWidthCaption: String? {
+    store.preferences.engine == .paneru && store.preferences.hasWidthRule
+      ? "Paneru ignores this while an app rule sets a width." : nil
   }
 }

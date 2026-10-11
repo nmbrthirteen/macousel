@@ -1,6 +1,6 @@
 # Macousel
 
-A scrolling window manager for macOS.
+Macousel is a native Mac app whose window management runs on [Paneru](https://github.com/karinushka/paneru), an open-source scrolling window manager written in Rust. Macousel adds the settings window, the menu bar indicator, the minimap, the overview, app shortcuts, and a URL scheme. Paneru moves the windows.
 
 Every window is a column on one horizontal strip. The strip is wider than your screen, so you scroll it. Opening a window never resizes the ones you already have.
 
@@ -8,7 +8,9 @@ It is the model niri and PaperWM use on Linux, built as a native Mac app.
 
 ## Status
 
-Early. I wrote it on macOS 27 with two displays. The layout engine is well tested. The parts that talk to macOS have had little real use so far, so expect bugs and please report them.
+Early. I wrote it on macOS 27 with two displays. The parts that talk to macOS have had little real use so far, so expect bugs and please report them.
+
+Paneru runs as a child process of the app. Macousel writes its configuration, starts it, and stops it when you pause, quit, or switch engines. The older engine I wrote in Swift is still in the app. You can switch back to it in Settings > General.
 
 ## What it does
 
@@ -17,15 +19,14 @@ Early. I wrote it on macOS 27 with two displays. The layout engine is well teste
 - New windows open next to the focused one.
 - Focus moves with the keyboard, and the strip scrolls just far enough to show the window.
 - Each display and each Space has its own strip.
-- Column order, widths, and stacks come back after a restart.
+- Column order and widths come back after a restart.
 
 **Columns**
 
 - Stack several windows in one column and resize the rows.
-- Turn a stack into tabs.
+- Turn a stack into a tabbed column. Paneru shows one window at a time and has no tab bar.
 - Cycle a column through preset widths, or nudge it wider and narrower.
-- Dragging a window shows where it will land. Drop it on another window to stack it, or beside a window to make it a neighbour.
-- The overview can reorder and resize columns and rows with the pointer or the keyboard.
+- Float a window to take it out of the strip.
 
 **Input**
 
@@ -36,16 +37,33 @@ Early. I wrote it on macOS 27 with two displays. The layout engine is well teste
 
 **The rest**
 
-- A minimap of the strip, a focus border, and dimming for inactive windows.
-- Per-app rules: float, open at a set width, or open in a set slot.
-- When I focus a tiled window, floating windows that sit over it come back to the front.
+- A minimap of the strip that appears when focus moves, and a column count in the menu bar.
+- An overview that shows every window in the strip. Pick one to focus it.
+- A focus border and dimming for inactive windows.
+- Per-app rules: float, open at a set width, or open in a set column.
 - A URL scheme and a command line client for scripts.
-- Quitting or pausing puts every window back where it was. If Macousel crashes, it relaunches, puts the windows back, and stays paused until you resume it.
+- Quitting or pausing stops Paneru, which centres every window on its display.
+
+## What the built-in engine still offers
+
+Paneru does not do these. The built-in engine does, and Macousel greys out the matching settings while Paneru is selected.
+
+- Drag a window to reorder it or drop it onto another window to stack it.
+- A tab bar for tabbed columns.
+- Move a window straight to column 1 to 9.
+- Tiling off for one display, and the display under the pointer becoming the active one.
+- The scratchpad.
+- Floating windows that return to the front when you focus a tiled window.
+- Reorder and resize columns and rows in the overview.
+- Putting every window back at its original frame when you quit or pause.
+
+Switch engines in Settings > General. Macousel stops one and starts the other without a relaunch.
 
 ## Requirements
 
 - macOS 26 or later.
-- Accessibility permission. macOS only lets an app move other apps' windows through the Accessibility API. It is the only permission Macousel asks for.
+- Accessibility permission. macOS only lets an app move other apps' windows through the Accessibility API. It is the only permission Macousel asks for, and Paneru runs under it as a child of the app.
+- No other copy of Paneru running. Two window managers would both move your windows, so Macousel shows a message and does not start its own.
 
 ## Install
 
@@ -83,12 +101,18 @@ Updates are verified with a signing key that I hold, and the app is not notarize
 
 ### Build from source
 
+You need Xcode's command line tools and Rust. Install Rust from [rustup.rs](https://rustup.rs).
+
 ```sh
 git clone https://github.com/nmbrthirteen/macousel.git
 cd macousel
 scripts/bundle.sh
 open build/Macousel.app
 ```
+
+`scripts/bundle.sh` calls `scripts/engine.sh`, which builds the Paneru version pinned in `support/engine-version` into `build/engine-<version>/` and prints the path of the binary. The first build takes two to three minutes. Later runs reuse the binary. The bundle script copies it to `Contents/Helpers/paneru` and signs it before it signs the app.
+
+For a development build with `swift run`, run `scripts/engine.sh` once. Macousel finds the binary in `build/` when the app has no bundled helper.
 
 To keep the Accessibility grant across your own rebuilds, sign with a certificate from your keychain:
 
@@ -100,7 +124,9 @@ CODESIGN_IDENTITY="My Certificate" scripts/bundle.sh
 
 Most of them use Control-Option, including the column numbers. Plain Option plus a digit would block characters on layouts such as German, where Option-5 to Option-9 type brackets and braces. Rebind any of them in Settings > Shortcuts. A shortcut you already changed keeps its binding.
 
-Two columns of two stacked windows make a 2 by 2 grid. I build one by stacking a window into each column, or by dragging a window onto the top or bottom half of another.
+Paneru handles the keys itself through an event tap. Macousel registers only the pause and overview keys and your app shortcuts. A key that Paneru has no name for stays in Settings but is not sent to Paneru, and its row says so.
+
+Two columns of two stacked windows make a 2 by 2 grid. I build one by stacking each window onto the column on its left.
 
 | Action | Keys |
 | --- | --- |
@@ -108,17 +134,19 @@ Two columns of two stacked windows make a 2 by 2 grid. I build one by stacking a
 | Move the window | ⌃⌥⇧ and the same keys |
 | First or last window | ⌃⌥⌘ ← → |
 | Jump to column 1 to 8, or 9 for the last | ⌃⌥ 1 to 9 |
-| Move the window to that column | ⌃⌥⇧ 1 to 9 |
 | Move the window to the first or last spot | ⌃⌥⌘⇧ ← → |
 | Cycle width, full width, center | ⌃⌥ R, F, C |
 | Wider, narrower | ⌃⌥ = and - |
 | Taller, shorter, equalize | ⌃⌥⇧ = and -, ⌃⌥ 0 |
-| Stack with the column on the left or right | ⌃⌥ ] and [ |
-| Pop out to the right or left | ⌃⌥⇧ ] and [ |
+| Stack with the column on the left | ⌃⌥ ] or [ |
+| Pop out to its own column on the right | ⌃⌥⇧ ] or [ |
 | Tabbed column | ⌃⌥⇧ T |
 | Float | ⌃⌥ T |
 | Send to the next display | ⌃⌥ N |
+| Overview | ⌃⌥ O |
 | Pause tiling | ⌃⌥ Q |
+
+Paneru only stacks a window onto the column on its left, so both stack shortcuts do the same thing. Both pop-out shortcuts do too. Move to column 1 to 9 (⌃⌥⇧ 1 to 9) and the scratchpad shortcuts need the built-in engine.
 
 ## What Macousel stores and sends
 
@@ -126,11 +154,13 @@ Layout restore keeps the app identifiers and a hash of each window title in the 
 
 ## Reporting a problem
 
-Choose "Save diagnostics…" from the menu bar icon. It writes one text file to your Desktop with the app's log, your settings, your displays, the names of any crash reports, and the names of any apps that respond slowly. Attach it to the issue.
+Choose "Save diagnostics…" from the menu bar icon. It writes one text file to your Desktop with the app's log, your settings, your displays, the names of any crash reports, and the names of any apps that respond slowly. It also holds the selected engine, the Paneru version, the state of the engine process, the configuration Macousel wrote for it, and the last 200 lines of the engine log. Attach it to the issue.
+
+The engine log is `~/Library/Logs/Macousel/engine.log`. It rotates at 1 MB and keeps one previous file.
 
 ## Scripting
 
-Every action has a command name. List them:
+Every action has a command name. With Paneru selected, Macousel forwards each engine action to the engine. List them:
 
 ```sh
 build/Macousel.app/Contents/MacOS/Macousel list
@@ -169,15 +199,19 @@ swift test
 
 The package has three targets:
 
-- `StripCore` is the layout engine. It is pure Swift with no AppKit, and it holds most of the tests.
+- `StripCore` is the layout engine of the built-in engine. It is pure Swift with no AppKit, and it holds most of the engine tests.
 - `WindowSystem` wraps the Accessibility API, hotkeys, displays, and gestures.
-- `Macousel` is the app: the window manager, settings, and overlays.
+- `Macousel` is the app: both engines, settings, and overlays. `sources/macousel/engine/` runs and configures Paneru.
+
+`swift build` and `swift test` do not need Rust. Only the bundle does.
 
 The code has no comments. Names carry the meaning.
 
 ### Releasing
 
 Push a version tag. The release workflow runs the tests, builds the app with that version, signs the zip with the update key, attests build provenance, and publishes `Macousel.dmg`, `Macousel.zip`, `Macousel.zip.sig`, and `install.sh` to a GitHub release. The release notes list the SHA-256 sums of the DMG and the zip.
+
+The workflow installs a pinned Rust toolchain and caches the engine build, keyed on the version in `support/engine-version`. To move to a newer Paneru, change that file and read the new release's configuration notes first.
 
 The workflow reads the base64 private key from the `UPDATE_SIGNING_KEY` repository secret. To sign a zip by hand:
 
@@ -208,4 +242,6 @@ Macousel uses a few private macOS calls. Every Mac window manager needs the same
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Macousel is MIT. See [LICENSE](LICENSE).
+
+The bundled Paneru engine is MIT too, copyright Karinushka. Its license is in `support/licenses/paneru-license.txt`. The crates it links against are listed with their licenses in `support/licenses/third-party-notices.txt`. Both files sit in `Macousel.app/Contents/Resources`, and Settings > About has a button that opens that folder.

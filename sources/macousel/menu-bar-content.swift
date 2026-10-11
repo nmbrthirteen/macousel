@@ -14,6 +14,11 @@ struct MenuBarContent: View {
     Text(statusText)
       .disabled(true)
 
+    if let notice = manager.notice {
+      Text(notice)
+        .disabled(true)
+    }
+
     if manager.status == .needsPermission {
       Button("Grant Accessibility access…", action: AccessibilityPermission.requestWithPrompt)
     }

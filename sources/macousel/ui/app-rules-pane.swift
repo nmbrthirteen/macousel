@@ -15,6 +15,7 @@ struct AppRulesPane: View {
           title: "Keep floating windows above tiled windows",
           isOn: $store.preferences.keepsFloatingWindowsOnTop,
           caption: "After you focus a tiled window, floating windows it covers come back to the front.")
+          .engineGated(.floatingWindowsOnTop, for: store.preferences.engine)
       }
 
       SettingsGroup(title: "Apps", footer: "A rule applies to every window of the app.") {

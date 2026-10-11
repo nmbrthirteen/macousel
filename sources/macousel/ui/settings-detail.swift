@@ -10,7 +10,7 @@ struct SettingsDetail: View {
 
   var body: some View {
     switch section {
-    case .general: GeneralPane(store: store)
+    case .general: GeneralPane(store: store, manager: manager)
     case .layout: LayoutPane(store: store)
     case .motion: MotionPane(store: store)
     case .appRules: AppRulesPane(store: store)

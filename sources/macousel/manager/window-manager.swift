@@ -1,9 +1,6 @@
-import AppKit
-import StripCore
+import Foundation
+import Observation
 import WindowSystem
-import os
-
-private let logger = Logger(subsystem: "dev.macousel.app", category: "window-manager")
 
 @Observable
 final class WindowManager {
@@ -11,239 +8,74 @@ final class WindowManager {
     case needsPermission, running, paused
   }
 
-  private(set) var status: Status = .needsPermission {
-    didSet { indicator.isTiling = status == .running }
-  }
-  private(set) var displays: [Display] = []
+  private(set) var selected: WindowEngine
 
   private let store: PreferencesStore
-  private let source: any WindowSource
-  private let environment: any DesktopEnvironment
-  private let state: TilingState
-  private let presenter: LayoutPresenter
-  private let release: WindowRelease
-  private let accessibility: AccessibilityMonitor
-  private let reconciler: WindowReconciler
-  private let focus: FocusDriver
-  private let router: CommandRouter
-  private let interactions: ManagerInteractions
-  private let inputs: InputBindings
-  private let crashRecovery: any CrashRecovery
-  private let indicator: StripPositionIndicator
-  private let floating: FloatingWindowKeeper
-  private let systemFocus: SystemFocusHandler
-
-  @ObservationIgnored private var appliedPreferences: Preferences?
-  @ObservationIgnored private let synchronization = SynchronizationScheduler()
-  @ObservationIgnored private var hasLostAccess = false
-  @ObservationIgnored private var restoresArrivingWindows = false
+  private let builtIn: BuiltInEngine
+  private let paneru: PaneruEngine
 
   convenience init(store: PreferencesStore) {
-    self.init(store: store, ports: .system(), defaults: .standard, polling: .standard)
+    let ports = ManagerPorts.system()
+    self.init(
+      store: store, ports: ports, defaults: .standard,
+      paneru: .system(
+        store: store, environment: ports.environment, shortcuts: ports.shortcuts))
   }
 
   init(
     store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults,
-    polling: AccessibilityMonitor.Intervals = .standard
+    polling: AccessibilityMonitor.Intervals = .standard, paneru: PaneruEngine? = nil
   ) {
-    let parts = ManagerComponents(store: store, ports: ports, defaults: defaults)
     self.store = store
-    self.source = ports.source
-    self.environment = ports.environment
-    state = parts.state
-    presenter = parts.presenter
-    reconciler = parts.reconciler
-    focus = parts.focus
-    release = parts.release
-    router = parts.router
-    accessibility = AccessibilityMonitor(environment: ports.environment, intervals: polling)
-    let interactions = ManagerInteractions(
-      state: parts.state, source: ports.source, presenter: parts.presenter, focus: parts.focus,
-      store: store, ports: ports)
-    self.interactions = interactions
-    inputs = InputBindings(
-      store: store, shortcuts: ports.shortcuts, interactions: interactions,
-      appShortcuts: parts.appShortcuts)
-    crashRecovery = ports.crashRecovery
-    indicator = parts.indicator
-    floating = parts.floating
-    systemFocus = parts.systemFocus
-    parts.floating.isSuppressed = { [router = parts.router] in
-      router.isOverviewOpen || interactions.isGestureActive
+    selected = store.preferences.engine
+    builtIn = BuiltInEngine(store: store, ports: ports, defaults: defaults, polling: polling)
+    self.paneru =
+      paneru
+      ?? .system(
+        store: store, environment: ports.environment, shortcuts: ports.shortcuts)
+  }
+
+  var status: Status { active.status }
+  var displays: [Display] { active.displays }
+  var position: StripPosition? { active.position }
+  var notice: String? { active.notice }
+
+  private var active: any ManagementEngine {
+    switch selected {
+    case .paneru: paneru
+    case .builtIn: builtIn
     }
   }
 
-  var position: StripPosition? { indicator.position }
-
   func start() {
-    displays = environment.displays
-    if environment.isAccessibilityGranted { begin() } else { awaitAccessibility() }
+    store.onChange = { [weak self] in self?.preferencesChanged() }
+    selected = store.preferences.engine
+    active.start()
   }
 
   func perform(_ action: Action) {
-    switch (action, status) {
-    case (_, .needsPermission): router.dropped(action, because: .needsPermission)
-    case (.togglePaused, .running): pause()
-    case (.togglePaused, .paused): resume()
-    case (_, .running): router.perform(action)
-    case (_, .paused): router.dropped(action, because: .paused)
-    }
+    active.perform(action)
   }
 
   func shutdown() {
-    accessibility.stop()
-    if status == .running {
-      reconciler.saveSession()
-      release.releaseEverything()
-    }
-    if status != .needsPermission && environment.isAccessibilityGranted { release.forgetSaved() }
-    stopSystem()
+    active.shutdown()
   }
 
-  private func stopSystem() {
-    router.closeOverview()
-    synchronization.cancel()
-    reconciler.cancelPending()
-    floating.cancel()
-    focus.stop()
-    crashRecovery.disarm()
-    inputs.release()
-    source.stop()
-    environment.stopObserving()
-  }
-
-  private func awaitAccessibility() {
-    logger.info("Waiting for Accessibility access")
-    environment.requestAccessibilityAccess()
-    accessibility.waitForGrant { [weak self] in self?.begin() }
-  }
-
-  private func accessibilityLost() {
-    logger.error("Accessibility access was lost, tiling stopped")
-    status = .needsPermission
-    hasLostAccess = true
-    restoresArrivingWindows = false
-    presenter.halt()
-    stopSystem()
-    awaitAccessibility()
-  }
-
-  private func begin() {
-    connectEvents()
-    source.start()
-    environment.startObserving()
-    interactions.start()
-    accessibility.watchForLoss { [weak self] in self?.accessibilityLost() }
-    if hasLostAccess || crashRecovery.isRecoveringFromCrash {
-      release.restoreEverythingSaved()
-    }
-    hasLostAccess = false
-    if crashRecovery.isRecoveringFromCrash {
-      status = .paused
-      restoresArrivingWindows = true
-      logger.info("Recovering windows after a crash, tiling paused")
-      applyInputs()
-      return
-    }
-    status = .running
-    logger.info("Accessibility access granted, tiling started")
-    crashRecovery.arm()
-    applyInputs()
-    synchronize()
-  }
-
-  private func connectEvents() {
-    synchronization.onSynchronize = { [weak self] in self?.synchronize() }
-    source.onEvent = { [weak self] event in self?.handle(event) }
-    environment.onSpaceChanged = { [weak self] in
-      self?.router.closeOverview()
-      self?.synchronization.schedule()
-    }
-    environment.onDisplaysChanged = { [weak self] in
-      self?.router.closeOverview()
-      self?.presenter.invalidateAll()
-      self?.synchronization.schedule()
-    }
-    focus.onUnconfirmedFocus = { [weak self] window in
-      guard self?.status == .running else { return }
-      self?.systemFocus.changed(to: window)
-    }
-    presenter.overlays.onTabSelected = { [weak self] window in self?.router.select(window) }
-    presenter.overlays.onMinimapSelect = { [weak self] window in self?.router.reveal(window) }
-    presenter.overlays.onMinimapMove = { [weak self] window, target in
-      self?.router.moveFromMinimap(window, to: target)
-    }
-    store.onChange = { [weak self] in self?.preferencesChanged() }
-  }
-
-  private func pause() {
-    status = .paused
-    logger.info("Tiling paused")
-    router.closeOverview()
-    crashRecovery.disarm()
-    synchronization.cancel()
-    reconciler.cancelPending()
-    floating.cancel()
-    release.releaseEverything()
-    applyInputs()
-  }
-
-  private func resume() {
-    status = .running
-    restoresArrivingWindows = false
-    logger.info("Tiling resumed")
-    crashRecovery.arm()
-    applyInputs()
-    synchronize()
-  }
-
-  private func applyInputs() {
-    inputs.apply(isTiling: status == .running) { [weak self] action in self?.perform(action) }
+  func engineReport() -> EngineReport {
+    paneru.report(selected: selected)
   }
 
   private func preferencesChanged() {
-    guard status != .needsPermission else { return }
-    applyInputs()
-    guard status == .running, store.preferences != appliedPreferences else { return }
-    appliedPreferences = store.preferences
-    presenter.invalidateAll()
-    presenter.overlays.restackDim()
-    synchronize()
-  }
-
-  private func synchronize() {
-    guard status == .running else { return }
-    reconciler.reconcile { [weak self] in self?.finishSynchronizing() }
-  }
-
-  private func finishSynchronizing() {
-    guard status == .running else { return }
-    interactions.displaysSynchronized()
-    if displays != state.displays { displays = state.displays }
-    presenter.retain(only: Set(source.windows.keys))
-    presenter.overlays.refreshTitles(using: reconciler.probedTitles)
-    presenter.relayout()
-    floating.refreshFrames(probed: reconciler.probedFacts)
-  }
-
-  private func handle(_ event: WindowSourceEvent) {
-    if restoresArrivingWindows, case .created(let window) = event {
-      release.restoreSaved(window)
+    guard store.preferences.engine == selected else {
+      switchEngine()
+      return
     }
-    guard status == .running else { return }
-    switch event {
-    case .created:
-      synchronization.schedule(delays: SynchronizationScheduler.creationDelays)
-    case .destroyed, .minimized, .restored, .appHidden, .appShown:
-      synchronization.schedule()
-    case .focused(let window):
-      systemFocus.changed(to: WindowID(window))
-    case .moved(let window):
-      floating.windowChanged(window)
-    case .resized(let window):
-      reconciler.invalidateFullScreen(window)
-      interactions.windowResized(window)
-      floating.windowChanged(window)
-    }
+    active.preferencesChanged()
+  }
+
+  private func switchEngine() {
+    active.shutdown()
+    selected = store.preferences.engine
+    active.start()
   }
 }

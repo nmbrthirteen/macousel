@@ -3,6 +3,7 @@ import StripCore
 import WindowSystem
 
 struct Preferences: Codable, Equatable {
+  var engine = WindowEngine.preferred
   var layout = LayoutConfig()
   var shortcuts: [Action: [Hotkey]] = Action.defaultShortcuts
   var animationSpeed = AnimationSpeed.fast
@@ -38,6 +39,7 @@ struct Preferences: Codable, Equatable {
       (try? values.decodeIfPresent(T.self, forKey: key)) ?? fallback
     }
     let defaults = Preferences()
+    engine = value(.engine, or: defaults.engine)
     layout = value(.layout, or: defaults.layout)
     let savedShortcuts: [Action: [Hotkey]] = value(.shortcuts, or: [:])
     shortcuts = defaults.shortcuts.merging(savedShortcuts) { _, saved in saved }
@@ -113,5 +115,13 @@ final class PreferencesStore {
   private func save() {
     guard let data = try? JSONEncoder().encode(preferences) else { return }
     defaults.set(data, forKey: Self.key)
+  }
+}
+
+extension Preferences {
+  var hasWidthRule: Bool {
+    appRules.contains { rule in
+      if case .width = rule.behavior { true } else { false }
+    }
   }
 }

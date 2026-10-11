@@ -16,7 +16,7 @@ struct PersistedSettingsView: View {
     self.manager = manager
     self.updater = updater
     self.onShowWelcome = onShowWelcome
-    _diagnostics = State(initialValue: diagnostics ?? DiagnosticsAction(store: store))
+    _diagnostics = State(initialValue: diagnostics ?? DiagnosticsAction(store: store, engineReport: { manager.engineReport() }))
   }
 
   var body: some View {

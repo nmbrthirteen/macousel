@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     updater = Updater(
       feed: GitHubReleaseFeed(), installer: UpdateInstaller.running(),
       currentVersion: BundleInfo(bundle: .main).version, store: store)
-    diagnostics = DiagnosticsAction(store: store)
+    diagnostics = DiagnosticsAction(store: store, engineReport: { [manager] in manager.engineReport() })
     super.init()
   }
 

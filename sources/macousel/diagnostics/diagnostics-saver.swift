@@ -14,13 +14,13 @@ struct DiagnosticsSaver {
     return "Macousel diagnostics \(formatter.string(from: now())).txt"
   }
 
-  func save(preferences: Preferences) async throws -> URL {
+  func save(preferences: Preferences, engine: EngineReport? = nil) async throws -> URL {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     let preferencesJSON = String(decoding: try encoder.encode(preferences), as: UTF8.self)
     let report = DiagnosticsReport(
       environment: environment, preferencesJSON: preferencesJSON,
-      crashReports: crashReports.names, log: await logText())
+      crashReports: crashReports.names, log: await logText(), engine: engine)
     let file = destination.appendingPathComponent(fileName())
     try report.text.write(to: file, atomically: true, encoding: .utf8)
     return file

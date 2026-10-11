@@ -30,6 +30,11 @@ struct AboutPane: View {
 
       UpdateSection(updater: updater)
 
+      SettingsGroup(title: "Licenses") {
+        CaptionText("Window management by Paneru, used under the MIT license.")
+        Button("Show licenses") { LicenseFolder.open() }
+      }
+
       SettingsGroup(title: "Help") {
         Button("Show welcome guide", action: onShowWelcome)
         ReportProblemRow(diagnostics: diagnostics)

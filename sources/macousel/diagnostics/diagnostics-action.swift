@@ -8,9 +8,11 @@ final class DiagnosticsAction {
   private(set) var failureMessage: String?
   private(set) var isSaving = false
   @ObservationIgnored private let store: PreferencesStore
+  @ObservationIgnored private let engineReport: () -> EngineReport?
 
-  init(store: PreferencesStore) {
+  init(store: PreferencesStore, engineReport: @escaping () -> EngineReport?) {
     self.store = store
+    self.engineReport = engineReport
   }
 
   func save() async {
@@ -26,7 +28,7 @@ final class DiagnosticsAction {
           .appendingPathComponent("Library/Logs/DiagnosticReports", isDirectory: true)),
       logReader: SystemLogReader(), now: { Date() })
     do {
-      let file = try await saver.save(preferences: store.preferences)
+      let file = try await saver.save(preferences: store.preferences, engine: engineReport())
       failureMessage = nil
       NSWorkspace.shared.activateFileViewerSelecting([file])
     } catch {

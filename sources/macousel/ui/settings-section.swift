@@ -63,7 +63,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
   var keywords: [String] {
     switch self {
-    case .general: ["permissions", "accessibility", "login", "startup", "launch", "restore", "session", "update", "automatic"]
+    case .general: ["engine", "paneru", "built-in", "permissions", "accessibility", "login", "startup", "launch", "restore", "session", "update", "automatic"]
     case .layout: ["gap", "width", "preset", "center", "default", "column", "spacing"]
     case .motion: ["animation", "speed", "focus", "border", "dim", "minimap", "overview", "reduce motion"]
     case .appRules: ["app", "float", "rule", "column", "width", "exception"]
