@@ -1,0 +1,72 @@
+import CoreGraphics
+import Foundation
+import WindowSystem
+
+final class WindowRestorer {
+  private static let minimumReachableWidth: CGFloat = 120
+
+  private struct SavedFrame: Codable {
+    var pid: Int32
+    var frame: CGRect
+  }
+
+  private static let defaultsKey = "originalFrames"
+
+  private let defaults: UserDefaults
+  private var originalFrames: [CGWindowID: SavedFrame]
+
+  init(defaults: UserDefaults = .standard) {
+    self.defaults = defaults
+    originalFrames = Self.load(from: defaults)
+  }
+
+  func remember(_ window: ManagedWindow) {
+    if let saved = originalFrames[window.id], saved.pid == window.pid { return }
+    guard let frame = window.frame else { return }
+    originalFrames[window.id] = SavedFrame(pid: window.pid, frame: frame)
+    persist()
+  }
+
+  func retain(only alive: Set<CGWindowID>) {
+    let retained = originalFrames.filter { alive.contains($0.key) }
+    guard retained.count != originalFrames.count else { return }
+    originalFrames = retained
+    persist()
+  }
+
+  func forgetAll() {
+    originalFrames = [:]
+    persist()
+  }
+
+  private static func load(from defaults: UserDefaults) -> [CGWindowID: SavedFrame] {
+    guard let data = defaults.data(forKey: defaultsKey),
+      let saved = try? JSONDecoder().decode([CGWindowID: SavedFrame].self, from: data)
+    else { return [:] }
+    return saved
+  }
+
+  private func persist() {
+    guard let data = try? JSONEncoder().encode(originalFrames) else { return }
+    defaults.set(data, forKey: Self.defaultsKey)
+  }
+
+  func restore(_ windows: [ManagedWindow], on displays: [Display]) {
+    for window in windows {
+      guard let frame = originalFrames[window.id]?.frame ?? window.frame else { continue }
+      window.setFrame(reachable(frame, on: displays))
+    }
+  }
+
+  private func reachable(_ frame: CGRect, on displays: [Display]) -> CGRect {
+    let isReachable = displays.contains {
+      $0.visibleFrame.intersection(frame).width >= min(frame.width, Self.minimumReachableWidth)
+    }
+    guard !isReachable,
+      let nearest = displays.min(by: {
+        $0.frame.squaredDistance(to: frame.center) < $1.frame.squaredDistance(to: frame.center)
+      })
+    else { return frame }
+    return frame.clamped(into: nearest.visibleFrame)
+  }
+}

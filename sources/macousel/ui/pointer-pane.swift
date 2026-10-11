@@ -1,0 +1,34 @@
+import SwiftUI
+
+struct PointerPane: View {
+  private static let fingerOptions = [3, 4]
+
+  @Bindable var store: PreferencesStore
+
+  var body: some View {
+    SettingsForm {
+      Section("Pointer") {
+        ToggleRow(title: "Focus follows mouse", isOn: $store.preferences.focusFollowsMouse)
+        ToggleRow(title: "Mouse follows focus", isOn: $store.preferences.mouseFollowsFocus)
+      }
+
+      Section("Gestures") {
+        ToggleRow(
+          title: "Scroll gesture", isOn: $store.preferences.scrollGestureEnabled,
+          caption: "Hold ⌃⌥ and scroll with two fingers to move the strip.")
+        ToggleRow(
+          title: "Trackpad swipe", isOn: $store.preferences.swipeGestureEnabled,
+          caption:
+            "macOS uses the same swipe to switch desktops. Set the other finger count in System Settings > Trackpad > More Gestures."
+        )
+        Picker("Swipe fingers", selection: $store.preferences.swipeFingers) {
+          ForEach(Self.fingerOptions, id: \.self) { count in
+            Text("\(count) fingers").tag(count)
+          }
+        }
+        .pickerStyle(.segmented)
+        .disabled(!store.preferences.swipeGestureEnabled)
+      }
+    }
+  }
+}

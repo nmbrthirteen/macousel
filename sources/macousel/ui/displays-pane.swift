@@ -1,0 +1,35 @@
+import SwiftUI
+
+struct DisplaysPane: View {
+  @Bindable var store: PreferencesStore
+  let manager: WindowManager
+
+  var body: some View {
+    if manager.displays.isEmpty {
+      ContentUnavailableView(
+        "No displays found", systemImage: "display",
+        description: Text("Displays appear here once Macousel has Accessibility access."))
+    } else {
+      SettingsForm {
+        ForEach(manager.displays, id: \.uuid) { display in
+          Section(display.name) {
+            ToggleRow(title: "Tile windows on this display", isOn: tilingBinding(for: display.uuid))
+          }
+        }
+      }
+    }
+  }
+
+  private func tilingBinding(for uuid: String) -> Binding<Bool> {
+    Binding(
+      get: { !store.preferences.disabledDisplays.contains(uuid) },
+      set: { isOn in
+        if isOn {
+          store.preferences.disabledDisplays.remove(uuid)
+        } else {
+          store.preferences.disabledDisplays.insert(uuid)
+        }
+      }
+    )
+  }
+}
