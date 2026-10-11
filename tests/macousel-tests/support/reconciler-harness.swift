@@ -29,7 +29,8 @@ struct ReconcilerHarness {
       state: state, source: source, environment: environment, store: store,
       restorer: WindowRestorer(defaults: suite.defaults, bootSession: "boot-1"),
       sessions: SessionStore(defaults: suite.defaults), admissionFrames: AdmissionFrames(),
-      scratchpad: scratchpad, now: { ContinuousClock.now })
+      scratchpad: scratchpad,
+      recents: focus.recents, now: { ContinuousClock.now })
   }
 
   func key(space: UInt64 = 1) -> Workspace.Key {

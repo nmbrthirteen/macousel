@@ -13,8 +13,6 @@ struct RemovableChip: View {
         .foregroundStyle(.secondary)
         .buttonStyle(.borderless)
     }
-    .padding(.horizontal, Metrics.Spacing.regular)
-    .padding(.vertical, Metrics.Spacing.tight)
-    .background(.quaternary, in: RoundedRectangle(cornerRadius: Metrics.Radius.chip))
+    .chipSurface()
   }
 }

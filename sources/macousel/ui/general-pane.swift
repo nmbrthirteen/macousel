@@ -28,6 +28,8 @@ struct GeneralPane: View {
         ToggleRow(
           title: "Check for updates automatically", isOn: $store.preferences.checksForUpdates)
       }
+
+      SettingsFileSection(store: store)
     }
     .onAppear(perform: launchAtLogin.refresh)
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in

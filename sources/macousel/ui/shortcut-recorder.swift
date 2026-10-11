@@ -4,7 +4,7 @@ struct ShortcutRecorder: View {
   @State private var recording: ShortcutRecording
 
   init(action: Action, store: PreferencesStore) {
-    _recording = State(initialValue: ShortcutRecording(action: action, store: store))
+    _recording = State(initialValue: ShortcutRecording(target: .action(action), store: store))
   }
 
   var body: some View {

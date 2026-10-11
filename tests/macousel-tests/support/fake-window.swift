@@ -22,7 +22,13 @@ final class FakeWindow: WindowHandle {
     }
     set { storedFrame = newValue }
   }
-  var isTileable = true
+  var isTileable: Bool {
+    get {
+      tileableReadCount += 1
+      return storedTileable
+    }
+    set { storedTileable = newValue }
+  }
   var isFullScreen: Bool {
     get {
       fullScreenReadCount += 1
@@ -37,8 +43,10 @@ final class FakeWindow: WindowHandle {
   private(set) var titleReadCount = 0
   private(set) var fullScreenReadCount = 0
   private(set) var frameReadCount = 0
+  private(set) var tileableReadCount = 0
   private var storedFrame: CGRect?
   private var storedFullScreen = false
+  private var storedTileable = true
   private var storedTitle: String
 
   init(id: CGWindowID, app: FakeApp, title: String, frame: CGRect) {

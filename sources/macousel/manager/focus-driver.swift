@@ -15,6 +15,7 @@ final class FocusDriver {
   }
 
   var onUnconfirmedFocus: ((WindowID) -> Void)?
+  let recents: RecentAppWindows
 
   private var lastCommandActivation: ContinuousClock.Instant?
   private var pendingActivation: PendingActivation?
@@ -35,10 +36,16 @@ final class FocusDriver {
     self.store = store
     self.pointer = pointer
     self.now = now
+    recents = RecentAppWindows(source: source)
+  }
+
+  func observed(_ window: WindowID) {
+    recents.note(window)
   }
 
   func activate(_ window: WindowID, in key: Workspace.Key, from source: FocusSource) {
     state.focusedKey = key
+    recents.note(window)
     let requestedAt = now()
     pendingActivation = PendingActivation(window: window, requestedAt: requestedAt)
     scheduleEchoExpiry(of: window)

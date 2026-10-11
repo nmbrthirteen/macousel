@@ -41,6 +41,19 @@ final class SystemDesktopEnvironment: DesktopEnvironment {
     Spaces.onScreenWindowIDs()
   }
 
+  func activateOrLaunch(bundleIdentifier: String) {
+    if let running = NSRunningApplication.runningApplications(
+      withBundleIdentifier: bundleIdentifier
+    ).first {
+      running.activate()
+      return
+    }
+    guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
+    else { return }
+    NSWorkspace.shared.openApplication(
+      at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+  }
+
   func startObserving() {
     observer.start()
   }

@@ -7,6 +7,7 @@ struct ManagerComponents {
   let focus: FocusDriver
   let release: WindowRelease
   let router: CommandRouter
+  let appShortcuts: AppShortcutLauncher
 
   init(store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults) {
     let state = TilingState(store: store, environment: ports.environment, pointer: ports.pointer)
@@ -26,7 +27,8 @@ struct ManagerComponents {
     let reconciler = WindowReconciler(
       state: state, source: ports.source, environment: ports.environment, store: store,
       restorer: restorer, sessions: SessionStore(defaults: defaults),
-      admissionFrames: admissionFrames, scratchpad: scratchpad, now: { clock.now })
+      admissionFrames: admissionFrames, scratchpad: scratchpad, recents: focus.recents,
+      now: { clock.now })
     let overview = OverviewController(
       state: state, source: ports.source, host: ports.overlays,
       titles: { reconciler.capturedTitles })
@@ -37,8 +39,12 @@ struct ManagerComponents {
     release = WindowRelease(
       state: state, source: ports.source, environment: ports.environment, restorer: restorer,
       presenter: presenter, scratchpad: scratchpad)
-    router = CommandRouter(
+    let router = CommandRouter(
       state: state, source: ports.source, presenter: presenter, focus: focus,
       reconciler: reconciler, scratchpad: scratchpad, overview: overview)
+    self.router = router
+    appShortcuts = AppShortcutLauncher(
+      state: state, source: ports.source, environment: ports.environment,
+      recents: focus.recents, router: router)
   }
 }

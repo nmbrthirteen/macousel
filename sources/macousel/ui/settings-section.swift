@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SettingsSection: String, CaseIterable, Identifiable {
-  case general, layout, motion, appRules, displays, shortcuts, pointer, macSetup, about
+  case general, layout, motion, appRules, displays, shortcuts, appShortcuts, pointer, macSetup, about
 
   static let storageKey = "selectedSettingsSection"
 
@@ -15,6 +15,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .appRules: "App rules"
     case .displays: "Displays"
     case .shortcuts: "Shortcuts"
+    case .appShortcuts: "App shortcuts"
     case .pointer: "Pointer and gestures"
     case .macSetup: "Mac setup"
     case .about: "About"
@@ -29,6 +30,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .appRules: "app.dashed"
     case .displays: "display"
     case .shortcuts: "command"
+    case .appShortcuts: "arrow.up.forward.app"
     case .pointer: "cursorarrow.motionlines"
     case .macSetup: "checklist"
     case .about: "info.circle"
@@ -43,6 +45,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .appRules: .orange
     case .displays: .cyan
     case .shortcuts: .pink
+    case .appShortcuts: .teal
     case .pointer: .green
     case .macSetup: .indigo
     case .about: .brown
@@ -53,7 +56,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     switch self {
     case .general: .general
     case .layout, .motion, .appRules, .displays: .windows
-    case .shortcuts, .pointer: .input
+    case .shortcuts, .appShortcuts, .pointer: .input
     case .macSetup, .about: .system
     }
   }
@@ -66,6 +69,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .appRules: ["app", "float", "rule", "slot", "width", "exception"]
     case .displays: ["monitor", "screen", "display", "tile", "disable"]
     case .shortcuts: ["keyboard", "hotkey", "keys", "binding", "record"]
+    case .appShortcuts: ["app", "launch", "switch"]
     case .pointer: ["mouse", "trackpad", "scroll", "swipe", "gesture", "finger", "focus follows mouse"]
     case .macSetup: ["spaces", "stage manager", "edge tiling", "mission control", "check", "accessibility"]
     case .about: ["version", "welcome", "guide", "icon", "update", "release", "install"]

@@ -13,6 +13,7 @@ protocol DesktopEnvironment: AnyObject {
   func requestAccessibilityAccess()
   func currentSpace(of display: Display) -> UInt64
   func onScreenWindowIDs() -> Set<CGWindowID>
+  func activateOrLaunch(bundleIdentifier: String)
   func startObserving()
   func stopObserving()
 }

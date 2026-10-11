@@ -111,7 +111,7 @@ final class CommandRouter {
     present(key, activating: state.workspaces[key]?.strip.focusedWindow)
   }
 
-  private func reveal(_ window: WindowID) {
+  func reveal(_ window: WindowID) {
     guard let key = state.activeKey(containing: window) else { return }
     state.workspaces[key]?.strip.focus(window)
     state.scrollToFocus(key)

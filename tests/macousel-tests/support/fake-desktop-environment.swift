@@ -13,6 +13,9 @@ final class FakeDesktopEnvironment: DesktopEnvironment {
   var isLowPowerModeEnabled = false
   var onDisplaysChanged: (() -> Void)?
   var onSpaceChanged: (() -> Void)?
+  var runningBundleIdentifiers: Set<String> = []
+  private(set) var activatedApps: [String] = []
+  private(set) var launchedApps: [String] = []
   private(set) var accessibilityRequests = 0
   private(set) var isObserving = false
   private var spaces: [String: UInt64] = [:]
@@ -32,6 +35,14 @@ final class FakeDesktopEnvironment: DesktopEnvironment {
 
   func onScreenWindowIDs() -> Set<CGWindowID> {
     onScreen
+  }
+
+  func activateOrLaunch(bundleIdentifier: String) {
+    if runningBundleIdentifiers.contains(bundleIdentifier) {
+      activatedApps.append(bundleIdentifier)
+    } else {
+      launchedApps.append(bundleIdentifier)
+    }
   }
 
   func startObserving() {

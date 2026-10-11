@@ -56,7 +56,9 @@ final class WindowManager {
       state: parts.state, source: ports.source, presenter: parts.presenter, focus: parts.focus,
       store: store, ports: ports)
     self.interactions = interactions
-    inputs = InputBindings(store: store, shortcuts: ports.shortcuts, interactions: interactions)
+    inputs = InputBindings(
+      store: store, shortcuts: ports.shortcuts, interactions: interactions,
+      appShortcuts: parts.appShortcuts)
     crashRecovery = ports.crashRecovery
   }
 
@@ -224,6 +226,7 @@ final class WindowManager {
 
   private func focusChanged(to window: WindowID) {
     guard !focus.isEchoOfEarlierActivation(window) else { return }
+    focus.observed(window)
     presenter.overlays.restackDim()
     let key = state.activeKey(containing: window)
     state.focusedKey = key

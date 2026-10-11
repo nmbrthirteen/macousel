@@ -37,6 +37,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func application(_ application: NSApplication, open urls: [URL]) {
     for url in urls {
+      if CommandURL.isReloadSettings(url) {
+        store.reload()
+        continue
+      }
       guard let action = CommandURL.action(from: url) else {
         let host = String((url.host ?? "").prefix(Self.loggedHostLength))
         Self.logger.error("Ignored unknown command URL with host: \(host, privacy: .public)")

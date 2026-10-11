@@ -3,12 +3,16 @@ import AppKit
 enum CommandLineClient {
   private static let listCommand = "list"
   private static let raycastCommand = "raycast-scripts"
-  private static let usageExitCode: Int32 = 64
-  private static let failureExitCode: Int32 = 1
+  private static let usageExitCode = CommandLineResult.usageStatus
+  private static let failureExitCode = CommandLineResult.failureStatus
 
   static func run(arguments: [String]) -> Int32? {
     if arguments.count == 2, arguments[0] == raycastCommand {
       return exportRaycastScripts(to: arguments[1])
+    }
+    if let result = SettingsFileCommand.system.run(arguments: arguments) {
+      write(result.text, to: result.stream == .standardOutput ? .standardOutput : .standardError)
+      return result.status
     }
     guard arguments.count == 1, let command = arguments.first, !command.hasPrefix("-") else {
       return nil

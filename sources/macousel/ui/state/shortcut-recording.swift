@@ -1,6 +1,6 @@
-import Observation
 import AppKit
 import Carbon.HIToolbox
+import Observation
 import WindowSystem
 
 @Observable
@@ -8,12 +8,13 @@ final class ShortcutRecording {
   private(set) var isRecording = false
   private(set) var message: String?
 
-  @ObservationIgnored private let action: Action
+  @ObservationIgnored var onStop: (() -> Void)?
+  @ObservationIgnored private let target: ShortcutOwner
   @ObservationIgnored private let store: PreferencesStore
   @ObservationIgnored private let monitor = KeyDownMonitor()
 
-  init(action: Action, store: PreferencesStore) {
-    self.action = action
+  init(target: ShortcutOwner, store: PreferencesStore) {
+    self.target = target
     self.store = store
   }
 
@@ -32,9 +33,21 @@ final class ShortcutRecording {
   }
 
   func stop() {
+    let wasRecording = isRecording
     monitor.stop()
     isRecording = false
     store.isRecordingShortcut = false
+    if wasRecording { onStop?() }
+  }
+
+  func record(_ hotkey: Hotkey) {
+    if let owner = store.preferences.owner(of: hotkey) {
+      message = conflictMessage(for: hotkey, owner: owner)
+      return
+    }
+    store.preferences.assign(hotkey, to: target)
+    message = nil
+    stop()
   }
 
   private func handle(_ event: NSEvent) {
@@ -47,22 +60,19 @@ final class ShortcutRecording {
       message = "Include ⌃, ⌥, or ⌘ in the shortcut."
       return
     }
-    if let owner = owner(of: hotkey) {
-      message = conflictMessage(for: hotkey, owner: owner)
-      return
-    }
-    store.preferences.shortcuts[action, default: []].append(hotkey)
-    message = nil
-    stop()
+    record(hotkey)
   }
 
-  private func owner(of hotkey: Hotkey) -> Action? {
-    store.preferences.shortcuts.first { $0.value.contains(hotkey) }?.key
-  }
-
-  private func conflictMessage(for hotkey: Hotkey, owner: Action) -> String {
-    owner == action
+  private func conflictMessage(for hotkey: Hotkey, owner: ShortcutOwner) -> String {
+    owner == target
       ? "\(hotkey.displayString) is already added here."
-      : "\(hotkey.displayString) is used by \(owner.title). Remove it there first."
+      : "\(hotkey.displayString) is used by \(name(of: owner)). Remove it there first."
+  }
+
+  private func name(of owner: ShortcutOwner) -> String {
+    switch owner {
+    case .action(let action): action.title
+    case .app(let bundleIdentifier): AppIdentity(bundleIdentifier: bundleIdentifier).name
+    }
   }
 }

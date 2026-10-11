@@ -78,4 +78,22 @@ struct ReconcileReadsTests {
 
     #expect(window.frameReadCount == 2)
   }
+
+  @Test func aWindowThatIsNotTileableIsReadOncePerSecondUntilItBecomesTileable() async throws {
+    let fixture = try ControllerFixture()
+    fixture.open(1, atX: 100, activating: true)
+    let dialog = fixture.open(2, atX: 300)
+    dialog.isTileable = false
+    fixture.launch()
+    #expect(await triggerReconcile(fixture, marker: 3))
+    #expect(await triggerReconcile(fixture, marker: 4))
+    #expect(dialog.tileableReadCount == 1)
+
+    dialog.isTileable = true
+    fixture.clock.advance(by: TileabilityCache.rejectionLifetime)
+    #expect(await triggerReconcile(fixture, marker: 5))
+
+    #expect(dialog.tileableReadCount == 2)
+    #expect(await fixture.becomes { !dialog.framesSet.isEmpty })
+  }
 }

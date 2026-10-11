@@ -19,12 +19,13 @@ final class WindowReconciler {
   private var absences = AbsenceTracker()
   private var previousActiveKeys: [Workspace.Key] = []
   private var floating: Set<CGWindowID> = []
-  private var knownTileable: Set<CGWindowID> = []
+  private var tileability: TileabilityCache
+  private let recents: RecentAppWindows
 
   init(
     state: TilingState, source: any WindowSource, environment: any DesktopEnvironment,
     store: PreferencesStore, restorer: WindowRestorer, sessions: SessionStore,
-    admissionFrames: AdmissionFrames, scratchpad: Scratchpad,
+    admissionFrames: AdmissionFrames, scratchpad: Scratchpad, recents: RecentAppWindows,
     now: @escaping () -> ContinuousClock.Instant
   ) {
     self.state = state
@@ -35,6 +36,8 @@ final class WindowReconciler {
     recorder = SessionRecorder(state: state, source: source, store: store, sessions: sessions)
     self.admissionFrames = admissionFrames
     self.scratchpad = scratchpad
+    self.recents = recents
+    tileability = TileabilityCache(now: now)
     unresponsive = UnresponsiveApps(now: now)
   }
 
@@ -90,7 +93,7 @@ final class WindowReconciler {
     -> Bool
   {
     if unresponsive.isPaused(window.pid) { return placed.contains(window.id) }
-    let tileable = isTileable(window)
+    let tileable = tileability.isTileable(window)
     if unresponsive.noteTimeout(of: window) { return placed.contains(window.id) }
     guard tileable else { return false }
     if let cached = fullScreen[window.id] { return !cached }
@@ -98,13 +101,6 @@ final class WindowReconciler {
     if unresponsive.noteTimeout(of: window) { return placed.contains(window.id) }
     fullScreen[window.id] = isFullScreen
     return !isFullScreen
-  }
-
-  private func isTileable(_ window: any WindowHandle) -> Bool {
-    if knownTileable.contains(window.id) { return true }
-    guard window.isTileable else { return false }
-    knownTileable.insert(window.id)
-    return true
   }
 
   private func isExcludedFromTiling(_ window: any WindowHandle) -> Bool {
@@ -219,7 +215,7 @@ final class WindowReconciler {
 
   private func retain(only alive: Set<CGWindowID>) {
     floating.formIntersection(alive)
-    knownTileable.formIntersection(alive)
+    tileability.retain(only: alive)
     fullScreen.retain(only: alive)
     scratchpad.retain(only: alive)
     unresponsive.pruneExpired()
@@ -237,6 +233,7 @@ final class WindowReconciler {
   private func adoptSystemFocus() {
     if let frontmost = environment.frontmostProcessID, unresponsive.isPaused(frontmost) { return }
     guard let focused = source.focusedWindow().map({ WindowID($0) }) else { return }
+    recents.note(focused)
     state.focusedKey = state.activeKey(containing: focused)
     if let key = state.focusedKey {
       state.workspaces[key]?.strip.focus(focused)

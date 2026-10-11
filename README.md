@@ -29,6 +29,7 @@ Early. I wrote it on macOS 27 with two displays. The layout engine is well teste
 **Input**
 
 - Every shortcut can be rebound. One action can have several shortcuts.
+- Give an app its own key in Settings > App shortcuts. The key focuses its window, cycles through its windows when you press it again, and opens the app if it is not running.
 - Swipe with three or four fingers, or hold Control-Option and scroll.
 - Optional focus follows mouse and mouse follows focus.
 
@@ -143,6 +144,17 @@ Write a Raycast script command for every action:
 ```sh
 build/Macousel.app/Contents/MacOS/Macousel raycast-scripts ~/raycast-scripts
 ```
+
+### Settings file
+
+Export all settings to a JSON file and load them on another Mac:
+
+```sh
+build/Macousel.app/Contents/MacOS/Macousel export-settings ~/macousel-settings.json
+build/Macousel.app/Contents/MacOS/Macousel import-settings ~/macousel-settings.json
+```
+
+The file holds a format version and your preferences with sorted keys, so you can edit it by hand. Fields you leave out keep their defaults. Settings > General has the same two buttons.
 
 ## Development
 

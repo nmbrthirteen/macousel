@@ -20,6 +20,7 @@ struct Preferences: Codable, Equatable {
   var focusFollowsMouse = false
   var mouseFollowsFocus = false
   var appRules: [AppRule] = AppRule.defaults
+  var appShortcuts: [AppShortcut] = []
   var disabledDisplays: Set<String> = []
   var hasCompletedOnboarding = false
   var checksForUpdates = true
@@ -50,6 +51,7 @@ struct Preferences: Codable, Equatable {
     focusFollowsMouse = value(.focusFollowsMouse, or: defaults.focusFollowsMouse)
     mouseFollowsFocus = value(.mouseFollowsFocus, or: defaults.mouseFollowsFocus)
     appRules = value(.appRules, or: defaults.appRules)
+    appShortcuts = value(.appShortcuts, or: defaults.appShortcuts)
     disabledDisplays = value(.disabledDisplays, or: defaults.disabledDisplays)
     hasCompletedOnboarding = value(.hasCompletedOnboarding, or: defaults.hasCompletedOnboarding)
     checksForUpdates = value(.checksForUpdates, or: defaults.checksForUpdates)
@@ -83,17 +85,20 @@ final class PreferencesStore {
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
-    if let data = defaults.data(forKey: Self.key),
-      let stored = try? JSONDecoder().decode(Preferences.self, from: data)
-    {
-      preferences = stored
-    } else {
-      preferences = Preferences()
-    }
+    preferences = Self.stored(in: defaults) ?? Preferences()
+  }
+
+  func reload() {
+    guard let stored = Self.stored(in: defaults) else { return }
+    preferences = stored
   }
 
   func resetShortcuts() {
     preferences.shortcuts = Action.defaultShortcuts
+  }
+
+  private static func stored(in defaults: UserDefaults) -> Preferences? {
+    defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(Preferences.self, from: $0) }
   }
 
   private func save() {
