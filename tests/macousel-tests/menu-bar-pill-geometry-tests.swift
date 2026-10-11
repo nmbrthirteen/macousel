@@ -68,11 +68,11 @@ struct MenuBarPillGeometryTests {
 
   @Test(arguments: [0, 13, 40])
   func pastTheLimitThereIsNoGeometry(count: Int) {
-    #expect(geometry(count, focused: 0) == nil)
+    #expect(makeGeometry(count, focused: 0) == nil)
   }
 
   @Test func aFocusedIndexOutsideTheColumnsHasNoGeometry() {
-    #expect(geometry(3, focused: 3) == nil)
-    #expect(geometry(3, focused: -1) == nil)
+    #expect(makeGeometry(3, focused: 3) == nil)
+    #expect(makeGeometry(3, focused: -1) == nil)
   }
 }
