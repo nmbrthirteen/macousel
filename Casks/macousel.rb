@@ -1,6 +1,6 @@
 cask "macousel" do
-  version "0.2.0"
-  sha256 "d3d298f00f4e5e7be1880702ea31d20bf3d7d779cce13ecae9b5e5e76684e797"
+  version "0.2.1"
+  sha256 "970842bba43faa281eda1cd6d6cda8a9c50edf054159dae3529cff9c714661ac"
 
   url "https://github.com/nmbrthirteen/macousel/releases/download/v#{version}/Macousel.dmg"
   name "Macousel"
