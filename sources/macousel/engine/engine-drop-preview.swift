@@ -15,6 +15,7 @@ struct EngineDropPreview {
 
   private func half(of window: WindowID, side: VerticalNeighbor) -> CGRect? {
     guard let frame = columns.frame(of: window) else { return nil }
+    if columns.column(of: window)?.sharesOneFrame == true { return frame }
     let height = frame.height / 2
     return CGRect(
       x: frame.minX, y: side == .above ? frame.minY : frame.minY + height, width: frame.width,

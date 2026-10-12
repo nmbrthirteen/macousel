@@ -46,7 +46,9 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 - A URL scheme and a command line client for scripts.
 - Quitting or pausing stops Paneru, which centres every window on its display.
 
-Macousel reads the columns from the window frames that Paneru reports. A tabbed column reports one frame for every member, so Macousel sees each tab as its own column. Dragging a window next to a tabbed column can stop early, and the overview and minimap draw the tabs as separate columns.
+Macousel reads the column structure from Paneru through a small bridge helper, so stacks, tabbed columns, and columns parked off screen all map to the right column. Dropping a window on a tabbed column adds it as the last tab. The overview and minimap draw a tabbed column as one column with a row per tab.
+
+With "Center the focused column" on, the strip centers on the dropped window after a drag.
 
 ## What the built-in engine still offers
 
@@ -113,7 +115,7 @@ scripts/bundle.sh
 open build/Macousel.app
 ```
 
-`scripts/bundle.sh` calls `scripts/engine.sh`, which builds the Paneru version pinned in `support/engine-version` into `build/engine-<version>/` and prints the path of the binary. The first build takes two to three minutes. Later runs reuse the binary. The bundle script copies it to `Contents/Helpers/paneru` and signs it before it signs the app.
+`scripts/bundle.sh` calls `scripts/engine.sh`, which builds the Paneru version pinned in `support/engine-version` into `build/engine-<version>/` and prints the path of the binary. The first build takes two to three minutes. Later runs reuse the binary. The same script builds `engine-bridge`, a small Rust program that asks Paneru for its column structure and prints it as JSON. The bundle script copies both to `Contents/Helpers` and signs them before it signs the app.
 
 For a development build with `swift run`, run `scripts/engine.sh` once. Macousel finds the binary in `build/` when the app has no bundled helper.
 

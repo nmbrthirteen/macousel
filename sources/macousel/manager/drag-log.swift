@@ -56,6 +56,10 @@ struct DragLog {
       "drag snap: window \(window, privacy: .public) \(reason, privacy: .public)")
   }
 
+  func centered(_ window: CGWindowID) {
+    Self.logger.info("drag center: window \(window, privacy: .public) strip centered")
+  }
+
   func ignoredPress(reason: String) {
     Self.logger.info("drag press ignored: \(reason, privacy: .public)")
   }

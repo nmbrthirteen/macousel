@@ -1,7 +1,9 @@
 import Foundation
 
 struct EngineHelperLocator {
-  static let helperPath = "Contents/Helpers/paneru"
+  static let helperName = "paneru"
+  static let bridgeName = "engine-bridge"
+  static let helpersPath = "Contents/Helpers"
   static let bundledVersionPath = "Contents/Resources/engine-version"
   static let sourceVersionPath = "support/engine-version"
 
@@ -10,13 +12,17 @@ struct EngineHelperLocator {
   let fileExists: (String) -> Bool
   let contents: (String) -> String?
 
-  var helper: URL? {
-    let bundled = bundleURL.appendingPathComponent(Self.helperPath)
+  var helper: URL? { executable(named: Self.helperName) }
+
+  var bridge: URL? { executable(named: Self.bridgeName) }
+
+  private func executable(named name: String) -> URL? {
+    let bundled = bundleURL.appendingPathComponent(Self.helpersPath).appendingPathComponent(name)
     if fileExists(bundled.path) { return bundled }
     guard let checkout = sourceCheckout, let version = sourceVersion(in: checkout) else {
       return nil
     }
-    let built = checkout.appendingPathComponent("build/engine-\(version)/bin/paneru")
+    let built = checkout.appendingPathComponent("build/engine-\(version)/bin/\(name)")
     return fileExists(built.path) ? built : nil
   }
 

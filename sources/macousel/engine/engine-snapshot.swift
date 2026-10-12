@@ -6,11 +6,40 @@ nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
   var timestamp: Int?
   var active: EngineActive
   var virtualWorkspaces: [EngineWorkspace]
+  var layout: EngineLayout?
+
+  private struct Bridged: Decodable {
+    var state: EngineSnapshot
+    var layout: EngineLayout?
+
+    init(from decoder: Decoder) throws {
+      let values = try decoder.container(keyedBy: CodingKeys.self)
+      state = try values.decode(EngineSnapshot.self, forKey: .state)
+      layout = try? values.decodeIfPresent(EngineLayout.self, forKey: .layout)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+      case state, layout
+    }
+  }
 
   static func decode(_ text: String) -> EngineSnapshot? {
+    try? decoder.decode(EngineSnapshot.self, from: Data(text.utf8))
+  }
+
+  static func decode(bridged text: String) -> EngineSnapshot? {
+    guard let bridged = try? decoder.decode(Bridged.self, from: Data(text.utf8)) else {
+      return nil
+    }
+    var snapshot = bridged.state
+    snapshot.layout = bridged.layout
+    return snapshot
+  }
+
+  private static var decoder: JSONDecoder {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
-    return try? decoder.decode(EngineSnapshot.self, from: Data(text.utf8))
+    return decoder
   }
 
   var visibleWindows: [EngineWindow] {
@@ -25,7 +54,7 @@ nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
   }
 
   var tiledColumns: EngineColumns {
-    EngineColumns(tiledWindows)
+    EngineColumns(tiledWindows, grouping: layout?.columns(onDisplay: active.displayId))
   }
 
   var focusedWindow: EngineWindow? {

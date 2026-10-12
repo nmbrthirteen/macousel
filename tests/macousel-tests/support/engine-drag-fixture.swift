@@ -8,6 +8,8 @@ import WindowSystem
 final class SettleProbe {
   var sleeps = 0
   var onSleep: (() -> Void)?
+  var centersFocus = false
+  var centeringSleeps = 0
 }
 
 @MainActor
@@ -21,6 +23,7 @@ final class EngineDragFixture {
   let reorder: EngineReorder
   let overview: EngineOverview
   let drag: EngineDrag
+  let centering: EngineCentering
   let probe = SettleProbe()
 
   init(columns: [[Int32]] = [[1], [2], [3]]) {
@@ -33,6 +36,16 @@ final class EngineDragFixture {
       commands: commands, sleep: { _ in await Task.yield() }, now: { FrozenInstant.now })
     let world = EngineWorld(commands: commands, sleep: { _ in })
     let overview = EngineOverview(host: host, displays: displays, reorder: reorder)
+    let centering = EngineCentering(
+      commands: commands, pointer: pointer, displays: displays,
+      isEnabled: { probe.centersFocus },
+      sleep: { _ in
+        probe.centeringSleeps += 1
+        strip.advance()
+        await Task.yield()
+      },
+      now: { FrozenInstant.now })
+    self.centering = centering
     self.strip = strip
     self.world = world
     self.reorder = reorder
@@ -49,8 +62,18 @@ final class EngineDragFixture {
           try Task.checkCancellation()
         },
         now: { FrozenInstant.now }),
+      centering: centering,
       isSuppressed: { overview.isOpen })
     pointer.windowAtPoint = { _ in 1 }
+  }
+
+  static let displayCenter = CGPoint(x: 2000, y: 400)
+
+  func engineWarpsThePointerOnCenter() {
+    let pointer = pointer
+    strip.afterApply = { _, words in
+      if words == ["window", "center"] { pointer.movePrimarySilently(to: Self.displayCenter) }
+    }
   }
 
   func primeWorld() async {

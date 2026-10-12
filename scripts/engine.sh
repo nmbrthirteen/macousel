@@ -15,4 +15,15 @@ if [ ! -x "$binary" ]; then
   cargo install paneru --version "$version" --locked --no-default-features --root "$out" >&2
 fi
 
+bridge_source="$root/engine-bridge"
+bridge="$out/bin/engine-bridge"
+if ! grep -q "paneru = { version = \"=$version\"" "$bridge_source/Cargo.toml"; then
+  echo "engine-bridge/Cargo.toml must pin paneru to $version." >&2
+  exit 1
+fi
+bridge_inputs=("$bridge_source/Cargo.toml" "$bridge_source/Cargo.lock" "$bridge_source/src")
+if [ ! -x "$bridge" ] || [ -n "$(find "${bridge_inputs[@]}" -newer "$bridge")" ]; then
+  cargo install --path "$bridge_source" --locked --force --root "$out" >&2
+fi
+
 echo "$binary"

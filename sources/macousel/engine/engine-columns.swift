@@ -31,6 +31,11 @@ nonisolated struct EngineColumns: Equatable, Sendable {
       return overlap >= EngineColumns.minimumOverlap
     }
 
+    var sharesOneFrame: Bool {
+      guard windows.count > 1, let first = windows.first?.frame else { return false }
+      return windows.allSatisfy { $0.frame == first }
+    }
+
     var heightShares: [Double] {
       let heights = windows.map { Double($0.frame?.height ?? 0) }
       let total = heights.reduce(0, +)
@@ -47,16 +52,29 @@ nonisolated struct EngineColumns: Equatable, Sendable {
 
   let columns: [Column]
 
-  init(_ windows: [EngineWindow]) {
+  init(_ windows: [EngineWindow], grouping: [[Int32]]? = nil) {
+    columns = grouping.flatMap { Self.grouped(windows, by: $0) } ?? Self.derived(from: windows)
+  }
+
+  private static func grouped(_ windows: [EngineWindow], by grouping: [[Int32]]) -> [Column]? {
+    let known = Dictionary(
+      windows.map { ($0.windowId, $0) }, uniquingKeysWith: { first, _ in first })
+    let members = grouping.map { $0.compactMap { known[$0] } }.filter { !$0.isEmpty }
+    let placed = members.joined().map(\.windowId).sorted()
+    guard placed == windows.map(\.windowId).sorted() else { return nil }
+    return members.map { Column(windows: $0) }
+  }
+
+  private static func derived(from windows: [EngineWindow]) -> [Column] {
     var grouped: [Column] = []
     for window in windows {
-      if let previous = grouped.last?.windows.last, Self.stack(window, below: previous) {
+      if let previous = grouped.last?.windows.last, stack(window, below: previous) {
         grouped[grouped.count - 1].windows.append(window)
       } else {
         grouped.append(Column(windows: [window]))
       }
     }
-    columns = grouped
+    return grouped
   }
 
   var windowIDs: [[WindowID]] { columns.map(\.windowIDs) }
@@ -71,6 +89,10 @@ nonisolated struct EngineColumns: Equatable, Sendable {
 
   func frame(of window: WindowID) -> CGRect? {
     columns.flatMap(\.windows).first { EngineWindowID.make($0.windowId) == window }?.frame?.rect
+  }
+
+  func column(of window: WindowID) -> Column? {
+    columnIndex(of: window).map { columns[$0] }
   }
 
   func columnIndex(of window: WindowID) -> Int? {

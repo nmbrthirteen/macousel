@@ -31,6 +31,7 @@ final class EngineDrag {
   private let displays: () -> [Display]
   private let reorder: EngineReorder
   private let settler: EngineSettler
+  private let centering: EngineCentering
   private let isSuppressed: () -> Bool
   private let poller: DragPoller
   private let log = DragLog()
@@ -42,7 +43,7 @@ final class EngineDrag {
   init(
     pointer: any PointerDevice, clock: any AnimationClock, host: any OverlayHost,
     world: EngineWorld, displays: @escaping () -> [Display], reorder: EngineReorder,
-    settler: EngineSettler, isSuppressed: @escaping () -> Bool
+    settler: EngineSettler, centering: EngineCentering, isSuppressed: @escaping () -> Bool
   ) {
     self.pointer = pointer
     self.clock = clock
@@ -51,6 +52,7 @@ final class EngineDrag {
     self.displays = displays
     self.reorder = reorder
     self.settler = settler
+    self.centering = centering
     self.isSuppressed = isSuppressed
     poller = DragPoller(clock: clock)
   }
@@ -188,7 +190,7 @@ final class EngineDrag {
     guard let press else { return }
     switch ended {
     case .live(let drag): finish(drag, press: press)
-    case .cancelled: snapIfLong(press)
+    case .cancelled: rest(press)
     default: break
     }
   }
@@ -202,17 +204,30 @@ final class EngineDrag {
     let target = press.target(at: location)
     guard target != .nowhere else {
       log.ended(drag.window, as: .returnedToSlot)
-      snapIfLong(press)
+      rest(press)
       return
     }
     track { engine in await engine.settleAndMove(press, to: target) }
   }
 
-  private func snapIfLong(_ press: Press) {
+  private func rest(_ press: Press) {
     self.press = nil
-    guard clock.now - press.pressedAt > Self.longPress else { return }
+    let isLong = clock.now - press.pressedAt > Self.longPress
+    guard isLong || centering.isEnabled() else { return }
+    track { engine in await engine.comeToRest(press, snapping: isLong) }
+  }
+
+  private func comeToRest(_ press: Press, snapping: Bool) async {
+    if await center(press) { return }
+    guard snapping, !Task.isCancelled else { return }
     log.snapped(press.rawWindow, reason: "long drag ended without a move")
-    track { engine in await engine.settler.snap() }
+    await settler.snap()
+  }
+
+  private func center(_ press: Press) async -> Bool {
+    guard await centering.centerFocusedColumn() else { return false }
+    log.centered(press.rawWindow)
+    return true
   }
 
   private func track(_ work: @escaping (EngineDrag) async -> Void) {
@@ -240,6 +255,7 @@ final class EngineDrag {
     let outcome = await reorder.move(press.window, to: target)
     guard !Task.isCancelled else { return }
     conclude(outcome, press: press, target: target)
+    _ = await center(press)
   }
 
   private func settledAfterSnap(_ press: Press) async -> Bool {

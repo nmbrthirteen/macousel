@@ -46,6 +46,9 @@ struct EngineDropTargeting {
     let band = (span.maxX - span.minX) * DropRule.sideBandShare
     if point.x < span.minX + band { return .column(position: span.rank) }
     if point.x > span.maxX - band { return .column(position: span.rank + 1) }
+    if span.column.sharesOneFrame, let last = span.frames.last {
+      return .stack(onto: last.window, side: .below)
+    }
     let nearest = span.frames.min {
       abs($0.frame.midY - point.y) < abs($1.frame.midY - point.y)
     }

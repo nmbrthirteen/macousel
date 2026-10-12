@@ -67,6 +67,10 @@ final class EngineHarness {
       pointer: pointer, clock: clock, host: overlays, world: world, displays: displays,
       reorder: reorder,
       settler: EngineSettler(commands: commands, sleep: { _ in }, now: { FrozenInstant.now }),
+      centering: EngineCentering(
+        commands: commands, pointer: pointer, displays: displays,
+        isEnabled: { store.preferences.layout.centerMode != .never }, sleep: { _ in },
+        now: { FrozenInstant.now }),
       isSuppressed: { overview.isOpen })
     return PaneruEngine(
       PaneruEngineParts(

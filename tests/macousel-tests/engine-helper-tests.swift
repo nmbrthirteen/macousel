@@ -19,6 +19,20 @@ struct EngineHelperTests {
     #expect(locator(files: files).helper?.path == "/Apps/Macousel.app/Contents/Helpers/paneru")
   }
 
+  @Test func findsTheBridgeBesideTheHelper() {
+    let bundled = ["/Apps/Macousel.app/Contents/Helpers/engine-bridge": ""]
+    let built = [
+      "/work/macousel/support/engine-version": "0.5.2\n",
+      "/work/macousel/build/engine-0.5.2/bin/engine-bridge": "",
+    ]
+    let checkout = locator(files: built, executable: "/work/macousel/.build/debug/Macousel")
+
+    #expect(
+      locator(files: bundled).bridge?.path == "/Apps/Macousel.app/Contents/Helpers/engine-bridge")
+    #expect(checkout.bridge?.path == "/work/macousel/build/engine-0.5.2/bin/engine-bridge")
+    #expect(locator(files: [:]).bridge == nil)
+  }
+
   @Test func fallsBackToTheDevelopmentBuildOfTheEngine() {
     let files = [
       "/work/macousel/support/engine-version": "0.5.2\n",

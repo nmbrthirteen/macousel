@@ -14,7 +14,8 @@ extension PaneruEngine {
     let locator = EngineHelperLocator.system(bundle: bundle)
     let locate: () -> URL? = { locator.helper }
     let service = EngineService.privateName(bundleIdentifier: bundle.bundleIdentifier)
-    let commands = EngineClient(service: service, locate: locate)
+    let commands = EngineClient(
+      service: service, locate: locate, locateBridge: { locator.bridge })
     let sync = EngineConfigSync(
       store: store, writer: EngineConfigWriter(opener: SystemConfigFileOpener()), url: paths.config)
     let supervisor = EngineSupervisor(
@@ -39,6 +40,10 @@ extension PaneruEngine {
       pointer: pointer, clock: clock, host: overlays, world: world, displays: displays,
       reorder: reorder,
       settler: EngineSettler(commands: commands, sleep: { try await Task.sleep(for: $0) }),
+      centering: EngineCentering(
+        commands: commands, pointer: pointer, displays: displays,
+        isEnabled: { store.preferences.layout.centerMode != .never },
+        sleep: { try await Task.sleep(for: $0) }),
       isSuppressed: { overview.isOpen })
     return PaneruEngine(
       PaneruEngineParts(
