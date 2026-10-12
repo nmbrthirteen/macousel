@@ -27,6 +27,15 @@ struct DragLog {
       """)
   }
 
+  func released(_ window: CGWindowID, at point: CGPoint, rowsPerColumn: [Int]) {
+    let rows = rowsPerColumn.map(String.init).joined(separator: " ")
+    Self.logger.info(
+      """
+      drag release: window \(window, privacy: .public) at x \(Int(point.x), privacy: .public) \
+      y \(Int(point.y), privacy: .public), rows per column \(rows, privacy: .public)
+      """)
+  }
+
   func unsettled(_ window: CGWindowID) {
     Self.logger.info(
       "drag ended: window \(window, privacy: .public) structure did not settle, nothing moved")

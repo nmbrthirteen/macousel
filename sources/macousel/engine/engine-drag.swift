@@ -165,7 +165,10 @@ final class EngineDrag {
     guard case .live(let drag) = ended, let press else { return }
     endLiveDrag()
     self.press = nil
-    let target = press.target(at: pointer.location)
+    let location = pointer.location
+    log.released(
+      drag.window, at: location, rowsPerColumn: press.columns.windowIDs.map(\.count))
+    let target = press.target(at: location)
     guard target != .nowhere else {
       log.ended(drag.window, as: .returnedToSlot)
       return

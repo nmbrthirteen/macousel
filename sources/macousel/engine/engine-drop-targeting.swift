@@ -62,6 +62,7 @@ struct EngineDropTargeting {
       guard let first = members.first else { continue }
       result.append(first, width: .fixed(column.width ?? 0))
       for (row, member) in members.enumerated().dropFirst() {
+        result.append(member, width: .fixed(column.width ?? 0))
         result.stack(member, ontoColumnOf: first, atRow: row)
       }
     }

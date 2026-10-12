@@ -92,6 +92,16 @@ struct EngineDropPreviewTests {
     #expect(target == .stack(onto: WindowID(3), side: .above))
   }
 
+  @Test func draggingOutOfAStackToBlankSpaceMakesANewColumn() {
+    let after = targeting.target(dragging: WindowID(3), at: CGPoint(x: 3600, y: 400))
+    let lower = targeting.target(dragging: WindowID(4), at: CGPoint(x: 3600, y: 400))
+    let before = targeting.target(dragging: WindowID(4), at: CGPoint(x: 1980, y: 400))
+
+    #expect(after == .column(position: 3))
+    #expect(lower == .column(position: 3))
+    #expect(before == .column(position: 2))
+  }
+
   @Test func aGapBetweenColumnsTargetsAnInsertion() {
     let target = targeting.target(dragging: WindowID(1), at: CGPoint(x: 1980, y: 100))
 
