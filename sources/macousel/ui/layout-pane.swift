@@ -38,7 +38,7 @@ struct LayoutPane: View {
       }
 
       SettingsGroup(
-        title: "Preset widths", footer: "The cycle width shortcut steps through these."
+        title: "Preset Widths", footer: "The cycle width shortcut steps through these."
       ) {
         PresetWidthsEditor(
           widths: $store.preferences.layout.presetWidths, hoveredWidth: $hoveredPreset)

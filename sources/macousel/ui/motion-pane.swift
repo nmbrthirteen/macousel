@@ -38,7 +38,7 @@ struct MotionPane: View {
         MinimapPreview(config: store.preferences.layout, isEnabled: store.preferences.showsMinimap)
       }
 
-      SettingsGroup(title: "Menu bar") {
+      SettingsGroup(title: "Menu Bar") {
         Picker("Menu bar shows", selection: $store.preferences.menuBarIndicator) {
           ForEach(MenuBarIndicator.allCases, id: \.self) { indicator in
             Text(indicator.title).tag(indicator)

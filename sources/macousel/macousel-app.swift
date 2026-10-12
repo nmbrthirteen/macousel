@@ -18,8 +18,8 @@ struct MacouselApp: App {
         store: delegate.store, manager: delegate.manager, updater: delegate.updater,
         diagnostics: delegate.diagnostics, onShowWelcome: delegate.onboarding.show
       )
-      .windowMinimizeBehavior(.disabled)
       .windowFullScreenBehavior(.disabled)
+      .dimsWindowButtons(.miniaturizeButton, .zoomButton)
     }
     .defaultSize(width: Metrics.Size.settingsWidth, height: Metrics.Size.settingsHeight)
     .windowResizability(.contentMinSize)

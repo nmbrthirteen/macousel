@@ -8,7 +8,7 @@ struct SettingsFileSection: View {
   }
 
   var body: some View {
-    SettingsGroup(title: "Settings file") {
+    SettingsGroup(title: "Settings File") {
       HStack(spacing: Metrics.Spacing.comfortable) {
         Button("Export settings…", action: transfer.exportSettings)
         Button("Import settings…", action: transfer.importSettings)
