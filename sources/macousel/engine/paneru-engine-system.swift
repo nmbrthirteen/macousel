@@ -49,7 +49,7 @@ extension PaneruEngine {
         overview: overview, drag: drag,
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
-          commands: commands, activate: { environment.activateOrLaunch(bundleIdentifier: $0) }),
+          commands: commands, reorder: reorder, activate: { environment.activateOrLaunch(bundleIdentifier: $0) }),
         polling: polling,
         reporter: EngineReporter(
           version: locator.version, locate: locate, supervisor: supervisor, sync: sync, log: log)))

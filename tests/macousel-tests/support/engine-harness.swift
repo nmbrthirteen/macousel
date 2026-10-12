@@ -76,7 +76,7 @@ final class EngineHarness {
         overview: overview, drag: drag,
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
-          commands: commands, activate: { [self] in activatedApps.append($0) }),
+          commands: commands, reorder: reorder, activate: { [self] in activatedApps.append($0) }),
         polling: AccessibilityMonitor.Intervals(
           whileWaiting: .milliseconds(10), whileWatching: .milliseconds(10)),
         reporter: EngineReporter(

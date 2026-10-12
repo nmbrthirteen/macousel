@@ -24,6 +24,17 @@ final class EngineReorder {
     }
   }
 
+  func focus(_ window: WindowID) async {
+    guard !isRunning else { return }
+    isRunning = true
+    defer { isRunning = false }
+    guard let snapshot = await commands.fetchSnapshot() else { return }
+    latest = snapshot
+    let columns = snapshot.tiledColumns
+    guard let position = columns.position(of: window) else { return }
+    _ = await focus(position, in: columns)
+  }
+
   private func execute(_ makePlan: ([[WindowID]]) -> EngineReorderPlan?) async -> EngineSnapshot? {
     guard !isRunning else { return nil }
     isRunning = true

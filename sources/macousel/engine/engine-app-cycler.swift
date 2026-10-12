@@ -1,23 +1,20 @@
+import StripCore
+
 struct EngineAppCycler {
   enum Choice: Equatable {
-    case focusColumn(Int)
+    case focusWindow(WindowID)
     case activateApp
   }
 
   static func choice(bundleIdentifier: String, in snapshot: EngineSnapshot?) -> Choice {
     guard let snapshot else { return .activateApp }
-    let columns = snapshot.tiledColumns.columns
-    let matching = columns.indices.filter { index in
-      columns[index].windows.contains { $0.bundleId == bundleIdentifier }
-    }
+    let matching = snapshot.tiledColumns.columns.flatMap(\.windows)
+      .filter { $0.bundleId == bundleIdentifier }
+      .compactMap { EngineWindowID.make($0.windowId) }
     guard let first = matching.first else { return .activateApp }
-    let focused = snapshot.focusedColumnIndex
-    let next: Int
-    if let current = matching.firstIndex(where: { $0 == focused }) {
-      next = matching[(current + 1) % matching.count]
-    } else {
-      next = first
+    guard let current = matching.firstIndex(where: { $0 == snapshot.focusedWindowID }) else {
+      return .focusWindow(first)
     }
-    return .focusColumn(next + 1)
+    return .focusWindow(matching[(current + 1) % matching.count])
   }
 }

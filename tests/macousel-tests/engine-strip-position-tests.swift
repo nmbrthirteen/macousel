@@ -91,8 +91,11 @@ struct EngineStripPositionTests {
     ]
     let snapshot = EngineFixtures.snapshot(of: windows)
 
-    #expect(EngineAppCycler.choice(bundleIdentifier: "mail", in: snapshot) == .focusColumn(3))
-    #expect(EngineAppCycler.choice(bundleIdentifier: "web", in: snapshot) == .focusColumn(2))
+    let nextMail = EngineAppCycler.choice(bundleIdentifier: "mail", in: snapshot)
+    let web = EngineAppCycler.choice(bundleIdentifier: "web", in: snapshot)
+
+    #expect(nextMail == .focusWindow(WindowID(3)))
+    #expect(web == .focusWindow(WindowID(2)))
     #expect(EngineAppCycler.choice(bundleIdentifier: "chat", in: snapshot) == .activateApp)
     #expect(EngineAppCycler.choice(bundleIdentifier: "mail", in: nil) == .activateApp)
   }

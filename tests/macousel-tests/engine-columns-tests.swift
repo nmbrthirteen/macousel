@@ -107,13 +107,13 @@ struct EngineColumnsTests {
     #expect(snapshot.focusedWindowID == WindowID(3))
   }
 
-  @Test func cyclesToTheColumnHoldingAnAppWindow() {
+  @Test func cyclesToAnAppWindowLowerInAStack() {
     var mail = window(3, x: 100, y: 500)
     mail.bundleId = "mail"
     var focused = window(1, x: 0)
     focused.focused = true
     let snapshot = EngineFixtures.snapshot(of: [focused, window(2, x: 100), mail])
 
-    #expect(EngineAppCycler.choice(bundleIdentifier: "mail", in: snapshot) == .focusColumn(2))
+    #expect(EngineAppCycler.choice(bundleIdentifier: "mail", in: snapshot) == .focusWindow(WindowID(3)))
   }
 }
