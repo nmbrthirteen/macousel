@@ -4,7 +4,9 @@ import WindowSystem
 extension PaneruEngine {
   static func system(
     store: PreferencesStore, environment: any DesktopEnvironment, shortcuts: any ShortcutRegistry,
-    overlays: any OverlayHost = SystemOverlayHost(), bundle: Bundle = .main,
+    overlays: any OverlayHost = SystemOverlayHost(),
+    pointer: any PointerDevice = SystemPointerDevice(tap: InputEventTap()),
+    clock: any AnimationClock = SystemAnimationClock(), bundle: Bundle = .main,
     polling: AccessibilityMonitor.Intervals = .standard
   ) -> PaneruEngine {
     let paths = EnginePaths.system()
@@ -30,13 +32,21 @@ extension PaneruEngine {
         now: { ContinuousClock.now }, sleep: { try await Task.sleep(for: $0) },
         pause: { Thread.sleep(forTimeInterval: $0.timeInterval) }))
     let displays: () -> [Display] = { environment.displays }
+    let reorder = EngineReorder(commands: commands, sleep: { try await Task.sleep(for: $0) })
+    let world = EngineWorld(commands: commands, sleep: { try await Task.sleep(for: $0) })
+    let overview = EngineOverview(host: overlays, displays: displays, reorder: reorder)
+    let drag = EngineDrag(
+      pointer: pointer, clock: clock, host: overlays, world: world, displays: displays,
+      reorder: reorder,
+      settler: EngineSettler(commands: commands, sleep: { try await Task.sleep(for: $0) }),
+      isSuppressed: { overview.isOpen })
     return PaneruEngine(
       PaneruEngineParts(
         store: store, environment: environment, supervisor: supervisor, sync: sync,
         commands: commands, events: EngineSubscriber(service: service, locate: locate),
-        world: EngineWorld(commands: commands, sleep: { try await Task.sleep(for: $0) }),
-        minimap: EngineMinimap(host: overlays, store: store, displays: displays),
-        overview: EngineOverview(host: overlays, displays: displays),
+        world: world,
+        minimap: EngineMinimap(host: overlays, store: store, displays: displays, reorder: reorder),
+        overview: overview, drag: drag,
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
           commands: commands, activate: { environment.activateOrLaunch(bundleIdentifier: $0) }),

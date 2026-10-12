@@ -54,7 +54,7 @@ struct EngineSupportTests {
   @Test func featureTableDisablesBuiltInOnlyControlsUnderPaneru() {
     for feature in EngineFeature.allCases {
       #expect(feature.isSupported(by: .builtIn))
-      #expect(!feature.isSupported(by: .paneru))
+      #expect(feature.isSupported(by: .paneru) == (feature == .dragPreviews))
     }
     #expect(EngineFeature.unsupportedCaption == "Built-in engine only.")
   }

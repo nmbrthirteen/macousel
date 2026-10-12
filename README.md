@@ -38,7 +38,9 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 **The rest**
 
 - A minimap of the strip that appears when focus moves, and a column count in the menu bar.
-- An overview that shows every window in the strip. Pick one to focus it.
+- An overview that shows every window in the strip, stacks included. Pick one to focus it, or drag a card to reorder columns or stack it onto another window. Shift plus an arrow key or a number moves the selected window.
+- Drag a cell in the minimap to reorder and stack the same way.
+- Drag a real window by its title bar. A preview shows where it will land, between two columns, at either end of the strip, or on the top or bottom half of another window. Release and Paneru moves the window there.
 - A focus border and dimming for inactive windows.
 - Per-app rules: float, open at a set width, or open in a set column.
 - A URL scheme and a command line client for scripts.
@@ -48,13 +50,12 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 
 Paneru does not do these. The built-in engine does, and Macousel greys out the matching settings while Paneru is selected.
 
-- Drag a window to reorder it or drop it onto another window to stack it.
 - A tab bar for tabbed columns.
 - Move a window straight to column 1 to 9.
 - Tiling off for one display, and the display under the pointer becoming the active one.
 - The scratchpad.
 - Floating windows that return to the front when you focus a tiled window.
-- Reorder and resize columns and rows in the overview.
+- Resize columns and rows in the overview.
 - Putting every window back at its original frame when you quit or pause.
 
 Switch engines in Settings > General. Macousel stops one and starts the other without a relaunch.

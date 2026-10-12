@@ -162,6 +162,30 @@ struct OverviewModelTests {
     #expect(calls.widths.isEmpty && calls.selected.isEmpty)
   }
 
+  @Test func lockedResizeTurnsEdgeAndDividerPressesIntoCardDrags() throws {
+    let snapshot = OverviewSnapshots.make(columns: [[1, 2], [3]], allowsResize: false)
+    let reference = OverviewGeometry(
+      snapshot: OverviewSnapshots.make(columns: [[1, 2], [3]]), size: size)
+    let edge = try #require(reference.hitAreas.edges.first)
+    let divider = try #require(reference.hitAreas.dividers.first)
+    let model = OverviewModel()
+    let calls = Calls()
+    model.onColumnWidth = { calls.widths.append(($0, $1)) }
+    model.onRowHeight = { calls.heights.append(($0, $1, $2)) }
+    model.show(snapshot)
+
+    let start = CGPoint(x: edge.rect.minX + 4, y: edge.rect.midY - 20)
+    model.pressed(at: start, in: size)
+    model.dragged(to: CGPoint(x: start.x + 40, y: start.y), in: size)
+    model.released(at: CGPoint(x: start.x + 40, y: start.y), in: size)
+    model.pressed(at: divider.rect.center, in: size)
+    model.dragged(to: CGPoint(x: divider.rect.midX, y: divider.rect.midY + 30), in: size)
+    model.released(at: CGPoint(x: divider.rect.midX, y: divider.rect.midY + 30), in: size)
+
+    #expect(calls.widths.isEmpty && calls.heights.isEmpty)
+    #expect(model.resizeLabel == nil)
+  }
+
   @Test func draggingADividerMovesHeightBetweenTheTwoRowsLive() throws {
     let (model, geometry, calls) = model([[1, 2, 3]])
     let divider = try #require(geometry.hitAreas.dividers.first)

@@ -6,28 +6,37 @@ struct EngineMinimapBuilder {
   let snapshot: EngineSnapshot
 
   func build() -> MinimapSnapshot? {
-    let windows = snapshot.tiledWindows
-    let visible = windows.indices.filter { windows[$0].visible }
-    guard windows.count > 1, let first = visible.first, visible.count < windows.count else {
-      return nil
+    let columns = snapshot.tiledColumns.columns
+    let visible = columns.indices.filter { columns[$0].isVisible }
+    guard columns.count > 1, let first = visible.first, let last = visible.last,
+      visible.count < columns.count
+    else { return nil }
+    let focused = snapshot.focusedWindow?.windowId
+    var built: [MinimapSnapshot.Column] = []
+    var x = 0.0
+    var edges: [(start: Double, end: Double)] = []
+    for column in columns {
+      let width = column.width ?? Self.cellWidth
+      edges.append((x, x + width))
+      built.append(minimapColumn(column, x: x, width: width, focused: focused))
+      x += width
     }
-    let focused = snapshot.focusedColumnIndex
     return MinimapSnapshot(
-      columns: windows.indices.compactMap { index in
-        column(for: windows[index], at: index, isFocused: index == focused)
-      },
-      contentWidth: Double(windows.count) * Self.cellWidth,
-      viewportOffset: Double(first) * Self.cellWidth,
-      viewportWidth: Double(visible.count) * Self.cellWidth, animationResponse: nil)
+      columns: built, contentWidth: x, viewportOffset: edges[first].start,
+      viewportWidth: edges[last].end - edges[first].start, animationResponse: nil)
   }
 
-  private func column(for window: EngineWindow, at index: Int, isFocused: Bool)
-    -> MinimapSnapshot.Column?
-  {
-    guard let id = EngineWindowID.make(window.windowId) else { return nil }
+  private func minimapColumn(
+    _ column: EngineColumns.Column, x: Double, width: Double, focused: Int32?
+  ) -> MinimapSnapshot.Column {
+    let rows = zip(column.windows, column.heightShares).compactMap { window, share in
+      EngineWindowID.make(window.windowId).map { id in
+        MinimapSnapshot.Row(window: id, bundleIdentifier: window.bundleId, height: share)
+      }
+    }
+    let activeRow = column.windows.firstIndex { $0.windowId == focused }
     return MinimapSnapshot.Column(
-      x: Double(index) * Self.cellWidth, width: Self.cellWidth,
-      rows: [MinimapSnapshot.Row(window: id, bundleIdentifier: window.bundleId, height: 1)],
-      activeRow: 0, isTabbed: false, isFocused: isFocused)
+      x: x, width: width, rows: rows, activeRow: activeRow ?? 0, isTabbed: false,
+      isFocused: activeRow != nil)
   }
 }

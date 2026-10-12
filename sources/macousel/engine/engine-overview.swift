@@ -6,20 +6,23 @@ final class EngineOverview {
 
   private let host: any OverlayHost
   private let displays: () -> [Display]
+  private let reorder: EngineReorder
   private var session: (cursor: ColumnCursor, snapshot: EngineSnapshot)?
 
-  init(host: any OverlayHost, displays: @escaping () -> [Display]) {
+  init(host: any OverlayHost, displays: @escaping () -> [Display], reorder: EngineReorder) {
     self.host = host
     self.displays = displays
+    self.reorder = reorder
     host.onOverviewSelect = { [weak self] window in self?.choose(window) }
     host.onOverviewKey = { [weak self] key in self?.handle(key) }
     host.onOverviewDismiss = { [weak self] in self?.close() }
+    host.onOverviewMove = { [weak self] window, target in self?.drop(window, on: target) }
   }
 
   var isOpen: Bool { session != nil }
 
   func toggle(with snapshot: EngineSnapshot?) {
-    if isOpen { close() } else if let snapshot { open(snapshot) }
+    if isOpen { close() } else if let snapshot { _ = present(snapshot, selecting: nil) }
   }
 
   func close() {
@@ -28,20 +31,27 @@ final class EngineOverview {
     host.hideOverview()
   }
 
-  private func open(_ snapshot: EngineSnapshot) {
+  func refresh(with snapshot: EngineSnapshot) {
+    guard let current = session, !reorder.isRunning else { return }
+    if !present(snapshot, selecting: current.cursor.window) { close() }
+  }
+
+  private func present(_ snapshot: EngineSnapshot, selecting preferred: WindowID?) -> Bool {
     guard let display = snapshot.display(in: displays()),
-      let content = EngineOverviewBuilder(snapshot: snapshot, displayFrame: display.frame).build()
-    else { return }
-    let windows = snapshot.tiledWindows.compactMap { EngineWindowID.make($0.windowId) }
-    let cursor = ColumnCursor(columns: windows.map { [$0] }, selecting: content.selection)
+      var content = EngineOverviewBuilder(snapshot: snapshot, displayFrame: display.frame).build()
+    else { return false }
+    let columns = snapshot.tiledColumns
+    let wanted = preferred.flatMap { id in columns.position(of: id) == nil ? nil : id }
+      ?? content.selection
+    let cursor = ColumnCursor(columns: columns.windowIDs, selecting: wanted)
+    content.selection = cursor.window
     session = (cursor, snapshot)
     host.showOverview(content, on: display.frame)
+    return true
   }
 
   private func handle(_ key: OverviewKey) {
-    guard var current = session, let display = current.snapshot.display(in: displays()) else {
-      return
-    }
+    guard var current = session else { return }
     switch key {
     case .move(let direction): current.cursor.move(direction)
     case .jump(let place): current.cursor.jump(toPlace: place)
@@ -51,21 +61,44 @@ final class EngineOverview {
     case .dismiss:
       close()
       return
-    case .moveWindow, .moveWindowToPlace, .widen, .narrow:
+    case .moveWindow, .moveWindowToPlace:
+      moveSelection(with: key)
+      return
+    case .widen, .narrow:
       return
     }
-    session = current
-    guard
-      var content = EngineOverviewBuilder(snapshot: current.snapshot, displayFrame: display.frame)
-        .build()
+    _ = present(current.snapshot, selecting: current.cursor.window)
+  }
+
+  private func moveSelection(with key: OverviewKey) {
+    guard let current = session, let window = current.cursor.window,
+      let move = EngineKeyMove(key: key, window: window, columns: current.snapshot.tiledColumns)
     else { return }
-    content.selection = current.cursor.window
-    host.showOverview(content, on: display.frame)
+    Task { [weak self] in
+      let result: EngineSnapshot?
+      switch move {
+      case .drop(let target): result = await self?.reorder.move(window, to: target)
+      case .shift(let direction): result = await self?.reorder.shift(window, toward: direction)
+      }
+      self?.finishMove(result, selecting: window)
+    }
+  }
+
+  private func drop(_ window: WindowID, on target: DropTarget) {
+    Task { [weak self] in
+      let result = await self?.reorder.move(window, to: target)
+      self?.finishMove(result, selecting: window)
+    }
+  }
+
+  private func finishMove(_ snapshot: EngineSnapshot?, selecting window: WindowID) {
+    guard isOpen, let snapshot else { return }
+    if !present(snapshot, selecting: window) { close() }
   }
 
   private func choose(_ window: WindowID) {
     guard let current = session else { return }
-    let column = current.snapshot.columnIndex(of: window)
+    let column = current.snapshot.tiledColumns.columnIndex(of: window)
     close()
     if let column { onChoose?(column) }
   }

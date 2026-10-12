@@ -62,8 +62,11 @@ struct OverviewGeometry {
     self.cards = cards
     self.scale = scale
     stripBounds = CGRect(x: 0, y: top, width: size.width, height: height)
-    hitAreas = OverviewHitAreas(
-      cards: cards, tabbedColumns: Set(columns.indices.filter { columns[$0].isTabbed }))
+    hitAreas =
+      snapshot.allowsResize
+      ? OverviewHitAreas(
+        cards: cards, tabbedColumns: Set(columns.indices.filter { columns[$0].isTabbed }))
+      : OverviewHitAreas(cards: [])
   }
 
   private static func number(ofColumn index: Int, among count: Int) -> Int? {

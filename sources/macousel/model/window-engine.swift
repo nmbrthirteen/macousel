@@ -18,7 +18,7 @@ nonisolated enum WindowEngine: String, Codable, CaseIterable, Sendable {
   var summary: String {
     switch self {
     case .paneru: "Paneru is an open-source engine that runs next to Macousel and moves your windows."
-    case .builtIn: "The built-in engine is Macousel's own Swift code and adds drag to rearrange, the scratchpad, and per-display switches."
+    case .builtIn: "The built-in engine is Macousel's own Swift code and adds the scratchpad, tab bars, and per-display switches."
     }
   }
 }

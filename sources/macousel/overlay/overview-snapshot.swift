@@ -23,4 +23,5 @@ struct OverviewSnapshot: Equatable {
   var innerGap = 0.0
   var presetWidths: [Double] = []
   var springResponse: Double?
+  var allowsResize = true
 }

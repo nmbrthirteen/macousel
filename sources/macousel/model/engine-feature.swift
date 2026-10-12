@@ -6,7 +6,7 @@ nonisolated enum EngineFeature: CaseIterable, Sendable {
   func isSupported(by engine: WindowEngine) -> Bool {
     switch engine {
     case .builtIn: true
-    case .paneru: false
+    case .paneru: self == .dragPreviews
     }
   }
 }

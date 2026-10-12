@@ -20,6 +20,7 @@ final class PaneruEngine: ManagementEngine {
     parts.world.onFocusMoved = { [weak self] snapshot in
       if self?.parts.overview.isOpen == false { self?.parts.minimap.flash(snapshot) }
     }
+    parts.world.onAdopted = { [weak self] snapshot in self?.parts.overview.refresh(with: snapshot) }
     parts.minimap.onSelect = { [weak self] column in self?.focus(column: column) }
     parts.overview.onChoose = { [weak self] column in self?.focus(column: column) }
   }
@@ -83,6 +84,7 @@ final class PaneruEngine: ManagementEngine {
   private func begin() {
     status = .running
     parts.supervisor.start()
+    parts.drag.start()
     applyBindings()
     accessibility.watchForLoss { [weak self] in self?.accessibilityLost() }
   }
@@ -108,6 +110,7 @@ final class PaneruEngine: ManagementEngine {
   }
 
   private func stopEngine() {
+    parts.drag.stop()
     parts.overview.close()
     parts.minimap.hide()
     parts.events.stop()
@@ -122,6 +125,7 @@ final class PaneruEngine: ManagementEngine {
       parts.events.start()
       parts.world.connect()
     case .failed:
+      parts.drag.stop()
       parts.events.stop()
       parts.world.clear()
       status = .paused

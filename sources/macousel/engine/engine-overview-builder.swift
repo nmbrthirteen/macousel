@@ -7,26 +7,22 @@ struct EngineOverviewBuilder {
   let displayFrame: CGRect
 
   func build() -> OverviewSnapshot? {
-    let windows = snapshot.tiledWindows
-    let cells = windows.compactMap { window in
-      EngineWindowID.make(window.windowId).map { (window, $0) }
-    }
-    guard !cells.isEmpty else { return nil }
-    let width = displayFrame.width / 2
-    let selection = snapshot.focusedColumnIndex.flatMap { index in
-      windows.indices.contains(index) ? EngineWindowID.make(windows[index].windowId) : nil
-    }
+    let columns = snapshot.tiledColumns.columns.map(column(from:)).filter { !$0.cards.isEmpty }
+    guard !columns.isEmpty else { return nil }
     return OverviewSnapshot(
-      columns: cells.map { window, id in
-        OverviewSnapshot.Column(
-          width: width,
-          cards: [
-            OverviewSnapshot.Card(
-              window: id, title: window.title.isEmpty ? window.appName : window.title,
-              bundleIdentifier: window.bundleId, heightShare: 1)
-          ])
-      },
-      stripHeight: displayFrame.height - 2 * Self.innerGap, selection: selection,
-      usableWidth: displayFrame.width, innerGap: Self.innerGap)
+      columns: columns, stripHeight: displayFrame.height - 2 * Self.innerGap,
+      selection: snapshot.focusedWindowID, usableWidth: displayFrame.width,
+      innerGap: Self.innerGap, allowsResize: false)
+  }
+
+  private func column(from column: EngineColumns.Column) -> OverviewSnapshot.Column {
+    let cards = zip(column.windows, column.heightShares).compactMap { window, share in
+      EngineWindowID.make(window.windowId).map { id in
+        OverviewSnapshot.Card(
+          window: id, title: window.title.isEmpty ? window.appName : window.title,
+          bundleIdentifier: window.bundleId, heightShare: share)
+      }
+    }
+    return OverviewSnapshot.Column(width: column.width ?? displayFrame.width / 2, cards: cards)
   }
 }

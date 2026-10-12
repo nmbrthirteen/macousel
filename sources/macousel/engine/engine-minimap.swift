@@ -1,3 +1,4 @@
+import StripCore
 import WindowSystem
 
 final class EngineMinimap {
@@ -6,16 +7,22 @@ final class EngineMinimap {
   private let host: any OverlayHost
   private let store: PreferencesStore
   private let displays: () -> [Display]
+  private let reorder: EngineReorder
   private var shown: EngineSnapshot?
 
-  init(host: any OverlayHost, store: PreferencesStore, displays: @escaping () -> [Display]) {
+  init(
+    host: any OverlayHost, store: PreferencesStore, displays: @escaping () -> [Display],
+    reorder: EngineReorder
+  ) {
     self.host = host
     self.store = store
     self.displays = displays
+    self.reorder = reorder
     host.onMinimapSelect = { [weak self] window in
       guard let column = self?.shown?.columnIndex(of: window) else { return }
       self?.onSelect?(column)
     }
+    host.onMinimapMove = { [weak self] window, target in self?.drop(window, on: target) }
   }
 
   func flash(_ snapshot: EngineSnapshot) {
@@ -32,5 +39,12 @@ final class EngineMinimap {
   func hide() {
     shown = nil
     host.hideMinimap()
+  }
+
+  private func drop(_ window: WindowID, on target: DropTarget) {
+    Task { [weak self] in
+      guard let snapshot = await self?.reorder.move(window, to: target) else { return }
+      self?.flash(snapshot)
+    }
   }
 }

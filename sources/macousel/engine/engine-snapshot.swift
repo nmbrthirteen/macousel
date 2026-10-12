@@ -1,4 +1,5 @@
 import Foundation
+import StripCore
 
 nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
   var version: Int
@@ -23,8 +24,20 @@ nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
     visibleWindows.filter { !$0.floating }
   }
 
-  var focusedColumnIndex: Int? {
+  var tiledColumns: EngineColumns {
+    EngineColumns(tiledWindows)
+  }
+
+  var focusedWindow: EngineWindow? {
     let tiled = tiledWindows
-    return tiled.firstIndex { $0.focused } ?? tiled.firstIndex { $0.windowId == active.focusedWindowId }
+    return tiled.first { $0.focused } ?? tiled.first { $0.windowId == active.focusedWindowId }
+  }
+
+  var focusedWindowID: WindowID? {
+    focusedWindow.flatMap { EngineWindowID.make($0.windowId) }
+  }
+
+  var focusedColumnIndex: Int? {
+    focusedWindow.flatMap { tiledColumns.position(ofRawID: $0.windowId)?.column }
   }
 }

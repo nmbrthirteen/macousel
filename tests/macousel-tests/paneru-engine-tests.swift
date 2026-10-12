@@ -59,6 +59,15 @@ struct PaneruEngineTests {
     #expect(shortcuts.boundHotkeys == pauseHotkeys)
   }
 
+  @Test func watchesThePrimaryButtonOnlyWhileRunning() async throws {
+    let (engine, _) = try await running()
+    #expect(harness.pointer.isObservingPrimaryButton)
+
+    engine.perform(.togglePaused)
+
+    #expect(!harness.pointer.isObservingPrimaryButton)
+  }
+
   @Test func resumingStartsTheEngineAgain() async throws {
     let (engine, _) = try await running()
     engine.perform(.togglePaused)

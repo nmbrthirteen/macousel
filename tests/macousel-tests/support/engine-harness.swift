@@ -12,6 +12,8 @@ final class EngineHarness {
   let events = FakeEngineEvents()
   let files = FakeConfigFiles()
   let overlays = FakeOverlayHost()
+  let pointer = FakePointerDevice()
+  let clock = ManualClock()
   var isTrusted = true
   var hasHelper = true
   var now = ContinuousClock.now
@@ -58,13 +60,20 @@ final class EngineHarness {
     let sync = makeSync(store: store)
     let supervisor = makeSupervisor(sync: sync)
     let displays: () -> [Display] = { environment.displays }
+    let reorder = EngineReorder(commands: commands, sleep: { _ in })
+    let world = EngineWorld(commands: commands, sleep: { _ in })
+    let overview = EngineOverview(host: overlays, displays: displays, reorder: reorder)
+    let drag = EngineDrag(
+      pointer: pointer, clock: clock, host: overlays, world: world, displays: displays,
+      reorder: reorder, settler: EngineSettler(commands: commands, sleep: { _ in }),
+      isSuppressed: { overview.isOpen })
     return PaneruEngine(
       PaneruEngineParts(
         store: store, environment: environment, supervisor: supervisor, sync: sync,
         commands: commands, events: events,
-        world: EngineWorld(commands: commands, sleep: { _ in }),
-        minimap: EngineMinimap(host: overlays, store: store, displays: displays),
-        overview: EngineOverview(host: overlays, displays: displays),
+        world: world,
+        minimap: EngineMinimap(host: overlays, store: store, displays: displays, reorder: reorder),
+        overview: overview, drag: drag,
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
           commands: commands, activate: { [self] in activatedApps.append($0) }),

@@ -3,13 +3,15 @@ import WindowSystem
 
 extension EngineSnapshot {
   var stripPosition: StripPosition? {
+    let columns = tiledColumns
     guard let focused = focusedColumnIndex else { return nil }
     return StripPosition(
-      columnCount: tiledWindows.count, focusedIndex: focused, windowsInFocusedColumn: 1)
+      columnCount: columns.columns.count, focusedIndex: focused,
+      windowsInFocusedColumn: columns.columns[focused].windows.count)
   }
 
   func columnIndex(of window: WindowID) -> Int? {
-    tiledWindows.firstIndex { EngineWindowID.make($0.windowId) == window }
+    tiledColumns.columnIndex(of: window)
   }
 
   func display(in displays: [Display]) -> Display? {

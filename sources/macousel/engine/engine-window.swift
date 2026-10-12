@@ -1,9 +1,15 @@
+import CoreGraphics
+
 nonisolated struct EngineWindow: Decodable, Equatable, Sendable {
   struct Frame: Decodable, Equatable, Sendable {
     var x: Int
     var y: Int
     var width: Int
     var height: Int
+
+    var rect: CGRect {
+      CGRect(x: x, y: y, width: width, height: height)
+    }
   }
 
   var windowId: Int32

@@ -6,9 +6,10 @@ struct EngineAppCycler {
 
   static func choice(bundleIdentifier: String, in snapshot: EngineSnapshot?) -> Choice {
     guard let snapshot else { return .activateApp }
-    let matching = snapshot.tiledWindows.enumerated().filter {
-      $0.element.bundleId == bundleIdentifier
-    }.map(\.offset)
+    let columns = snapshot.tiledColumns.columns
+    let matching = columns.indices.filter { index in
+      columns[index].windows.contains { $0.bundleId == bundleIdentifier }
+    }
     guard let first = matching.first else { return .activateApp }
     let focused = snapshot.focusedColumnIndex
     let next: Int

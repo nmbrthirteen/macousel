@@ -26,4 +26,9 @@ struct DragLog {
       target \(branch.targetKind, privacy: .public)
       """)
   }
+
+  func unsettled(_ window: CGWindowID) {
+    Self.logger.info(
+      "drag ended: window \(window, privacy: .public) structure did not settle, nothing moved")
+  }
 }

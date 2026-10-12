@@ -8,7 +8,8 @@ enum OverviewSnapshots {
   static let size = CGSize(width: 1000, height: 800)
 
   static func make(
-    columns: [[UInt32]], width: Double = 300, tabbed: Set<Int> = [], selection: UInt32? = nil
+    columns: [[UInt32]], width: Double = 300, tabbed: Set<Int> = [], selection: UInt32? = nil,
+    allowsResize: Bool = true
   ) -> OverviewSnapshot {
     let built = columns.enumerated().map { index, windows in
       OverviewSnapshot.Column(
@@ -21,7 +22,8 @@ enum OverviewSnapshots {
     }
     return OverviewSnapshot(
       columns: built, stripHeight: 768, selection: selection.map { WindowID($0) },
-      usableWidth: 984, innerGap: 8, presetWidths: [0.25, 0.5, 0.75])
+      usableWidth: 984, innerGap: 8, presetWidths: [0.25, 0.5, 0.75],
+      allowsResize: allowsResize)
   }
 
   static func windows(_ snapshot: OverviewSnapshot) -> [[UInt32]] {

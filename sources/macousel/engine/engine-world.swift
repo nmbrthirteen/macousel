@@ -7,6 +7,7 @@ final class EngineWorld {
 
   private(set) var snapshot: EngineSnapshot?
   @ObservationIgnored var onFocusMoved: ((EngineSnapshot) -> Void)?
+  @ObservationIgnored var onAdopted: ((EngineSnapshot) -> Void)?
   @ObservationIgnored private let commands: any EngineCommanding
   @ObservationIgnored private let sleep: (Duration) async throws -> Void
   @ObservationIgnored private var isRefreshing = false
@@ -64,5 +65,6 @@ final class EngineWorld {
     let previous = snapshot
     snapshot = fetched
     if previous?.focusedColumnIndex != fetched.focusedColumnIndex { onFocusMoved?(fetched) }
+    onAdopted?(fetched)
   }
 }

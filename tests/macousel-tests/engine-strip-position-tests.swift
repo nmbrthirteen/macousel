@@ -54,7 +54,7 @@ struct EngineStripPositionTests {
     #expect(Set(minimap.columns.map(\.width)).count == 1)
     #expect(minimap.columns.allSatisfy { $0.rows.count == 1 })
     #expect(minimap.columns.map(\.isFocused) == [false, true, false])
-    #expect(minimap.viewportWidth == 2 * EngineMinimapBuilder.cellWidth)
+    #expect(minimap.viewportWidth == 2 * 960)
   }
 
   @Test func skipsTheMinimapWhenEveryWindowIsVisible() {
@@ -65,7 +65,7 @@ struct EngineStripPositionTests {
     #expect(EngineMinimapBuilder(snapshot: EngineFixtures.snapshot(of: windows)).build() == nil)
   }
 
-  @Test func buildsAnOverviewWithOneCardPerTiledWindow() throws {
+  @Test func buildsAnOverviewWithTheRealColumnWidths() throws {
     let snapshot = try #require(EngineFixtures.snapshot())
     let frame = CGRect(x: 0, y: 0, width: 1600, height: 900)
 
@@ -74,7 +74,7 @@ struct EngineStripPositionTests {
     #expect(overview.columns.count == 3)
     #expect(overview.columns.map(\.cards.count) == [1, 1, 1])
     #expect(overview.selection == WindowID(322))
-    #expect(overview.columns[0].width == 800)
+    #expect(overview.columns[0].width == 960)
   }
 
   @Test func mapsAMinimapWindowBackToItsColumn() throws {

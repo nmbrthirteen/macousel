@@ -10,6 +10,7 @@ struct PaneruEngineParts {
   var world: EngineWorld
   var minimap: EngineMinimap
   var overview: EngineOverview
+  var drag: EngineDrag
   var bindings: PaneruInputBindings
   var appShortcuts: EngineAppShortcuts
   var polling: AccessibilityMonitor.Intervals
