@@ -7,10 +7,19 @@ struct EngineDropTargeting {
 
   private struct Span {
     var rank: Int
-    var frames: [(window: WindowID, frame: CGRect)]
+    var column: EngineColumns.Column
 
-    var minX: CGFloat { frames.map(\.frame.minX).min() ?? 0 }
-    var maxX: CGFloat { frames.map(\.frame.maxX).max() ?? 0 }
+    var minX: CGFloat { column.horizontalExtent?.lowerBound ?? 0 }
+    var maxX: CGFloat { column.horizontalExtent?.upperBound ?? 0 }
+
+    var frames: [(window: WindowID, frame: CGRect)] {
+      column.windows.compactMap { member in
+        guard let id = EngineWindowID.make(member.windowId), let frame = member.frame else {
+          return nil
+        }
+        return (window: id, frame: frame.rect)
+      }
+    }
   }
 
   func target(dragging window: WindowID, at point: CGPoint) -> DropTarget {
@@ -22,9 +31,7 @@ struct EngineDropTargeting {
   }
 
   private func candidate(for window: WindowID, at point: CGPoint) -> DropTarget {
-    let visible = spans(excluding: window).filter {
-      $0.maxX > viewport.minX && $0.minX < viewport.maxX
-    }
+    let visible = spans(excluding: window).filter { $0.column.isOnScreen(in: viewport) }
     if let hit = visible.first(where: { $0.minX <= point.x && point.x <= $0.maxX }) {
       return zone(in: hit, at: point)
     }
@@ -47,12 +54,15 @@ struct EngineDropTargeting {
   }
 
   private func spans(excluding window: WindowID) -> [Span] {
-    let remaining = columns.windowIDs.map { members in
-      members.filter { $0 != window }.compactMap { member in
-        columns.frame(of: member).map { (window: member, frame: $0) }
+    let remaining = columns.columns.map { column in
+      let members = column.windows.filter {
+        $0.frame != nil && EngineWindowID.make($0.windowId) != window
       }
+      return EngineColumns.Column(windows: members)
     }
-    return remaining.filter { !$0.isEmpty }.enumerated().map { Span(rank: $0, frames: $1) }
+    return remaining.filter { !$0.windows.isEmpty }.enumerated().map { rank, column in
+      Span(rank: rank, column: column)
+    }
   }
 
   private var strip: Strip {

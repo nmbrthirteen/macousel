@@ -2,6 +2,7 @@ import Foundation
 
 final class EngineSubscriber: EngineEventSource {
   var onEvent: ((EngineEvent) -> Void)?
+  var onConnect: (() -> Void)?
 
   private let locate: () -> URL?
   private let service: String
@@ -48,6 +49,7 @@ final class EngineSubscriber: EngineEventSource {
     child.standardOutput = output
     guard (try? child.run()) != nil else { return }
     process = child
+    onConnect?()
     do {
       for try await line in output.fileHandleForReading.bytes.lines {
         if let event = EngineEvent.decode(line: line) { onEvent?(event) }

@@ -11,6 +11,9 @@ final class FakePaneruStrip {
   var focused: Int32?
   var lag = 0
   var ignoresCommands = false
+  var viewport: ClosedRange<Int>?
+  var afterApply: ((FakePaneruStrip, [String]) -> Void)?
+  private(set) var errors: [String] = []
   private var pending: [Pending] = []
 
   init(columns: [[Int32]], focused: Int32? = nil) {
@@ -18,16 +21,30 @@ final class FakePaneruStrip {
     self.focused = focused ?? columns.first?.first
   }
 
+  static let columnWidth = 960
+  static let sliver = 9
+
   var snapshot: EngineSnapshot {
     let windows = columns.enumerated().flatMap { column, members in
       members.enumerated().map { row, identifier in
         EngineWindow(
           windowId: identifier, bundleId: "app.\(identifier)", appName: "App \(identifier)",
           title: "Window \(identifier)", focused: identifier == focused, displayId: 1,
-          frame: EngineWindow.Frame(x: column * 1000, y: row * 500, width: 960, height: 400))
+          frame: EngineWindow.Frame(
+            x: x(ofColumn: column), y: row * 500, width: Self.columnWidth, height: 400))
       }
     }
     return EngineFixtures.snapshot(of: windows)
+  }
+
+  private func x(ofColumn column: Int) -> Int {
+    let x = column * 1000
+    guard let viewport else { return x }
+    if x + Self.columnWidth <= viewport.lowerBound {
+      return viewport.lowerBound - Self.columnWidth + Self.sliver
+    }
+    if x >= viewport.upperBound { return viewport.upperBound - Self.sliver }
+    return x
   }
 
   func receive(_ words: [String]) {
@@ -53,10 +70,10 @@ final class FakePaneruStrip {
       let row = columns[column].firstIndex(of: focused)
     else { return }
     switch (words[1], words.count > 2 ? words[2] : "") {
-    case ("focus", "south"): focusRow(row + 1, in: column)
+    case ("focus", "south"): focusSouth(row, in: column)
     case ("focus", let number): focusColumn(Int(number).map { $0 - 1 })
-    case ("swap", "north"): swapRows(row, row - 1, in: column)
-    case ("swap", "south"): swapRows(row, row + 1, in: column)
+    case ("swap", "north"): swapVertically(row, by: -1, in: column)
+    case ("swap", "south"): swapVertically(row, by: 1, in: column)
     case ("swap", "west"): swapColumns(column, column - 1)
     case ("swap", "east"): swapColumns(column, column + 1)
     case ("swap", "first"): columns.insert(columns.remove(at: column), at: 0)
@@ -65,6 +82,23 @@ final class FakePaneruStrip {
     case ("unstack", _): unstack(column, row)
     default: break
     }
+    afterApply?(self, words)
+  }
+
+  private func focusSouth(_ row: Int, in column: Int) {
+    guard columns[column].indices.contains(row + 1) else {
+      errors.append("focus south at the bottom of column \(column)")
+      return
+    }
+    focusRow(row + 1, in: column)
+  }
+
+  private func swapVertically(_ row: Int, by delta: Int, in column: Int) {
+    guard columns[column].indices.contains(row + delta) else {
+      errors.append("swap \(delta < 0 ? "north" : "south") at the edge of column \(column)")
+      return
+    }
+    swapRows(row, row + delta, in: column)
   }
 
   private func focusRow(_ row: Int, in column: Int) {

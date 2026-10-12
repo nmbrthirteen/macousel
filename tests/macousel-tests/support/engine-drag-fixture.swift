@@ -29,7 +29,8 @@ final class EngineDragFixture {
     let displays: () -> [Display] = { [.fake(width: 4000)] }
     let probe = probe
     let commands = commands
-    let reorder = EngineReorder(commands: commands, sleep: { _ in await Task.yield() })
+    let reorder = EngineReorder(
+      commands: commands, sleep: { _ in await Task.yield() }, now: { FrozenInstant.now })
     let world = EngineWorld(commands: commands, sleep: { _ in })
     let overview = EngineOverview(host: host, displays: displays, reorder: reorder)
     self.strip = strip
@@ -45,7 +46,9 @@ final class EngineDragFixture {
           probe.sleeps += 1
           probe.onSleep?()
           await Task.yield()
-        }),
+          try Task.checkCancellation()
+        },
+        now: { FrozenInstant.now }),
       isSuppressed: { overview.isOpen })
     pointer.windowAtPoint = { _ in 1 }
   }

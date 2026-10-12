@@ -18,7 +18,8 @@ struct EngineOverviewReorderTests {
     let fake = FakeEngineCommands(log: EngineCallLog())
     let strip = FakePaneruStrip(columns: [[1], [2, 3], [4], [5]], focused: 1)
     fake.strip = strip
-    let reorder = EngineReorder(commands: fake, sleep: { _ in await Task.yield() })
+    let reorder = EngineReorder(
+      commands: fake, sleep: { _ in await Task.yield() }, now: { FrozenInstant.now })
     let displays: () -> [Display] = { [.fake()] }
     let store = PreferencesStore(defaults: try IsolatedDefaults().defaults)
     commands = fake
@@ -130,6 +131,35 @@ struct EngineOverviewReorderTests {
 
     #expect(host.overview == nil)
     #expect(!overview.isOpen)
+  }
+
+  @Test func choosingALowerRowFocusesThatExactWindow() async {
+    overview.toggle(with: strip.snapshot)
+
+    host.click(WindowID(3))
+
+    #expect(await eventually { strip.focused == 3 })
+    #expect(commands.sent == [["window", "focus", "2"], ["window", "focus", "south"]])
+    #expect(host.overview == nil)
+  }
+
+  @Test func selectingALowerRowInTheMinimapFocusesThatExactWindow() async {
+    host.clickMinimap(WindowID(3))
+
+    #expect(await eventually { strip.focused == 3 })
+    #expect(commands.sent == [["window", "focus", "2"], ["window", "focus", "south"]])
+  }
+
+  @Test func anAbortedMoveRedrawsTheOverviewFromTheTrueState() async {
+    strip.afterApply = { strip, words in
+      if words == ["window", "unstack"] { strip.ignoresCommands = true }
+    }
+    overview.toggle(with: strip.snapshot)
+
+    host.drop(WindowID(3), as: .column(position: 3))
+
+    #expect(await eventually { shown == [[1], [2], [3], [4], [5]] })
+    #expect(host.overview?.snapshot.selection == WindowID(3))
   }
 
   @Test func minimapDropMovesTheRealWindow() async {

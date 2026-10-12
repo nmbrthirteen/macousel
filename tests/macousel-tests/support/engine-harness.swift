@@ -60,12 +60,13 @@ final class EngineHarness {
     let sync = makeSync(store: store)
     let supervisor = makeSupervisor(sync: sync)
     let displays: () -> [Display] = { environment.displays }
-    let reorder = EngineReorder(commands: commands, sleep: { _ in })
+    let reorder = EngineReorder(commands: commands, sleep: { _ in }, now: { FrozenInstant.now })
     let world = EngineWorld(commands: commands, sleep: { _ in })
     let overview = EngineOverview(host: overlays, displays: displays, reorder: reorder)
     let drag = EngineDrag(
       pointer: pointer, clock: clock, host: overlays, world: world, displays: displays,
-      reorder: reorder, settler: EngineSettler(commands: commands, sleep: { _ in }),
+      reorder: reorder,
+      settler: EngineSettler(commands: commands, sleep: { _ in }, now: { FrozenInstant.now }),
       isSuppressed: { overview.isOpen })
     return PaneruEngine(
       PaneruEngineParts(

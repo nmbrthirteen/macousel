@@ -78,10 +78,36 @@ struct EngineDropPreviewTests {
   }
 
   @Test func columnsOffTheScreenAreNeverTargets() {
+    let strip = FakePaneruStrip(columns: [[1], [2], [3, 4]])
+    strip.viewport = 0...1900
     let narrow = EngineDropTargeting(
-      columns: columns, viewport: CGRect(x: 0, y: 24, width: 1900, height: 776))
+      columns: strip.snapshot.tiledColumns, viewport: CGRect(x: 0, y: 24, width: 1900, height: 776))
 
     let target = narrow.target(dragging: WindowID(1), at: CGPoint(x: 1890, y: 400))
+
+    #expect(target == .column(position: 1))
+  }
+
+  @Test func aParkedSliverAtTheLeftEdgeIsNotATarget() {
+    let strip = FakePaneruStrip(columns: [[1], [2], [3], [4], [5]], focused: 3)
+    strip.viewport = 1960...4000
+    let parked = EngineDropTargeting(
+      columns: strip.snapshot.tiledColumns,
+      viewport: CGRect(x: 1960, y: 24, width: 2040, height: 776))
+
+    let target = parked.target(dragging: WindowID(4), at: CGPoint(x: 1965, y: 400))
+
+    #expect(target == .column(position: 2))
+  }
+
+  @Test func aParkedSliverAtTheRightEdgeIsNotATarget() {
+    let strip = FakePaneruStrip(columns: [[1], [2], [3], [4]], focused: 2)
+    strip.viewport = 0...2000
+    let parked = EngineDropTargeting(
+      columns: strip.snapshot.tiledColumns,
+      viewport: CGRect(x: 0, y: 24, width: 2000, height: 776))
+
+    let target = parked.target(dragging: WindowID(1), at: CGPoint(x: 1995, y: 400))
 
     #expect(target == .column(position: 1))
   }

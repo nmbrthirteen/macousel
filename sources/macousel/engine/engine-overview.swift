@@ -2,8 +2,6 @@ import StripCore
 import WindowSystem
 
 final class EngineOverview {
-  var onChoose: ((Int) -> Void)?
-
   private let host: any OverlayHost
   private let displays: () -> [Display]
   private let reorder: EngineReorder
@@ -75,31 +73,30 @@ final class EngineOverview {
       let move = EngineKeyMove(key: key, window: window, columns: current.snapshot.tiledColumns)
     else { return }
     Task { [weak self] in
-      let result: EngineSnapshot?
+      let outcome: EngineReorderOutcome?
       switch move {
-      case .drop(let target): result = await self?.reorder.move(window, to: target)
-      case .shift(let direction): result = await self?.reorder.shift(window, toward: direction)
+      case .drop(let target): outcome = await self?.reorder.move(window, to: target)
+      case .shift(let direction): outcome = await self?.reorder.shift(window, toward: direction)
       }
-      self?.finishMove(result, selecting: window)
+      self?.finishMove(outcome, selecting: window)
     }
   }
 
   private func drop(_ window: WindowID, on target: DropTarget) {
     Task { [weak self] in
-      let result = await self?.reorder.move(window, to: target)
-      self?.finishMove(result, selecting: window)
+      let outcome = await self?.reorder.move(window, to: target)
+      self?.finishMove(outcome, selecting: window)
     }
   }
 
-  private func finishMove(_ snapshot: EngineSnapshot?, selecting window: WindowID) {
-    guard isOpen, let snapshot else { return }
+  private func finishMove(_ outcome: EngineReorderOutcome?, selecting window: WindowID) {
+    guard isOpen, let snapshot = outcome?.snapshot else { return }
     if !present(snapshot, selecting: window) { close() }
   }
 
   private func choose(_ window: WindowID) {
-    guard let current = session else { return }
-    let column = current.snapshot.tiledColumns.columnIndex(of: window)
+    guard isOpen else { return }
     close()
-    if let column { onChoose?(column) }
+    Task { [weak self] in await self?.reorder.focus(window) }
   }
 }

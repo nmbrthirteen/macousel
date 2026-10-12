@@ -3,8 +3,12 @@ import StripCore
 import WindowSystem
 
 final class EngineDrag {
+  static let longPress = Duration.milliseconds(4500)
+
   private struct Press {
     var window: WindowID
+    var point: CGPoint
+    var pressedAt: ContinuousClock.Instant
     var columns: EngineColumns
     var targeting: EngineDropTargeting
     var preview: EngineDropPreview
@@ -21,6 +25,7 @@ final class EngineDrag {
   }
 
   private let pointer: any PointerDevice
+  private let clock: any AnimationClock
   private let host: any OverlayHost
   private let world: EngineWorld
   private let displays: () -> [Display]
@@ -32,6 +37,7 @@ final class EngineDrag {
   private var phase = DragPhase.idle
   private var press: Press?
   private var settling: Task<Void, Never>?
+  private var settleToken = 0
 
   init(
     pointer: any PointerDevice, clock: any AnimationClock, host: any OverlayHost,
@@ -39,6 +45,7 @@ final class EngineDrag {
     settler: EngineSettler, isSuppressed: @escaping () -> Bool
   ) {
     self.pointer = pointer
+    self.clock = clock
     self.host = host
     self.world = world
     self.displays = displays
@@ -76,8 +83,12 @@ final class EngineDrag {
     phase = .idle
     press = nil
     poller.stop()
-    guard settling == nil, !reorder.isRunning, !isSuppressed(),
-      let window = pointer.windowID(at: point), let tracked = trackedPress(of: window),
+    if let reason = busyReason {
+      log.ignoredPress(reason: reason)
+      return
+    }
+    guard !isSuppressed(), let window = pointer.windowID(at: point),
+      let tracked = trackedPress(of: window, at: point),
       let baseline = pointer.serverBounds(of: window) ?? tracked.columns.frame(of: tracked.window)
     else { return }
     log.pressed(window, isTiled: true)
@@ -86,7 +97,13 @@ final class EngineDrag {
     poller.start { [weak self] in self?.polled() ?? false }
   }
 
-  private func trackedPress(of window: CGWindowID) -> Press? {
+  private var busyReason: String? {
+    if settling != nil { return "a drop is settling" }
+    if reorder.isRunning { return "a reorder is running" }
+    return nil
+  }
+
+  private func trackedPress(of window: CGWindowID, at point: CGPoint) -> Press? {
     guard let snapshot = world.snapshot, let display = snapshot.display(in: displays()) else {
       return nil
     }
@@ -95,7 +112,7 @@ final class EngineDrag {
     guard columns.position(of: id) != nil else { return nil }
     let viewport = display.visibleFrame
     return Press(
-      window: id, columns: columns,
+      window: id, point: point, pressedAt: clock.now, columns: columns,
       targeting: EngineDropTargeting(columns: columns, viewport: viewport),
       preview: EngineDropPreview(columns: columns, viewport: viewport))
   }
@@ -125,7 +142,8 @@ final class EngineDrag {
   }
 
   private func recognise(_ candidate: DragCandidate, noticedBy notice: DragNotice) {
-    guard let actual = pointer.serverBounds(of: candidate.window),
+    guard let origin = press?.point, hasTravelled(from: origin),
+      let actual = pointer.serverBounds(of: candidate.window),
       !actual.isClose(to: candidate.baseline, within: DragResize.tolerance)
     else { return }
     let resized = DragResize.hasResized(from: candidate.baseline, to: actual)
@@ -141,6 +159,11 @@ final class EngineDrag {
       LiveDrag(window: candidate.window, baseline: candidate.baseline, kind: .move))
     pointer.startObservingEscape { [weak self] in self?.escaped() }
     showPreview()
+  }
+
+  private func hasTravelled(from origin: CGPoint) -> Bool {
+    let location = pointer.location
+    return hypot(location.x - origin.x, location.y - origin.y) > DragResize.tolerance
   }
 
   private func showPreview() {
@@ -162,7 +185,15 @@ final class EngineDrag {
     poller.stop()
     let ended = phase
     phase = .idle
-    guard case .live(let drag) = ended, let press else { return }
+    guard let press else { return }
+    switch ended {
+    case .live(let drag): finish(drag, press: press)
+    case .cancelled: snapIfLong(press)
+    default: break
+    }
+  }
+
+  private func finish(_ drag: LiveDrag, press: Press) {
     endLiveDrag()
     self.press = nil
     let location = pointer.location
@@ -171,9 +202,32 @@ final class EngineDrag {
     let target = press.target(at: location)
     guard target != .nowhere else {
       log.ended(drag.window, as: .returnedToSlot)
+      snapIfLong(press)
       return
     }
-    settling = Task { [weak self] in await self?.settleAndMove(press, to: target) }
+    track { engine in await engine.settleAndMove(press, to: target) }
+  }
+
+  private func snapIfLong(_ press: Press) {
+    self.press = nil
+    guard clock.now - press.pressedAt > Self.longPress else { return }
+    log.snapped(press.rawWindow, reason: "long drag ended without a move")
+    track { engine in await engine.settler.snap() }
+  }
+
+  private func track(_ work: @escaping (EngineDrag) async -> Void) {
+    settleToken += 1
+    let token = settleToken
+    settling = Task { [weak self] in
+      guard let self else { return }
+      await work(self)
+      finishSettling(token)
+    }
+  }
+
+  private func finishSettling(_ token: Int) {
+    guard !Task.isCancelled, settleToken == token else { return }
+    settling = nil
   }
 
   private func endLiveDrag() {
@@ -182,17 +236,37 @@ final class EngineDrag {
   }
 
   private func settleAndMove(_ press: Press, to target: DropTarget) async {
-    defer { settling = nil }
-    guard await settler.settles(on: press.columns.windowIDs) else {
-      log.unsettled(press.rawWindow)
-      return
+    guard await settledAfterSnap(press) else { return }
+    let outcome = await reorder.move(press.window, to: target)
+    guard !Task.isCancelled else { return }
+    conclude(outcome, press: press, target: target)
+  }
+
+  private func settledAfterSnap(_ press: Press) async -> Bool {
+    let expected = press.columns.windowIDs
+    if await settler.settles(on: expected) { return !Task.isCancelled }
+    guard !Task.isCancelled else { return false }
+    log.snapped(press.rawWindow, reason: "structure did not settle")
+    await settler.snap()
+    guard !Task.isCancelled else { return false }
+    if await settler.settles(on: expected) { return !Task.isCancelled }
+    if !Task.isCancelled { log.unsettled(press.rawWindow) }
+    return false
+  }
+
+  private func conclude(_ outcome: EngineReorderOutcome, press: Press, target: DropTarget) {
+    let window = press.rawWindow
+    switch outcome {
+    case .completed:
+      world.refresh()
+      log.ended(window, as: Self.branch(for: target))
+    case .aborted(let step, _):
+      world.refresh()
+      log.aborted(window, step: step)
+    case .nothingToDo: log.skipped(window, reason: "nothing to move")
+    case .busy: log.skipped(window, reason: "another reorder was running")
+    case .unavailable: log.skipped(window, reason: "the engine did not answer")
     }
-    guard await reorder.move(press.window, to: target) != nil else {
-      log.ended(press.rawWindow, as: .returnedToSlot)
-      return
-    }
-    world.refresh()
-    log.ended(press.rawWindow, as: Self.branch(for: target))
   }
 
   private static func branch(for target: DropTarget) -> DragBranch {

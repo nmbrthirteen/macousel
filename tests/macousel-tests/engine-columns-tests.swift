@@ -1,3 +1,4 @@
+import CoreGraphics
 import StripCore
 import Testing
 
@@ -40,10 +41,73 @@ struct EngineColumnsTests {
     #expect(ids(columns) == [[1, 2, 3]])
   }
 
-  @Test func differentWidthsAtTheSameXStaySeparate() {
+  @Test func aStackWhoseMembersReportDifferentWidthsStaysOneColumn() {
     let columns = EngineColumns([window(1, x: 0, width: 100), window(2, x: 0, y: 500, width: 80)])
 
+    #expect(ids(columns) == [[1, 2]])
+  }
+
+  @Test func aSubPixelDifferenceInXStillStacks() {
+    let columns = EngineColumns([window(1, x: 0), window(2, x: 1, y: 500)])
+
+    #expect(ids(columns) == [[1, 2]])
+  }
+
+  @Test func windowsTwoPixelsApartInXAreSeparateColumns() {
+    let columns = EngineColumns([window(1, x: 0), window(2, x: 2, y: 500)])
+
     #expect(ids(columns) == [[1], [2]])
+  }
+
+  @Test func aGapInsideTheTolerancePreservesTheStack() {
+    let gap = EngineColumns([window(1, x: 0), window(2, x: 0, y: 508)])
+    let overlap = EngineColumns([window(1, x: 0), window(2, x: 0, y: 480)])
+
+    #expect(ids(gap) == [[1, 2]])
+    #expect(ids(overlap) == [[1, 2]])
+  }
+
+  @Test func aWindowStartingTooFarAboveTheBottomStartsANewColumn() {
+    let columns = EngineColumns([window(1, x: 0), window(2, x: 0, y: 470)])
+
+    #expect(ids(columns) == [[1], [2]])
+  }
+
+  @Test func aParkedStackFollowedByAParkedSingleKeepsTwoColumns() {
+    let strip = FakePaneruStrip(columns: [[1, 2], [3], [4], [5]])
+    strip.viewport = 2000...2900
+
+    #expect(ids(strip.snapshot.tiledColumns) == [[1, 2], [3], [4], [5]])
+  }
+
+  @Test func twoParkedStacksInARowKeepTwoColumns() {
+    let left = FakePaneruStrip(columns: [[1, 2], [3, 4], [5]])
+    left.viewport = 2000...2900
+    let right = FakePaneruStrip(columns: [[1], [2], [3, 4], [5, 6]])
+    right.viewport = 0...1000
+
+    #expect(ids(left.snapshot.tiledColumns) == [[1, 2], [3, 4], [5]])
+    #expect(ids(right.snapshot.tiledColumns) == [[1], [2], [3, 4], [5, 6]])
+  }
+
+  @Test func parkedSinglesShareOneXAndStaySeparate() {
+    let strip = FakePaneruStrip(columns: [[1], [2], [3], [4]])
+    strip.viewport = 2000...2900
+
+    #expect(ids(strip.snapshot.tiledColumns) == [[1], [2], [3], [4]])
+  }
+
+  @Test func measuresWhetherAColumnIsOnScreenByItsOverlap() {
+    let viewport = CGRect(x: 1000, y: 0, width: 1000, height: 800)
+    let sliver = EngineColumns([window(1, x: 49, width: 960)]).columns[0]
+    let edge = EngineColumns([window(1, x: 1952, width: 960)]).columns[0]
+    let inside = EngineColumns([window(1, x: 1500, width: 960)]).columns[0]
+    let unframed = EngineColumns([EngineWindow(windowId: 1, displayId: 1)]).columns[0]
+
+    #expect(!sliver.isOnScreen(in: viewport))
+    #expect(edge.isOnScreen(in: viewport))
+    #expect(inside.isOnScreen(in: viewport))
+    #expect(!unframed.isOnScreen(in: viewport))
   }
 
   @Test func equalFramesAtTheSameYStaySeparate() {

@@ -168,7 +168,7 @@ struct EngineDragTests {
     #expect(await fixture.eventually { fixture.strip.columns == [[2], [1, 3]] })
   }
 
-  @Test func releaseSendsNothingWhenTheStructureNeverSettles() async {
+  @Test func releaseSnapsOnceAndSendsNothingElseWhenTheStructureNeverSettles() async {
     await fixture.start()
     fixture.press()
     fixture.drag(by: far, to: gap)
@@ -177,8 +177,152 @@ struct EngineDragTests {
     fixture.pointer.releasePrimary()
 
     #expect(await fixture.eventually { !fixture.drag.isSettling })
-    #expect(fixture.probe.sleeps == EngineSettler.polls)
+    #expect(fixture.probe.sleeps == 2 * EnginePoll.polls)
+    #expect(fixture.commands.sent == [["window", "snap"]])
+  }
+
+  @Test func releaseSnapsThenMovesWhenTheSecondSettleSucceeds() async {
+    await fixture.start()
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+    fixture.strip.columns = [[1], [3], [2]]
+    fixture.strip.afterApply = { strip, words in
+      if words == ["window", "snap"] { strip.columns = [[1], [2], [3]] }
+    }
+
+    fixture.pointer.releasePrimary()
+
+    #expect(await fixture.eventually { fixture.strip.columns == [[2], [1], [3]] })
+    #expect(fixture.commands.sent.first == ["window", "snap"])
+    #expect(fixture.commands.sent.contains(["window", "swap", "east"]))
+    #expect(fixture.probe.sleeps == EnginePoll.polls)
+  }
+
+  @Test func aLongDragReleasedOnNowhereSnapsOnce() async {
+    await fixture.start()
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+    fixture.drag(by: far, to: CGPoint(x: 480, y: 100))
+    fixture.clock.advance(by: .seconds(5))
+
+    fixture.pointer.releasePrimary()
+
+    #expect(await fixture.eventually { fixture.commands.sent == [["window", "snap"]] })
+    #expect(await fixture.eventually { !fixture.drag.isSettling })
+    #expect(fixture.commands.sent == [["window", "snap"]])
+  }
+
+  @Test func aShortDragReleasedOnNowhereSendsNothing() async {
+    await fixture.start()
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+    fixture.drag(by: far, to: CGPoint(x: 480, y: 100))
+    fixture.clock.advance(by: .seconds(4))
+
+    fixture.pointer.releasePrimary()
+    for _ in 0..<50 { await Task.yield() }
+
     #expect(fixture.commands.sent.isEmpty)
+    #expect(!fixture.drag.isSettling)
+  }
+
+  @Test func aLongDragCancelledWithEscapeSnapsOnceOnRelease() async {
+    await fixture.start()
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+    fixture.pointer.pressEscape()
+    fixture.clock.advance(by: .seconds(5))
+    #expect(fixture.commands.sent.isEmpty)
+
+    fixture.pointer.releasePrimary()
+
+    #expect(await fixture.eventually { fixture.commands.sent == [["window", "snap"]] })
+  }
+
+  @Test func aShortDragCancelledWithEscapeSendsNothing() async {
+    await fixture.start()
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+    fixture.pointer.pressEscape()
+
+    fixture.pointer.releasePrimary()
+    for _ in 0..<50 { await Task.yield() }
+
+    #expect(fixture.commands.sent.isEmpty)
+  }
+
+  @Test func aPointerThatStaysPutNeverStartsADrag() async {
+    await fixture.start()
+    fixture.press()
+    let pressPoint = fixture.pointer.location
+
+    fixture.pointer.setServerBounds(fixture.windowFrame(1).offsetBy(dx: 300, dy: 100), of: 1)
+    fixture.pointer.dragPrimary(to: pressPoint)
+    fixture.pointer.dragPrimary(to: CGPoint(x: pressPoint.x + 1, y: pressPoint.y + 1))
+
+    #expect(fixture.host.dropPreviewHistory.isEmpty)
+    #expect(!fixture.pointer.isObservingEscape)
+  }
+
+  @Test func aPointerThatTravelsStartsADragWhenTheWindowMoves() async {
+    await fixture.start()
+    fixture.press()
+    let pressPoint = fixture.pointer.location
+
+    fixture.pointer.setServerBounds(fixture.windowFrame(1).offsetBy(dx: 300, dy: 100), of: 1)
+    fixture.pointer.dragPrimary(to: pressPoint)
+    fixture.pointer.dragPrimary(to: CGPoint(x: pressPoint.x + 4, y: pressPoint.y))
+
+    #expect(fixture.host.dropPreview != nil)
+  }
+
+  @Test func aPressWhileADropSettlesIsIgnored() async {
+    await fixture.start()
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+    fixture.strip.columns = [[1], [3], [2]]
+    fixture.pointer.releasePrimary()
+    #expect(fixture.drag.isSettling)
+    let shown = fixture.host.dropPreviewHistory.count
+
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+
+    #expect(fixture.host.dropPreviewHistory.count == shown)
+  }
+
+  @Test func aCancelledSettleLeavesTheNextSettlesHandleAlone() async {
+    await fixture.start()
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+    fixture.strip.columns = [[1], [3], [2]]
+    fixture.pointer.releasePrimary()
+    #expect(await fixture.eventually { fixture.probe.sleeps > 0 })
+
+    fixture.drag.stop()
+    fixture.drag.start()
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+    fixture.pointer.releasePrimary()
+    for _ in 0..<10 { await Task.yield() }
+
+    #expect(fixture.drag.isSettling)
+  }
+
+  @Test func aCancelledMoveDoesNotRefreshTheWorld() async {
+    await fixture.start()
+    fixture.strip.lag = 5
+    fixture.press()
+    fixture.drag(by: far, to: gap)
+    fixture.pointer.releasePrimary()
+    #expect(await fixture.eventually { fixture.reorder.isRunning })
+
+    fixture.drag.stop()
+    #expect(await fixture.eventually { !fixture.reorder.isRunning })
+    for _ in 0..<50 { await Task.yield() }
+
+    let unchanged: [[WindowID]] = [[WindowID(1)], [WindowID(2)], [WindowID(3)]]
+    #expect(fixture.world.snapshot?.tiledColumns.windowIDs == unchanged)
   }
 
   @Test func releaseOverTheOwnSlotSendsNothing() async {

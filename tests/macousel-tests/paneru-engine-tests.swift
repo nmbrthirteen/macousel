@@ -188,6 +188,15 @@ struct PaneruEngineTests {
     #expect(engine.position?.columnCount == 3)
   }
 
+  @Test func refreshesTheSnapshotWhenTheEventStreamReconnects() async throws {
+    let (engine, _) = try await running()
+    harness.commands.snapshot = EngineFixtures.snapshot()
+
+    harness.events.onConnect?()
+
+    #expect(await harness.eventually { engine.position?.columnCount == 3 })
+  }
+
   @Test func opensTheOverviewAndFocusesTheChosenWindow() async throws {
     let (engine, _) = try await running()
     harness.commands.snapshot = EngineFixtures.snapshot()

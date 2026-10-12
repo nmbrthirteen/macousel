@@ -7,6 +7,8 @@ import WindowSystem
 
 @MainActor
 struct EngineStripPositionTests {
+  private let viewport = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+
   @Test func countsOnlyTiledWindowsOfTheActiveWorkspace() throws {
     let snapshot = try #require(EngineFixtures.snapshot())
 
@@ -48,7 +50,7 @@ struct EngineStripPositionTests {
   @Test func buildsEqualSingleCellMinimapColumns() throws {
     let snapshot = try #require(EngineFixtures.snapshot())
 
-    let minimap = try #require(EngineMinimapBuilder(snapshot: snapshot).build())
+    let minimap = try #require(EngineMinimapBuilder(snapshot: snapshot, viewport: viewport).build())
 
     #expect(minimap.columns.count == 3)
     #expect(Set(minimap.columns.map(\.width)).count == 1)
@@ -62,7 +64,10 @@ struct EngineStripPositionTests {
       EngineFixtures.tile(1, bundle: "a", focused: true), EngineFixtures.tile(2, bundle: "b"),
     ]
 
-    #expect(EngineMinimapBuilder(snapshot: EngineFixtures.snapshot(of: windows)).build() == nil)
+    let builder = EngineMinimapBuilder(
+      snapshot: EngineFixtures.snapshot(of: windows), viewport: viewport)
+
+    #expect(builder.build() == nil)
   }
 
   @Test func buildsAnOverviewWithTheRealColumnWidths() throws {

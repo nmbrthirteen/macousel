@@ -46,6 +46,8 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 - A URL scheme and a command line client for scripts.
 - Quitting or pausing stops Paneru, which centres every window on its display.
 
+Macousel reads the columns from the window frames that Paneru reports. A tabbed column reports one frame for every member, so Macousel sees each tab as its own column. Dragging a window next to a tabbed column can stop early, and the overview and minimap draw the tabs as separate columns.
+
 ## What the built-in engine still offers
 
 Paneru does not do these. The built-in engine does, and Macousel greys out the matching settings while Paneru is selected.

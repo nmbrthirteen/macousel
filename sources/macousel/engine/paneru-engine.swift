@@ -17,12 +17,11 @@ final class PaneruEngine: ManagementEngine {
     accessibility = AccessibilityMonitor(environment: parts.environment, intervals: parts.polling)
     parts.supervisor.onStateChange = { [weak self] state in self?.supervisorChanged(state) }
     parts.events.onEvent = { [weak self] event in self?.parts.world.handle(event) }
+    parts.events.onConnect = { [weak self] in self?.parts.world.refresh() }
     parts.world.onFocusMoved = { [weak self] snapshot in
       if self?.parts.overview.isOpen == false { self?.parts.minimap.flash(snapshot) }
     }
     parts.world.onAdopted = { [weak self] snapshot in self?.parts.overview.refresh(with: snapshot) }
-    parts.minimap.onSelect = { [weak self] column in self?.focus(column: column) }
-    parts.overview.onChoose = { [weak self] column in self?.focus(column: column) }
   }
 
   var position: StripPosition? { parts.world.position }
@@ -141,10 +140,6 @@ final class PaneruEngine: ManagementEngine {
     parts.bindings.apply(
       isRunning: status == .running, perform: { [weak self] action in self?.perform(action) },
       jump: { [weak self] bundle in self?.parts.appShortcuts.jump(to: bundle) })
-  }
-
-  private func focus(column: Int) {
-    send(PaneruCommand("window", "focus", "\(column + 1)"))
   }
 
   private func send(_ command: PaneruCommand) {

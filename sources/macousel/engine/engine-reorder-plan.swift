@@ -6,6 +6,15 @@ nonisolated struct EngineReorderPlan: Equatable, Sendable {
     case moveColumn(to: Int)
     case stack(onto: WindowID)
     case moveRow(by: Int)
+
+    var name: String {
+      switch self {
+      case .unstack: "unstack"
+      case .moveColumn: "move column"
+      case .stack: "stack"
+      case .moveRow: "move row"
+      }
+    }
   }
 
   let source: EngineColumns.Position

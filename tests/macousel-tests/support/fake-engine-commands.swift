@@ -34,6 +34,7 @@ final class FakeEngineCommands: EngineCommanding {
 @MainActor
 final class FakeEngineEvents: EngineEventSource {
   var onEvent: ((EngineEvent) -> Void)?
+  var onConnect: (() -> Void)?
   private(set) var startCount = 0
   private(set) var stopCount = 0
 

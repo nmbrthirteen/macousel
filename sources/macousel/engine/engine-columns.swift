@@ -17,7 +17,19 @@ nonisolated struct EngineColumns: Equatable, Sendable {
       return Double(width)
     }
 
-    var isVisible: Bool { windows.contains { $0.visible } }
+    var horizontalExtent: ClosedRange<CGFloat>? {
+      let frames = windows.compactMap(\.frame?.rect)
+      guard let left = frames.map(\.minX).min(), let right = frames.map(\.maxX).max() else {
+        return nil
+      }
+      return left...right
+    }
+
+    func isOnScreen(in viewport: CGRect) -> Bool {
+      guard let extent = horizontalExtent else { return false }
+      let overlap = min(extent.upperBound, viewport.maxX) - max(extent.lowerBound, viewport.minX)
+      return overlap >= EngineColumns.minimumOverlap
+    }
 
     var heightShares: [Double] {
       let heights = windows.map { Double($0.frame?.height ?? 0) }
@@ -28,6 +40,10 @@ nonisolated struct EngineColumns: Equatable, Sendable {
       return heights.map { $0 / total }
     }
   }
+
+  static let minimumOverlap: CGFloat = 48
+  static let alignmentTolerance = 1
+  static let stackTolerance = 24
 
   let columns: [Column]
 
@@ -76,6 +92,7 @@ nonisolated struct EngineColumns: Equatable, Sendable {
 
   private static func stack(_ window: EngineWindow, below previous: EngineWindow) -> Bool {
     guard let frame = window.frame, let above = previous.frame else { return false }
-    return frame.x == above.x && frame.width == above.width && frame.y != above.y
+    return abs(frame.x - above.x) <= alignmentTolerance
+      && frame.y >= above.y + above.height - stackTolerance
   }
 }

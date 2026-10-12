@@ -40,4 +40,23 @@ struct DragLog {
     Self.logger.info(
       "drag ended: window \(window, privacy: .public) structure did not settle, nothing moved")
   }
+
+  func skipped(_ window: CGWindowID, reason: String) {
+    Self.logger.info(
+      "drag ended: window \(window, privacy: .public) nothing moved, \(reason, privacy: .public)")
+  }
+
+  func aborted(_ window: CGWindowID, step: String) {
+    Self.logger.info(
+      "drag ended: window \(window, privacy: .public) aborted at \(step, privacy: .public)")
+  }
+
+  func snapped(_ window: CGWindowID, reason: String) {
+    Self.logger.info(
+      "drag snap: window \(window, privacy: .public) \(reason, privacy: .public)")
+  }
+
+  func ignoredPress(reason: String) {
+    Self.logger.info("drag press ignored: \(reason, privacy: .public)")
+  }
 }

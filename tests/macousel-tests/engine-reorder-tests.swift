@@ -24,7 +24,8 @@ struct EngineReorderTests {
       sleep: { _ in
         counter.count += 1
         await Task.yield()
-      })
+      },
+      now: { FrozenInstant.now })
   }
 
   private func expected(
@@ -64,6 +65,7 @@ struct EngineReorderTests {
         #expect(
           strip.columns == expected(layout, moving: window, to: target),
           "window \(window) onto \(target)")
+        #expect(strip.errors.isEmpty, "window \(window) onto \(target)")
       }
     }
   }
@@ -110,32 +112,34 @@ struct EngineReorderTests {
   }
 
   @Test func sendsNothingForANoOpDrop() async {
-    let snapshot = await reorder.move(WindowID(4), to: .column(position: 2))
+    let outcome = await reorder.move(WindowID(4), to: .column(position: 2))
     let nowhere = await reorder.move(WindowID(4), to: .nowhere)
 
     #expect(commands.sent.isEmpty)
-    #expect(snapshot != nil)
-    #expect(nowhere != nil)
+    #expect(outcome == .nothingToDo(strip.snapshot))
+    #expect(nowhere == .nothingToDo(strip.snapshot))
   }
 
   @Test func givesUpWhenTheFocusNeverArrives() async {
     strip.ignoresCommands = true
 
-    let snapshot = await reorder.move(WindowID(6), to: .column(position: 0))
+    let outcome = await reorder.move(WindowID(6), to: .column(position: 0))
 
     #expect(commands.sent == [["window", "focus", "4"]])
-    #expect(sleeps.count == EngineReorder.polls)
-    #expect(snapshot?.focusedWindowID == WindowID(1))
+    #expect(sleeps.count == EnginePoll.polls)
+    #expect(outcome.snapshot?.focusedWindowID == WindowID(1))
+    #expect(outcome == .aborted(step: "focus", strip.snapshot))
   }
 
   @Test func abortsWithoutFurtherCommandsWhenAStepNeverShowsUp() async {
     strip.focused = 4
     strip.ignoresCommands = true
 
-    _ = await reorder.move(WindowID(4), to: .column(position: 0))
+    let outcome = await reorder.move(WindowID(4), to: .column(position: 0))
 
     #expect(commands.sent == [["window", "swap", "first"]])
-    #expect(sleeps.count == EngineReorder.polls)
+    #expect(sleeps.count == EnginePoll.polls)
+    #expect(outcome == .aborted(step: "move column", strip.snapshot))
     #expect(strip.columns == [[1], [2, 3], [4], [5, 6, 7]])
   }
 
@@ -148,7 +152,7 @@ struct EngineReorderTests {
     let duringRun = await reorder.move(WindowID(1), to: .column(position: 3))
     _ = await first.value
 
-    #expect(duringRun == nil)
+    #expect(duringRun == .busy)
     #expect(strip.columns == [[4], [1], [2, 3], [5, 6, 7]])
     #expect(!reorder.isRunning)
   }
@@ -168,12 +172,99 @@ struct EngineReorderTests {
 
     let result = await reorder.move(WindowID(4), to: .column(position: 0))
 
-    #expect(result == nil)
+    #expect(result == .unavailable)
     #expect(commands.sent.isEmpty)
+  }
+
+  @Test func reportsACompletedMoveWithTheLatestSnapshot() async {
+    strip.focused = 4
+
+    let outcome = await reorder.move(WindowID(4), to: .column(position: 0))
+
+    #expect(outcome == .completed(strip.snapshot))
+  }
+
+  @Test func restoresFocusStolenAfterTheFirstStepBeforeTheNextCommand() async {
+    strip.afterApply = { strip, words in
+      if words == ["window", "unstack"] { strip.focused = 5 }
+    }
+
+    let outcome = await reorder.move(WindowID(3), to: .column(position: 3))
+
+    #expect(
+      commands.sent == [
+        ["window", "focus", "2"], ["window", "focus", "south"], ["window", "unstack"],
+        ["window", "focus", "3"], ["window", "swap", "east"],
+      ])
+    #expect(strip.columns == [[1], [2], [4], [3], [5, 6, 7]])
+    #expect(outcome == .completed(strip.snapshot))
+  }
+
+  @Test func abortsWithoutFurtherSendsWhenStolenFocusCannotBeRestored() async {
+    strip.afterApply = { strip, words in
+      guard words == ["window", "unstack"] else { return }
+      strip.focused = 5
+      strip.ignoresCommands = true
+    }
+
+    let outcome = await reorder.move(WindowID(3), to: .column(position: 3))
+
+    #expect(commands.sent.last == ["window", "focus", "3"])
+    #expect(!commands.sent.contains(["window", "swap", "east"]))
+    #expect(outcome == .aborted(step: "move column", strip.snapshot))
+  }
+
+  @Test func neverSendsSwapNorthAfterTheRowVanishes() async {
+    strip.columns = [[1], [2, 3]]
+    strip.afterApply = { strip, words in
+      if words == ["window", "focus", "south"] { strip.columns = [[1], [2], [3]] }
+    }
+
+    let outcome = await reorder.move(WindowID(3), to: .stack(onto: WindowID(2), side: .above))
+
+    #expect(commands.sent == [["window", "focus", "2"], ["window", "focus", "south"]])
+    #expect(strip.errors.isEmpty)
+    #expect(outcome == .aborted(step: "move row", strip.snapshot))
+  }
+
+  @Test func neverSendsFocusSouthAtTheBottomOfAColumn() async {
+    strip.columns = [[1], [2, 3]]
+    strip.afterApply = { strip, words in
+      if words == ["window", "focus", "2"] { strip.columns = [[1], [2], [3]] }
+    }
+
+    let outcome = await reorder.move(WindowID(3), to: .stack(onto: WindowID(2), side: .above))
+
+    #expect(commands.sent == [["window", "focus", "2"]])
+    #expect(strip.errors.isEmpty)
+    #expect(outcome == .aborted(step: "focus", strip.snapshot))
+  }
+
+  @Test func stopsPollingAtTheDeadlineWhenEachPollIsSlow() async {
+    let clock = StepClock()
+    let counter = SleepCounter()
+    let slow = EngineReorder(
+      commands: commands,
+      sleep: { _ in
+        counter.count += 1
+        clock.now = clock.now.advanced(by: .seconds(1))
+      },
+      now: { clock.now })
+    strip.ignoresCommands = true
+
+    let outcome = await slow.move(WindowID(6), to: .column(position: 0))
+
+    #expect(counter.count == 2)
+    #expect(outcome == .aborted(step: "focus", strip.snapshot))
   }
 }
 
 @MainActor
 final class SleepCounter {
   var count = 0
+}
+
+@MainActor
+final class StepClock {
+  var now = ContinuousClock.now
 }

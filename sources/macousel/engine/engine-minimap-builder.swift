@@ -1,13 +1,15 @@
+import CoreGraphics
 import StripCore
 
 struct EngineMinimapBuilder {
   static let cellWidth = 400.0
 
   let snapshot: EngineSnapshot
+  let viewport: CGRect
 
   func build() -> MinimapSnapshot? {
     let columns = snapshot.tiledColumns.columns
-    let visible = columns.indices.filter { columns[$0].isVisible }
+    let visible = columns.indices.filter { columns[$0].isOnScreen(in: viewport) }
     guard columns.count > 1, let first = visible.first, let last = visible.last,
       visible.count < columns.count
     else { return nil }

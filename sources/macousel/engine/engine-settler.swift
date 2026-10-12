@@ -1,23 +1,16 @@
 import StripCore
 
 struct EngineSettler {
-  static let polls = 50
-  static let interval = Duration.milliseconds(20)
-
   let commands: any EngineCommanding
   let sleep: (Duration) async throws -> Void
+  var now: () -> ContinuousClock.Instant = { ContinuousClock.now }
 
   func settles(on expected: [[WindowID]]) async -> Bool {
-    for _ in 0..<Self.polls {
-      if let fetched = await commands.fetchSnapshot(), fetched.tiledColumns.windowIDs == expected {
-        return true
-      }
-      do {
-        try await sleep(Self.interval)
-      } catch {
-        return false
-      }
-    }
-    return false
+    let poll = EnginePoll(commands: commands, sleep: sleep, now: now)
+    return await poll.until { $0.tiledColumns.windowIDs == expected }
+  }
+
+  func snap() async {
+    await commands.send(["window", "snap"])
   }
 }
