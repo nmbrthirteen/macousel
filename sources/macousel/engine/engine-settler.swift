@@ -1,8 +1,8 @@
 import StripCore
 
 struct EngineSettler {
-  static let polls = 10
-  static let interval = Duration.milliseconds(100)
+  static let polls = 50
+  static let interval = Duration.milliseconds(20)
 
   let commands: any EngineCommanding
   let sleep: (Duration) async throws -> Void

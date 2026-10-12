@@ -1,8 +1,8 @@
 import StripCore
 
 final class EngineReorder {
-  static let polls = 10
-  static let interval = Duration.milliseconds(100)
+  static let polls = 50
+  static let interval = Duration.milliseconds(20)
 
   private let commands: any EngineCommanding
   private let sleep: (Duration) async throws -> Void

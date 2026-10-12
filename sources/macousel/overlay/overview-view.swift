@@ -12,8 +12,13 @@ struct OverviewView: View {
         if let lift = model.lift, let slot = geometry.cards.first(where: { $0.id == lift.window }) {
           OverviewPlaceholderView(rect: slot.rect)
         }
-        ForEach(geometry.cards) { card in
-          cardView(card)
+        GlassEffectContainer(spacing: 0) {
+          ZStack(alignment: .topLeading) {
+            ForEach(geometry.cards) { card in
+              cardView(card)
+            }
+          }
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         if model.lift == nil {
           OverviewHandlesView(
@@ -65,7 +70,7 @@ struct OverviewView: View {
   private var backdrop: some View {
     Rectangle()
       .fill(Color.black.opacity(Metrics.Opacity.overviewBackdrop))
-      .overlaySurface(in: Rectangle())
+      .background(.ultraThinMaterial)
       .accessibilityLabel("Close overview")
       .accessibilityAddTraits(.isButton)
       .accessibilityAction { model.onDismiss() }
