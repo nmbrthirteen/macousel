@@ -88,14 +88,14 @@ struct EngineDragTests {
     #expect(fixture.host.dropPreview == CGRect(x: 2000, y: 200, width: 960, height: 200))
   }
 
-  @Test func hoveringOverTheOwnSlotHidesThePreview() async {
+  @Test func hoveringOverTheOwnSlotPreviewsTheSlotItLeft() async {
     await fixture.start()
 
     fixture.press()
     fixture.drag(by: far, to: gap)
     fixture.drag(by: far, to: CGPoint(x: 480, y: 100))
 
-    #expect(fixture.host.dropPreview == nil)
+    #expect(fixture.host.dropPreview == fixture.windowFrame(1))
   }
 
   @Test func aSizeChangeIsAResizeAndNeverMovesAnything() async {

@@ -16,7 +16,7 @@ final class EngineDrag {
     }
 
     func previewFrame(at point: CGPoint) -> CGRect? {
-      preview.frame(for: target(at: point), dragging: window)
+      preview.frame(for: target(at: point), dragging: window) ?? columns.frame(of: window)
     }
   }
 

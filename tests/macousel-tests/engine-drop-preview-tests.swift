@@ -60,6 +60,38 @@ struct EngineDropPreviewTests {
     #expect(preview.frame(for: .nowhere, dragging: WindowID(1)) == nil)
   }
 
+  @Test func blankSpaceAfterTheLastColumnTargetsTheEnd() {
+    let target = targeting.target(dragging: WindowID(1), at: CGPoint(x: 3600, y: 400))
+
+    #expect(target == .column(position: 2))
+  }
+
+  @Test func blankSpaceBeforeTheFirstColumnTargetsTheStart() {
+    let target = targeting.target(dragging: WindowID(3), at: CGPoint(x: 0, y: 400))
+    let shifted = EngineDropTargeting(
+      columns: columns, viewport: CGRect(x: -500, y: 24, width: 4500, height: 776))
+
+    let beforeTheStrip = shifted.target(dragging: WindowID(2), at: CGPoint(x: -200, y: 400))
+
+    #expect(target == .column(position: 0))
+    #expect(beforeTheStrip == .column(position: 0))
+  }
+
+  @Test func columnsOffTheScreenAreNeverTargets() {
+    let narrow = EngineDropTargeting(
+      columns: columns, viewport: CGRect(x: 0, y: 24, width: 1900, height: 776))
+
+    let target = narrow.target(dragging: WindowID(1), at: CGPoint(x: 1890, y: 400))
+
+    #expect(target == .column(position: 1))
+  }
+
+  @Test func aPointerAboveTheWindowsStillTargetsTheNearestRow() {
+    let target = targeting.target(dragging: WindowID(1), at: CGPoint(x: 2480, y: 2))
+
+    #expect(target == .stack(onto: WindowID(3), side: .above))
+  }
+
   @Test func aGapBetweenColumnsTargetsAnInsertion() {
     let target = targeting.target(dragging: WindowID(1), at: CGPoint(x: 1980, y: 100))
 
