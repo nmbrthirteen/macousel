@@ -7,7 +7,7 @@ struct Preferences: Codable, Equatable {
   var layout = LayoutConfig()
   var shortcuts: [Action: [Hotkey]] = Action.defaultShortcuts
   var animationSpeed = AnimationSpeed.fast
-  var showsFocusBorder = true
+  var showsFocusBorder = false
   var focusBorderWidth: Double = 3
   var dimsInactiveWindows = false
   var dimAmount: Double = 0.25

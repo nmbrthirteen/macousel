@@ -1,0 +1,347 @@
+diff --git a/src/ecs/layout.rs b/src/ecs/layout.rs
+index 0fb8f1e..e87ac12 100644
+--- a/src/ecs/layout.rs
++++ b/src/ecs/layout.rs
+@@ -37,6 +37,77 @@ pub struct LayoutEventsPlugin;
+ /// frame has left the display entirely to whichever display it landed on.
+ pub(crate) const PARKED_STRIP_SLIVER: i32 = 10;
+ 
++/// How far short of its midpoint a window may hang over an edge shared with
++/// another display. macOS hands a window to the display holding most of it, so
++/// a window has to leave such an edge before it is half way across.
++const ADOPTION_MARGIN: i32 = 16;
++
++/// Marks a window parked away from the side it scrolled off, because another
++/// display sits on that side.
++#[derive(Component)]
++pub(crate) struct ParkedAcrossMarker;
++
++/// Which sides of a display touch another display.
++#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
++pub(crate) struct Adjacency {
++    pub left: bool,
++    pub right: bool,
++}
++
++impl Adjacency {
++    pub(crate) fn of(bounds: IRect, others: impl IntoIterator<Item = IRect>) -> Self {
++        let reach = Origin::new(bounds.width(), 0);
++        let left = IRect::from_corners(bounds.min - reach, bounds.max - reach);
++        let right = IRect::from_corners(bounds.min + reach, bounds.max + reach);
++        others
++            .into_iter()
++            .filter(|other| *other != bounds)
++            .fold(Self::default(), |sides, other| Self {
++                left: sides.left || !other.intersect(left).is_empty(),
++                right: sides.right || !other.intersect(right).is_empty(),
++            })
++    }
++}
++
++/// Where a window that does not fit the viewport waits.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub(crate) enum Park {
++    Left,
++    Right,
++    Below,
++}
++
++/// Picks the side a window is hidden on, and where it parks, given its strip
++/// frame. A side shared with another display hides the window once most of it
++/// would cross, and parks it on a side that touches no display.
++pub(crate) fn park_for(
++    frame: IRect,
++    viewport: IRect,
++    display: IRect,
++    h_pad: i32,
++    adjacency: Adjacency,
++) -> Option<(Park, Park)> {
++    let middle = frame.min.x + frame.width() / 2;
++    let hidden = if frame.max.x <= viewport.min.x + h_pad
++        || adjacency.left && middle < display.min.x + ADOPTION_MARGIN
++    {
++        Park::Left
++    } else if frame.min.x >= viewport.max.x - h_pad
++        || adjacency.right && middle > display.max.x - ADOPTION_MARGIN
++    {
++        Park::Right
++    } else {
++        return None;
++    };
++    let park = match (hidden, adjacency.left, adjacency.right) {
++        (_, true, true) => Park::Below,
++        (Park::Left, true, false) => Park::Right,
++        (Park::Right, false, true) => Park::Left,
++        _ => hidden,
++    };
++    Some((hidden, park))
++}
++
+ /// A strip, its entity, origin, display, whether it's the active one, and the
+ /// offset it is animating toward if a move is already in flight.
+ /// Shared by [`reshuffle_layout_strip`] and [`ensure_visible_in_strip`].
+@@ -109,6 +180,7 @@ type RepositionedWindows<'w, 's> = Populated<
+         &'static LayoutPosition,
+         &'static mut Position,
+         &'static mut Bounds,
++        Has<ParkedAcrossMarker>,
+     ),
+     (Changed<LayoutPosition>, With<Window>, Without<LayoutStrip>),
+ >;
+@@ -1581,7 +1653,9 @@ fn position_layout_windows(
+         );
+     }
+ 
+-    for (entity, window, layout_position, mut position, mut bounds) in positioned_windows {
++    for (entity, window, layout_position, mut position, mut bounds, was_across) in
++        positioned_windows
++    {
+         let Some(context) = strip_contexts.get(&entity) else {
+             return;
+         };
+@@ -1589,6 +1663,10 @@ fn position_layout_windows(
+             return;
+         };
+         let viewport = display.actual_display_bounds(dock, &config);
++        let adjacency = Adjacency::of(
++            display.bounds(),
++            displays.iter().map(|(other, _)| other.bounds()),
++        );
+         // Gets 80% of the display height as threshold.
+         let Ok(vertical_move_threshold) = u32::try_from(viewport.height() * 8 / 10) else {
+             continue;
+@@ -1603,22 +1681,38 @@ fn position_layout_windows(
+         frame.min += context.strip_position;
+         frame.max += context.strip_position;
+ 
+-        let mut offscreen = false;
+-        if frame.max.x <= viewport.min.x + h_pad {
+-            // Window hidden to the left — position so exactly
+-            // sliver_width CG pixels are visible from the real
+-            // display edge.  The +h_pad accounts for the gap that
+-            // reposition() adds, which can leave a window just
+-            // inside the viewport edge while its CG frame is fully
+-            // past it.
+-            frame.min.x = viewport.min.x - width + offscreen_sliver_width - pad_left + h_pad;
+-            offscreen = true;
+-        } else if frame.min.x >= viewport.max.x - h_pad {
+-            // Window hidden to the right — mirror of above.
+-            frame.min.x = viewport.max.x - offscreen_sliver_width + pad_right - h_pad;
+-            offscreen = true;
++        // A window hidden to one side keeps exactly sliver_width CG pixels
++        // visible from the real display edge. The h_pad accounts for the gap
++        // that reposition() adds, which can leave a window just inside the
++        // viewport edge while its CG frame is fully past it.
++        let parked = park_for(frame, viewport, display.bounds(), h_pad, adjacency);
++        let offscreen = parked.is_some();
++        let across = parked.is_some_and(|(hidden, park)| park != hidden);
++        match parked.map(|(_, park)| park) {
++            Some(Park::Left) => {
++                frame.min.x = viewport.min.x - width + offscreen_sliver_width - pad_left + h_pad;
++            }
++            Some(Park::Right) => {
++                frame.min.x = viewport.max.x - offscreen_sliver_width + pad_right - h_pad;
++            }
++            Some(Park::Below) => {
++                let height = frame.height();
++                frame.min.x = viewport.min.x;
++                frame.min.y = viewport.max.y - PARKED_STRIP_SLIVER;
++                frame.max.y = frame.min.y + height;
++            }
++            None => (),
+         }
+         frame.max.x = frame.min.x + width;
++        if across != was_across
++            && let Ok(mut entity_commands) = commands.get_entity(entity)
++        {
++            if across {
++                entity_commands.try_insert(ParkedAcrossMarker);
++            } else {
++                entity_commands.try_remove::<ParkedAcrossMarker>();
++            }
++        }
+ 
+         // During swipe, keep full height. The vertical sliver inset only
+         // applies to horizontally off-screen windows, so they expose just
+@@ -1629,7 +1723,7 @@ fn position_layout_windows(
+             // The height reduction corrupts their proportions: when the
+             // column scrolls back on-screen, binpack_heights makes the
+             // last window absorb all remaining space.
+-            if !context.stacked {
++            if !context.stacked && parked.is_none_or(|(_, park)| park != Park::Below) {
+                 let inset =
+                     round_px(f64::from(viewport.height()) * (1.0 - config.sliver_height()) / 2.0);
+                 frame.min.y += inset;
+@@ -1679,8 +1773,13 @@ fn position_layout_windows(
+             // `parking` nor the distance threshold recognizes as
+             // restore-driven, since its last position can land close enough
+             // to its target. See `SnapStripMarker`.
++            // A window parked across the display, or leaving that spot, has
++            // no path to slide along: its neighbours go one way and it goes
++            // the other.
+             if context.swiping
+                 || context.snap_settling
++                || across
++                || was_across
+                 || offscreen_move && !config.virtual_workspace_animations()
+             {
+                 position.0 = frame.min;
+@@ -1699,6 +1798,98 @@ mod tests {
+     use super::*;
+     use bevy::prelude::*;
+ 
++    const LEFT_DISPLAY: IRect = IRect {
++        min: IVec2::new(0, 30),
++        max: IVec2::new(1920, 1080),
++    };
++    const RIGHT_DISPLAY: IRect = IRect {
++        min: IVec2::new(1920, 30),
++        max: IVec2::new(3840, 1080),
++    };
++
++    #[test]
++    fn adjacency_finds_displays_beside_but_not_above_or_below() {
++        let below = IRect::new(0, 1080, 1920, 2160);
++
++        assert_eq!(
++            Adjacency::of(LEFT_DISPLAY, [LEFT_DISPLAY, RIGHT_DISPLAY]),
++            Adjacency {
++                left: false,
++                right: true
++            }
++        );
++        assert_eq!(
++            Adjacency::of(RIGHT_DISPLAY, [LEFT_DISPLAY, RIGHT_DISPLAY]),
++            Adjacency {
++                left: true,
++                right: false
++            }
++        );
++        assert_eq!(
++            Adjacency::of(LEFT_DISPLAY, [LEFT_DISPLAY, below]),
++            Adjacency::default()
++        );
++    }
++
++    #[test]
++    fn a_lone_display_parks_each_window_on_the_side_it_left() {
++        let alone = Adjacency::default();
++        let half_out = IRect::new(-700, 30, 500, 1080);
++        let gone_left = IRect::new(-1300, 30, -100, 1080);
++        let gone_right = IRect::new(2000, 30, 3200, 1080);
++
++        assert_eq!(
++            park_for(half_out, LEFT_DISPLAY, LEFT_DISPLAY, 0, alone),
++            None
++        );
++        assert_eq!(
++            park_for(gone_left, LEFT_DISPLAY, LEFT_DISPLAY, 0, alone),
++            Some((Park::Left, Park::Left))
++        );
++        assert_eq!(
++            park_for(gone_right, LEFT_DISPLAY, LEFT_DISPLAY, 0, alone),
++            Some((Park::Right, Park::Right))
++        );
++    }
++
++    #[test]
++    fn a_shared_edge_parks_the_window_on_the_free_side_before_it_is_half_across() {
++        let beside_left = Adjacency {
++            left: true,
++            right: false,
++        };
++        let mostly_in = IRect::new(1400, 30, 2600, 1080);
++        let mostly_out = IRect::new(1300, 30, 2500, 1080);
++        let gone_right = IRect::new(3900, 30, 5100, 1080);
++
++        assert_eq!(
++            park_for(mostly_in, RIGHT_DISPLAY, RIGHT_DISPLAY, 0, beside_left),
++            None
++        );
++        assert_eq!(
++            park_for(mostly_out, RIGHT_DISPLAY, RIGHT_DISPLAY, 0, beside_left),
++            Some((Park::Left, Park::Right))
++        );
++        assert_eq!(
++            park_for(gone_right, RIGHT_DISPLAY, RIGHT_DISPLAY, 0, beside_left),
++            Some((Park::Right, Park::Right))
++        );
++    }
++
++    #[test]
++    fn a_display_between_two_others_parks_below() {
++        let between = Adjacency {
++            left: true,
++            right: true,
++        };
++        let gone_left = IRect::new(600, 30, 1800, 1080);
++
++        assert_eq!(
++            park_for(gone_left, RIGHT_DISPLAY, RIGHT_DISPLAY, 0, between),
++            Some((Park::Left, Park::Below))
++        );
++    }
++
+     #[test]
+     fn signature_tolerates_pixel_drift_but_not_a_reshape() {
+         let mut world = World::new();
+diff --git a/src/tests/display.rs b/src/tests/display.rs
+index 5f6475b..2d73a1f 100644
+--- a/src/tests/display.rs
++++ b/src/tests/display.rs
+@@ -830,6 +830,55 @@ fn test_hidden_stack_stays_off_the_display_below() {
+         .run(commands);
+ }
+ 
++/// macOS hands a window to the display holding most of it. With a display to
++/// the right, the windows scrolled off that side must wait on the free side.
++#[test]
++fn test_hidden_windows_stay_off_the_display_beside() {
++    fn assert_all_on_main_display(world: &mut World) {
++        let mut query = world.query::<&Window>();
++        for window in query.iter(world) {
++            let frame = window.frame();
++            let middle = frame.min.x + frame.width() / 2;
++            assert!(
++                middle < TEST_DISPLAY_WIDTH,
++                "window {} at {:?} sits mostly on the display beside",
++                window.id(),
++                frame
++            );
++        }
++    }
++
++    let commands = vec![
++        Event::MenuOpened { window_id: 0 },
++        Event::Command {
++            command: Command::Window(Operation::Focus(Direction::First)),
++        },
++        Event::Command {
++            command: Command::Window(Operation::Focus(Direction::Last)),
++        },
++        Event::Command {
++            command: Command::Window(Operation::Focus(Direction::First)),
++        },
++    ];
++
++    TestHarness::new()
++        .with_windows(5)
++        .with_display(
++            EXT_DISPLAY_ID,
++            IRect::new(
++                TEST_DISPLAY_WIDTH,
++                0,
++                TEST_DISPLAY_WIDTH + EXT_DISPLAY_WIDTH,
++                EXT_DISPLAY_HEIGHT,
++            ),
++            vec![EXT_WORKSPACE_ID],
++        )
++        .on_iteration(2, |world, _state| assert_all_on_main_display(world))
++        .on_iteration(3, |world, _state| assert_all_on_main_display(world))
++        .on_iteration(4, |world, _state| assert_all_on_main_display(world))
++        .run(commands);
++}
++
+ /// Focusing a window on another display and coming back must not re-derive the
+ /// strip offset on the display we left: the centering the user asked for there
+ /// is still what they want to see when they return.

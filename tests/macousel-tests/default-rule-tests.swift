@@ -53,10 +53,10 @@ struct DefaultRuleTests {
     #expect(decoded.shortcuts[.focusLeft] == [])
   }
 
-  @Test func newPreferencesShowTheFocusBorderAndFollowThePointerAcrossDisplays() {
+  @Test func newPreferencesHideTheFocusBorderAndFollowThePointerAcrossDisplays() {
     let preferences = Preferences()
 
-    #expect(preferences.showsFocusBorder)
+    #expect(!preferences.showsFocusBorder)
     #expect(preferences.displayFollowsPointer)
     #expect(!preferences.focusFollowsMouse)
   }

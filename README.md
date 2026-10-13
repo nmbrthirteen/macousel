@@ -19,6 +19,7 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 - New windows open next to the focused one.
 - Focus moves with the keyboard, and the strip scrolls just far enough to show the window.
 - Each display and each Space has its own strip.
+- With displays side by side, a window scrolled toward the other display waits on the free side of its own display.
 - Column order and widths come back after a restart.
 
 **Columns**
@@ -116,7 +117,7 @@ scripts/bundle.sh
 open build/Macousel.app
 ```
 
-`scripts/bundle.sh` calls `scripts/engine.sh`, which builds the Paneru version pinned in `support/engine-version` into `build/engine-<version>/` and prints the path of the binary. The first build takes two to three minutes. Later runs reuse the binary. The same script builds `engine-bridge`, a small Rust program that asks Paneru for its column structure and prints it as JSON. The bundle script copies both to `Contents/Helpers` and signs them before it signs the app.
+`scripts/bundle.sh` calls `scripts/engine.sh`, which builds the Paneru version pinned in `support/engine-version` into `build/engine-<version>/` and prints the path of the binary. It downloads the Paneru source from crates.io, checks it against the checksum in `engine-bridge/Cargo.lock`, and applies the patches in `support/engine-patches`. The first build takes two to three minutes. Later runs reuse the binary. The same script builds `engine-bridge`, a small Rust program that asks Paneru for its column structure and prints it as JSON. The bundle script copies both to `Contents/Helpers` and signs them before it signs the app.
 
 For a development build with `swift run`, run `scripts/engine.sh` once. Macousel finds the binary in `build/` when the app has no bundled helper.
 
@@ -217,7 +218,7 @@ The code has no comments. Names carry the meaning.
 
 Push a version tag. The release workflow runs the tests, builds the app with that version, signs the zip with the update key, attests build provenance, and publishes `Macousel.dmg`, `Macousel.zip`, `Macousel.zip.sig`, and `install.sh` to a GitHub release. The release notes list the SHA-256 sums of the DMG and the zip.
 
-The workflow installs a pinned Rust toolchain and caches the engine build, keyed on the version in `support/engine-version`. To move to a newer Paneru, change that file and read the new release's configuration notes first.
+The workflow installs a pinned Rust toolchain and caches the engine build, keyed on the version in `support/engine-version` and the patches. To move to a newer Paneru, change that file, rebase the patches, and read the new release's configuration notes first.
 
 The workflow reads the base64 private key from the `UPDATE_SIGNING_KEY` repository secret. To sign a zip by hand:
 

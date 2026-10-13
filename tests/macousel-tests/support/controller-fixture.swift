@@ -32,6 +32,7 @@ final class ControllerFixture {
   ) throws {
     let suite = try suite ?? IsolatedDefaults()
     let store = PreferencesStore(defaults: suite.defaults)
+    store.preferences.showsFocusBorder = true
     store.preferences.engine = .builtIn
     store.preferences.animationSpeed = .off
     preferences(&store.preferences)

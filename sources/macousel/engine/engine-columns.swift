@@ -26,9 +26,11 @@ nonisolated struct EngineColumns: Equatable, Sendable {
     }
 
     func isOnScreen(in viewport: CGRect) -> Bool {
-      guard let extent = horizontalExtent else { return false }
-      let overlap = min(extent.upperBound, viewport.maxX) - max(extent.lowerBound, viewport.minX)
-      return overlap >= EngineColumns.minimumOverlap
+      let frames = windows.compactMap(\.frame?.rect)
+      guard let first = frames.first else { return false }
+      let shown = frames.dropFirst().reduce(first) { $0.union($1) }.intersection(viewport)
+      let least = EngineColumns.minimumOverlap
+      return !shown.isNull && shown.width >= least && shown.height >= least
     }
 
     var sharesOneFrame: Bool {

@@ -110,6 +110,13 @@ struct EngineColumnsTests {
     #expect(!unframed.isOnScreen(in: viewport))
   }
 
+  @Test func aColumnParkedBelowTheViewportIsOffScreen() {
+    let viewport = CGRect(x: 1000, y: 0, width: 1000, height: 800)
+    let parked = EngineColumns([window(1, x: 1000, y: 790, width: 960)]).columns[0]
+
+    #expect(!parked.isOnScreen(in: viewport))
+  }
+
   @Test func equalFramesAtTheSameYStaySeparate() {
     let columns = EngineColumns([window(1, x: 0), window(2, x: 0)])
 

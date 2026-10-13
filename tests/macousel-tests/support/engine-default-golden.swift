@@ -33,7 +33,7 @@ enum EngineDefaultGolden {
     style = "hidden"
 
     [decorations.active.border]
-    enabled = true
+    enabled = false
     color = "#0A84FF"
     width = 3.0
     radius = "auto"

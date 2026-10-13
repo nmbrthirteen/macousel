@@ -48,7 +48,7 @@ jobs:
           path: |
             build/engine-${{ steps.engine.outputs.version }}
             ~/.cargo/registry
-          key: engine-${{ runner.os }}-${{ steps.engine.outputs.version }}-${{ hashFiles('engine-bridge/Cargo.lock', 'engine-bridge/src/**') }}
+          key: engine-${{ runner.os }}-${{ steps.engine.outputs.version }}-${{ hashFiles('engine-bridge/Cargo.lock', 'engine-bridge/src/**', 'support/engine-patches/**') }}
       - name: Build the app
         env:
           CODESIGN_IDENTITY: Macousel Release Signing

@@ -1,6 +1,7 @@
 Third-party notices for the engine bundled with Macousel
 
-Macousel bundles Paneru 0.5.2 (https://github.com/karinushka/paneru), built without the Lua runtime.
+Macousel bundles Paneru 0.5.2 (https://github.com/karinushka/paneru), built without the Lua runtime
+and with the patches in support/engine-patches of the Macousel source.
 Paneru's own license is in paneru-license.txt.
 
 This file lists every crate linked into that build, with the license expression from its manifest,
