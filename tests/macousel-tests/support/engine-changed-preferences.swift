@@ -21,6 +21,7 @@ extension Preferences {
     preferences.swipeGestureEnabled = true
     preferences.swipeFingers = 3
     preferences.swipeSensitivity = 2.0
+    preferences.swipeStep = .free
     preferences.reversesSwipeDirection = true
     preferences.focusFollowsMouse = true
     preferences.mouseFollowsFocus = true

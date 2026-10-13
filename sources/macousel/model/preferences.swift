@@ -18,6 +18,7 @@ struct Preferences: Codable, Equatable {
   var swipeGestureEnabled = true
   var swipeFingers = 4
   var swipeSensitivity = 1.0
+  var swipeStep = SwipeStep.column
   var reversesSwipeDirection = false
   var displayFollowsPointer = true
   var focusFollowsMouse = false
@@ -55,6 +56,7 @@ struct Preferences: Codable, Equatable {
     swipeGestureEnabled = value(.swipeGestureEnabled, or: defaults.swipeGestureEnabled)
     swipeFingers = value(.swipeFingers, or: defaults.swipeFingers)
     swipeSensitivity = value(.swipeSensitivity, or: defaults.swipeSensitivity)
+    swipeStep = value(.swipeStep, or: defaults.swipeStep)
     reversesSwipeDirection = value(.reversesSwipeDirection, or: defaults.reversesSwipeDirection)
     displayFollowsPointer = value(.displayFollowsPointer, or: defaults.displayFollowsPointer)
     focusFollowsMouse = value(.focusFollowsMouse, or: defaults.focusFollowsMouse)

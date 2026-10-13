@@ -42,6 +42,14 @@ struct PointerPane: View {
           }
         }
         .disabled(!store.preferences.swipeGestureEnabled)
+        if store.preferences.engine == .paneru {
+          Picker("Swipe moves", selection: $store.preferences.swipeStep) {
+            ForEach(SwipeStep.allCases, id: \.self) { step in
+              Text(step.title).tag(step)
+            }
+          }
+          .disabled(!store.preferences.swipeGestureEnabled)
+        }
         LabelledSliderRow(
           title: "Swipe sensitivity", value: $store.preferences.swipeSensitivity,
           range: Preferences.swipeSensitivityRange, step: 0.1, readout: .multiplier)

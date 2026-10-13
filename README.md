@@ -33,6 +33,7 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 - Every shortcut can be rebound. One action can have several shortcuts.
 - Give an app its own key in Settings > App shortcuts. The key focuses its window, cycles through its windows when you press it again, and opens the app if it is not running.
 - Swipe with three or four fingers, or hold Control-Option and scroll.
+- A swipe moves one column at a time. Keep swiping to move further. Settings > Pointer has a free-scrolling mode if you prefer Paneru's own swipe.
 - Optional focus follows mouse and mouse follows focus.
 
 **The rest**

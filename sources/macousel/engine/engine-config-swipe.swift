@@ -13,7 +13,7 @@ struct EngineConfigSwipe {
 
   var lines: [String] {
     var gesture = ["[swipe.gesture]"]
-    if preferences.swipeGestureEnabled {
+    if preferences.swipeGestureEnabled, preferences.swipeStep == .free {
       gesture.append("fingers_count = \(preferences.swipeFingers)")
     }
     gesture += [

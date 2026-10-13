@@ -72,6 +72,11 @@ struct EngineConfigTests {
     #expect(render { $0.swipeSensitivity = 0.01 }.contains("sensitivity = 0.1"))
   }
 
+  @Test func leavesTheSwipeToTheAppWhenItMovesOneColumnAtATime() {
+    #expect(!render { $0.swipeStep = .column }.contains("fingers_count"))
+    #expect(render { $0.swipeStep = .free }.contains("fingers_count = 4"))
+  }
+
   @Test func omitsTheFingerCountWhenSwipingIsOff() {
     let text = render { $0.swipeGestureEnabled = false }
 

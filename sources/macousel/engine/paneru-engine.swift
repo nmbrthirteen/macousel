@@ -68,6 +68,7 @@ final class PaneruEngine: ManagementEngine {
       }
     }
     if !parts.store.preferences.showsMinimap { parts.minimap.hide() }
+    parts.swipe.configure(isRunning: status == .running)
     applyBindings()
   }
 
@@ -84,6 +85,7 @@ final class PaneruEngine: ManagementEngine {
     status = .running
     parts.supervisor.start()
     parts.drag.start()
+    parts.swipe.configure(isRunning: true)
     applyBindings()
     accessibility.watchForLoss { [weak self] in self?.accessibilityLost() }
   }
@@ -110,6 +112,7 @@ final class PaneruEngine: ManagementEngine {
 
   private func stopEngine() {
     parts.drag.stop()
+    parts.swipe.stop()
     parts.overview.close()
     parts.minimap.hide()
     parts.events.stop()
@@ -125,6 +128,7 @@ final class PaneruEngine: ManagementEngine {
       parts.world.connect()
     case .failed:
       parts.drag.stop()
+      parts.swipe.stop()
       parts.events.stop()
       parts.world.clear()
       status = .paused

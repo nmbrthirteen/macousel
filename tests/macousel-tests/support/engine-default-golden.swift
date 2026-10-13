@@ -19,7 +19,6 @@ enum EngineDefaultGolden {
     sensitivity = 0.35
 
     [swipe.gesture]
-    fingers_count = 4
     direction = "Natural"
     vertical = false
 

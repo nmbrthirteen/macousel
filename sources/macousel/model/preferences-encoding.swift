@@ -2,7 +2,8 @@ extension Preferences {
   enum CodingKeys: String, CodingKey {
     case engine, layout, shortcuts, animationSpeed, showsFocusBorder, focusBorderWidth
     case dimsInactiveWindows, dimAmount, showsMinimap, menuBarIndicator, restoresSession
-    case scrollGestureEnabled, swipeGestureEnabled, swipeFingers, swipeSensitivity, reversesSwipeDirection
+    case scrollGestureEnabled, swipeGestureEnabled, swipeFingers, swipeSensitivity, swipeStep
+    case reversesSwipeDirection
     case displayFollowsPointer, focusFollowsMouse, mouseFollowsFocus, keepsFloatingWindowsOnTop
     case appRules, appShortcuts, disabledDisplays, hasCompletedOnboarding, checksForUpdates
   }
@@ -34,6 +35,7 @@ extension Preferences {
     try values.encode(swipeGestureEnabled, forKey: .swipeGestureEnabled)
     try values.encode(swipeFingers, forKey: .swipeFingers)
     try values.encode(swipeSensitivity, forKey: .swipeSensitivity)
+    try values.encode(swipeStep, forKey: .swipeStep)
     try values.encode(reversesSwipeDirection, forKey: .reversesSwipeDirection)
     try values.encode(displayFollowsPointer, forKey: .displayFollowsPointer)
     try values.encode(focusFollowsMouse, forKey: .focusFollowsMouse)

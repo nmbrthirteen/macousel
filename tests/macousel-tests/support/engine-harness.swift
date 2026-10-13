@@ -13,6 +13,7 @@ final class EngineHarness {
   let files = FakeConfigFiles()
   let overlays = FakeOverlayHost()
   let pointer = FakePointerDevice()
+  let gestures = FakeGestureInput()
   let clock = ManualClock()
   var isTrusted = true
   var hasHelper = true
@@ -79,6 +80,9 @@ final class EngineHarness {
         world: world,
         minimap: EngineMinimap(host: overlays, store: store, displays: displays, reorder: reorder),
         overview: overview, drag: drag,
+        swipe: EngineSwipe(
+          gestures: gestures, store: store, commands: commands, position: { world.position },
+          isSuppressed: { overview.isOpen }),
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
           commands: commands, reorder: reorder, activate: { [self] in activatedApps.append($0) }),

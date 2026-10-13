@@ -6,6 +6,7 @@ extension PaneruEngine {
     store: PreferencesStore, environment: any DesktopEnvironment, shortcuts: any ShortcutRegistry,
     overlays: any OverlayHost = SystemOverlayHost(),
     pointer: any PointerDevice = SystemPointerDevice(tap: InputEventTap()),
+    gestures: any GestureInput = SystemGestureInput(tap: InputEventTap()),
     clock: any AnimationClock = SystemAnimationClock(), bundle: Bundle = .main,
     polling: AccessibilityMonitor.Intervals = .standard
   ) -> PaneruEngine {
@@ -52,6 +53,9 @@ extension PaneruEngine {
         world: world,
         minimap: EngineMinimap(host: overlays, store: store, displays: displays, reorder: reorder),
         overview: overview, drag: drag,
+        swipe: EngineSwipe(
+          gestures: gestures, store: store, commands: commands, position: { world.position },
+          isSuppressed: { overview.isOpen }),
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
           commands: commands, reorder: reorder, activate: { environment.activateOrLaunch(bundleIdentifier: $0) }),
