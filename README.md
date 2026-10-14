@@ -6,6 +6,8 @@ Every window is a column on one horizontal strip. The strip is wider than your s
 
 It is the model niri and PaperWM use on Linux, built as a native Mac app.
 
+![Shortcuts move focus, move a window, change its width, and open the overview](docs/media/demo.gif)
+
 ## Status
 
 Early. I wrote it on macOS 27 with two displays. The parts that talk to macOS have had little real use so far, so expect bugs and please report them.
@@ -47,6 +49,9 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 - Per-app rules: float, open at a set width, or open in a set column.
 - A URL scheme and a command line client for scripts.
 - Quitting or pausing stops Paneru, which centres every window on its display.
+- Settings panes show a live preview. Choices with a picture, like the default width or the menu bar style, are picked by clicking the picture.
+
+![The Layout pane with the default width and centering choices](docs/media/settings-layout.png)
 
 Macousel reads the column structure from Paneru through a small bridge helper, so stacks, tabbed columns, and columns parked off screen all map to the right column. Dropping a window on a tabbed column adds it as the last tab. The overview and minimap draw a tabbed column as one column with a row per tab.
 
@@ -89,13 +94,31 @@ brew install --cask macousel
 
 Or download `Macousel.dmg` from the [releases page](https://github.com/nmbrthirteen/macousel/releases) and drag the app to Applications.
 
-Then open Macousel and grant Accessibility access when macOS asks.
+Then open Macousel. A short guide walks you through Accessibility access, the first shortcuts, and the menu bar item.
 
 ### Updating
 
 Open Settings > About and click "Check for updates". Macousel checks once a day on its own, and you can turn that off in Settings > General. You can also run the installer again. After either one, macOS asks for Accessibility access again, because every release has a new signature.
 
 Macousel only installs an update whose archive carries a valid signature from my update signing key. If the check fails, nothing is installed.
+
+After an update, Macousel shows that release's notes once.
+
+### Uninstall
+
+1. Turn off "Launch at login" in Settings > General.
+2. Quit Macousel from its menu.
+3. Delete `/Applications/Macousel.app`.
+4. Delete its data:
+
+   ```sh
+   rm -rf ~/Library/Application\ Support/Macousel ~/Library/Logs/Macousel
+   defaults delete dev.macousel.app
+   ```
+
+5. Remove Macousel from System Settings > Privacy & Security > Accessibility.
+
+With Homebrew, `brew uninstall --zap macousel` does steps 3 and 4.
 
 ### The app is not notarized
 
@@ -237,6 +260,8 @@ To build the same files locally:
 VERSION=0.1.0 scripts/bundle.sh
 scripts/package.sh
 ```
+
+The DMG layout lives in `support/installer`. `scripts/package.sh` builds it with [dmgbuild](https://github.com/dmgbuild/dmgbuild), which it installs into `build/dmg-tools` on the first run.
 
 ### Private APIs
 

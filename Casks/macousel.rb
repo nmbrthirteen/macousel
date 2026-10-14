@@ -12,7 +12,11 @@ cask "macousel" do
 
   app "Macousel.app"
 
-  zap trash: "~/Library/Preferences/dev.macousel.app.plist"
+  zap trash: [
+    "~/Library/Application Support/Macousel",
+    "~/Library/Logs/Macousel",
+    "~/Library/Preferences/dev.macousel.app.plist",
+  ]
 
   caveats <<~EOS
     Macousel is not notarized. On first launch, open System Settings >
