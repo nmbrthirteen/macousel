@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct PointerPane: View {
-  private static let fingerOptions = [3, 4]
-
   @Bindable var store: PreferencesStore
 
   private var gesturesAreOff: Bool {
@@ -36,18 +34,17 @@ struct PointerPane: View {
         ToggleRow(
           title: "Trackpad swipe", isOn: $store.preferences.swipeGestureEnabled,
           caption: "macOS also uses this swipe for Spaces. Change that in System Settings > Trackpad.")
-        Picker("Swipe fingers", selection: $store.preferences.swipeFingers) {
-          ForEach(Self.fingerOptions, id: \.self) { count in
-            Text("\(count) fingers").tag(count)
-          }
-        }
-        .disabled(!store.preferences.swipeGestureEnabled)
+        SwipeFingersPicker(
+          selection: $store.preferences.swipeFingers,
+          reversesDirection: store.preferences.reversesSwipeDirection)
+          .disabled(!store.preferences.swipeGestureEnabled)
         if store.preferences.engine == .paneru {
           Picker("Swipe moves", selection: $store.preferences.swipeStep) {
             ForEach(SwipeStep.allCases, id: \.self) { step in
               Text(step.title).tag(step)
             }
           }
+          .pickerStyle(.segmented)
           .disabled(!store.preferences.swipeGestureEnabled)
         }
         LabelledSliderRow(

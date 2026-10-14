@@ -24,16 +24,10 @@ struct LayoutPane: View {
 
       SettingsGroup(title: "Widths") {
         CaptionedRow(caption: defaultWidthCaption) {
-          PercentPicker(
-            title: "Default width of new windows",
-            selection: $store.preferences.layout.defaultWidth)
+          DefaultWidthPicker(selection: $store.preferences.layout.defaultWidth)
         }
         CaptionedRow(caption: store.preferences.layout.centerMode.summary) {
-          Picker("Center the focused column", selection: $store.preferences.layout.centerMode) {
-            ForEach(CenterMode.allCases, id: \.self) { mode in
-              Text(mode.title).tag(mode)
-            }
-          }
+          CenterModePicker(selection: $store.preferences.layout.centerMode)
         }
       }
 

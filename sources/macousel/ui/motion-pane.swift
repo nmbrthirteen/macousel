@@ -18,6 +18,7 @@ struct MotionPane: View {
             Text(speed.title).tag(speed)
           }
         }
+        .pickerStyle(.segmented)
       }
 
       SettingsGroup(title: "Focus") {
@@ -39,12 +40,7 @@ struct MotionPane: View {
       }
 
       SettingsGroup(title: "Menu Bar") {
-        Picker("Menu bar shows", selection: $store.preferences.menuBarIndicator) {
-          ForEach(MenuBarIndicator.allCases, id: \.self) { indicator in
-            Text(indicator.title).tag(indicator)
-          }
-        }
-        MenuBarVariantsPreview(selection: store.preferences.menuBarIndicator)
+        MenuBarIndicatorPicker(selection: $store.preferences.menuBarIndicator)
       }
     }
   }

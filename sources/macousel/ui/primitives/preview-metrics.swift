@@ -97,10 +97,4 @@ enum PreviewMetrics {
     static let offOpacity = 0.5
     static let labelFontSize = 10.0
   }
-
-  enum MenuBar {
-    static let labelMinimumWidth = 36.0
-    static let selectedFill = 0.18
-    static let unselectedOpacity = 0.7
-  }
 }

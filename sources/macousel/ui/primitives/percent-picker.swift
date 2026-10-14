@@ -16,9 +16,16 @@ struct PercentPicker: View {
   }
 
   private var nearestOption: Binding<Double> {
+    Self.nearest(in: options, to: $selection)
+  }
+
+  static func nearest(in options: [Double], to selection: Binding<Double>) -> Binding<Double> {
     Binding(
-      get: { options.min { abs($0 - selection) < abs($1 - selection) } ?? selection },
-      set: { selection = $0 }
+      get: {
+        options.min { abs($0 - selection.wrappedValue) < abs($1 - selection.wrappedValue) }
+          ?? selection.wrappedValue
+      },
+      set: { selection.wrappedValue = $0 }
     )
   }
 }
