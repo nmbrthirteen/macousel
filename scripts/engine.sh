@@ -12,9 +12,15 @@ if ! command -v cargo > /dev/null; then
   exit 1
 fi
 
+fingerprint() {
+  find "$@" -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -d' ' -f1
+}
+
 bridge_source="$root/engine-bridge"
 patches="$root/support/engine-patches"
-if [ ! -x "$binary" ] || [ -n "$(find "$patches" -newer "$binary")" ]; then
+engine_stamp="$out/paneru.stamp"
+engine_fingerprint="$(cd "$patches" && fingerprint .)"
+if [ ! -x "$binary" ] || [ "$(cat "$engine_stamp" 2> /dev/null)" != "$engine_fingerprint" ]; then
   crate="$root/build/paneru-$version.crate"
   source="$root/build/engine-source-$version"
   checksum="$(grep -A3 '^name = "paneru"$' "$bridge_source/Cargo.lock" \
@@ -33,6 +39,7 @@ if [ ! -x "$binary" ] || [ -n "$(find "$patches" -newer "$binary")" ]; then
     patch --quiet --strip 1 --directory "$source" < "$patch" >&2
   done
   cargo install --path "$source" --locked --force --no-default-features --root "$out" >&2
+  echo "$engine_fingerprint" > "$engine_stamp"
 fi
 
 bridge="$out/bin/engine-bridge"
@@ -40,9 +47,11 @@ if ! grep -q "paneru = { version = \"=$version\"" "$bridge_source/Cargo.toml"; t
   echo "engine-bridge/Cargo.toml must pin paneru to $version." >&2
   exit 1
 fi
-bridge_inputs=("$bridge_source/Cargo.toml" "$bridge_source/Cargo.lock" "$bridge_source/src")
-if [ ! -x "$bridge" ] || [ -n "$(find "${bridge_inputs[@]}" -newer "$bridge")" ]; then
+bridge_stamp="$out/engine-bridge.stamp"
+bridge_fingerprint="$(cd "$bridge_source" && fingerprint Cargo.toml Cargo.lock src)"
+if [ ! -x "$bridge" ] || [ "$(cat "$bridge_stamp" 2> /dev/null)" != "$bridge_fingerprint" ]; then
   cargo install --path "$bridge_source" --locked --force --root "$out" >&2
+  echo "$bridge_fingerprint" > "$bridge_stamp"
 fi
 
 echo "$binary"
