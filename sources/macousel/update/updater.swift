@@ -50,6 +50,7 @@ final class Updater {
     do {
       let prepared = try await installer.prepare(release)
       state = .installing
+      PendingReleaseNotes(defaults: defaults).save(release)
       try installer.apply(prepared)
     } catch {
       Self.logger.error("Install failed: \(error.localizedDescription, privacy: .public)")

@@ -81,6 +81,16 @@ struct UpdaterTests {
     #expect(installer.appliedUpdates.count == 1)
   }
 
+  @Test func installKeepsTheReleaseNotesForTheNextLaunch() async {
+    let updater = updater()
+    await updater.check()
+
+    await updater.install()
+
+    let pending = PendingReleaseNotes(defaults: suite.defaults)
+    #expect(pending.take(for: AppVersion("0.2.0"))?.text == latest.notes)
+  }
+
   @Test func installFailureShowsTheInstallerMessage() async {
     installer.prepareError = .invalidSignature
     let updater = updater()

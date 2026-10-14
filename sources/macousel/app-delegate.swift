@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   let onboarding: OnboardingWindowController
   let updater: Updater
   let diagnostics: DiagnosticsAction
+  private let whatsNew = WhatsNewWindowController()
   private let terminationSignals = TerminationSignals()
 
   override init() {
@@ -27,7 +28,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     terminationSignals.install()
     manager.start()
-    onboarding.showIfNeeded()
+    let pendingNotes = PendingReleaseNotes(defaults: .standard)
+      .take(for: BundleInfo(bundle: .main).version)
+    if !onboarding.showIfNeeded(), let pendingNotes, !pendingNotes.blocks.isEmpty {
+      whatsNew.show(pendingNotes)
+    }
     updater.startAutomaticChecks()
   }
 
