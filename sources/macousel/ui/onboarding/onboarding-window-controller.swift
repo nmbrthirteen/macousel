@@ -9,9 +9,11 @@ final class OnboardingWindowController {
     self.store = store
   }
 
-  func showIfNeeded() {
-    guard !store.preferences.hasCompletedOnboarding else { return }
+  @discardableResult
+  func showIfNeeded() -> Bool {
+    guard !store.preferences.hasCompletedOnboarding else { return false }
     show()
+    return true
   }
 
   func show() {
@@ -32,13 +34,19 @@ final class OnboardingWindowController {
     let size = NSSize(
       width: OnboardingMetrics.width, height: OnboardingMetrics.height)
     let window = NSWindow(
-      contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable],
+      contentRect: NSRect(origin: .zero, size: size),
+      styleMask: [.titled, .closable, .fullSizeContentView],
       backing: .buffered, defer: false)
     let content = NSHostingView(rootView: OnboardingView(store: store, flow: flow))
     content.sizingOptions = []
     window.contentView = content
     window.setContentSize(size)
     window.title = "Welcome to Macousel"
+    window.titleVisibility = .hidden
+    window.titlebarAppearsTransparent = true
+    window.isMovableByWindowBackground = true
+    window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+    window.standardWindowButton(.zoomButton)?.isHidden = true
     window.isReleasedWhenClosed = false
     window.center()
     return window

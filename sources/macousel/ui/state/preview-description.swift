@@ -18,7 +18,6 @@ enum PreviewDescription {
     return "Preview: " + parts.joined(separator: ", ")
   }
 
-  static let welcome = "Preview: a strip of columns scrolls so the focused column stays in view"
 
   static func swipe(fingers: Int, reversed: Bool, sensitivity: Double) -> String {
     let direction = reversed ? "right" : "left"

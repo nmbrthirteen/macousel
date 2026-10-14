@@ -3,27 +3,25 @@ import WindowSystem
 
 struct StarterShortcutsStep: View {
   private static let starterActions: [Action] = [
-    .focusLeft, .focusRight, .moveLeft, .moveRight, .stackLeft, .cycleWidth, .toggleOverview,
+    .focusLeft, .focusRight, .moveLeft, .moveRight, .cycleWidth, .toggleOverview,
   ]
 
-  let store: PreferencesStore
+  let preferences: Preferences
 
   var body: some View {
-    OnboardingStepLayout(title: "Shortcuts to start") {
-      OnboardingForm(height: OnboardingMetrics.shortcutsHeight) {
-        ForEach(Self.starterActions.prefix(4), id: \.self) { action in
-          row(for: action)
+    OnboardingStepLayout(
+      hero: OnboardingHero(
+        frames: OnboardingScenes.shortcuts(keys: preferences.primaryKeys(for:)),
+        description: "Shortcuts move focus, move a window, change its width, and open the overview"),
+      title: "Shortcuts to start",
+      subtitle: "Change any of them later in Settings."
+    ) {
+      Grid(alignment: .leading, verticalSpacing: Metrics.Spacing.compact) {
+        ForEach(Self.starterActions, id: \.self) { action in
+          row(action.title, keys: preferences.primaryKeys(for: action) ?? "Not set")
         }
-        LabeledContent("Jump to a column") {
-          Text(Self.columnJumpKeys(in: store.preferences.shortcuts))
-            .monospacedDigit()
-        }
-        ForEach(Self.starterActions.dropFirst(4), id: \.self) { action in
-          row(for: action)
-        }
+        row("Jump to a column", keys: Self.columnJumpKeys(in: preferences.shortcuts))
       }
-      CaptionText("Drag a window onto the middle of another to stack them.")
-      CaptionText("Change any shortcut in Settings > Shortcuts.")
     }
   }
 
@@ -34,10 +32,14 @@ struct StarterShortcutsStep: View {
     return "\(first.displayString) to \(last.displayString)"
   }
 
-  private func row(for action: Action) -> some View {
-    LabeledContent(action.title) {
-      Text(store.preferences.shortcuts[action]?.first?.displayString ?? "Not set")
+  private func row(_ title: String, keys: String) -> some View {
+    GridRow {
+      Text(title)
+      Text(keys)
         .monospacedDigit()
+        .foregroundStyle(.secondary)
+        .gridColumnAlignment(.trailing)
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
   }
 }

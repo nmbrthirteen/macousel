@@ -2,7 +2,7 @@ import Observation
 @Observable
 final class OnboardingFlow {
   enum Step: Int, CaseIterable {
-    case howItWorks, accessibility, shortcuts
+    case howItWorks, accessibility, shortcuts, menuBar
   }
 
   private(set) var step = Step.howItWorks
@@ -16,7 +16,7 @@ final class OnboardingFlow {
   var isLastStep: Bool { step == Step.allCases.last }
 
   var continueTitle: String {
-    isLastStep ? "Start using Macousel" : "Continue"
+    isLastStep ? "Get started" : "Continue"
   }
 
   func goBack() {
