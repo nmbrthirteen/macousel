@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct AboutPane: View {
-  private static let repositoryURL = URL(string: "https://github.com/nmbrthirteen/macousel")
+  private static let repositoryURL = URL(string: "https://github.com/nmbrthirteen/macousel")!
+  private static let makerURL = URL(string: "https://nikusha.com")!
 
   let updater: Updater
   let diagnostics: DiagnosticsAction
@@ -23,6 +24,7 @@ struct AboutPane: View {
             .foregroundStyle(.secondary)
           Text("A scrolling window manager for macOS.")
             .multilineTextAlignment(.center)
+          credits
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Metrics.Spacing.comfortable)
@@ -38,10 +40,21 @@ struct AboutPane: View {
       SettingsGroup(title: "Help") {
         Button("Show welcome guide", action: onShowWelcome)
         ReportProblemRow(diagnostics: diagnostics)
-        if let repositoryURL = Self.repositoryURL {
-          Link("View on GitHub", destination: repositoryURL)
-        }
       }
     }
+  }
+
+  private var credits: some View {
+    VStack(spacing: Metrics.Spacing.tight) {
+      Text("Made by Nika Siradze")
+        .foregroundStyle(.secondary)
+      HStack(spacing: Metrics.Spacing.comfortable) {
+        Link("nikusha.com", destination: Self.makerURL)
+        Text("·").foregroundStyle(.tertiary)
+        Link("Source on GitHub", destination: Self.repositoryURL)
+      }
+    }
+    .font(.callout)
+    .padding(.top, Metrics.Spacing.regular)
   }
 }

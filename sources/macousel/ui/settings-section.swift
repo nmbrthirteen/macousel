@@ -72,7 +72,10 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .appShortcuts: ["app", "launch", "switch"]
     case .pointer: ["mouse", "trackpad", "scroll", "swipe", "gesture", "finger", "focus follows mouse"]
     case .macSetup: ["spaces", "stage manager", "edge tiling", "mission control", "check", "accessibility"]
-    case .about: ["version", "welcome", "guide", "update", "release", "report", "problem", "diagnostics", "github"]
+    case .about: [
+      "version", "welcome", "guide", "update", "release", "report", "problem", "diagnostics", "github",
+      "credits", "maker", "nikusha",
+    ]
     }
   }
 
