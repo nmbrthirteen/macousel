@@ -1,0 +1,11 @@
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -640,7 +640,7 @@
+             .or(config.options.border_radius.clone())
+             .unwrap_or(BorderRadiusOption::Auto)
+         {
+-            BorderRadiusOption::Auto if macos_major_version() == 26 => BorderRadiusOption::Auto,
++            BorderRadiusOption::Auto if macos_major_version() >= 26 => BorderRadiusOption::Auto,
+             BorderRadiusOption::Value(value) => BorderRadiusOption::Value(value.max(0.0)),
+             BorderRadiusOption::Auto => BorderRadiusOption::Value(10.0),
+         }
