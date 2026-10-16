@@ -4,7 +4,7 @@ set -euo pipefail
 main() {
   local download_url="${MACOUSEL_DOWNLOAD_URL:-https://github.com/nmbrthirteen/macousel/releases/latest/download/Macousel.zip}"
   local install_dir="${MACOUSEL_INSTALL_DIR:-/Applications}"
-  local minimum_macos=26
+  local minimum_macos=14
   local expected_identifier="dev.macousel.app"
   local quit_wait_seconds=10
 

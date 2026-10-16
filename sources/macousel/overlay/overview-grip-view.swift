@@ -32,7 +32,7 @@ struct OverviewGripView: View {
           .frame(width: gripSize.width, height: gripSize.height)
       }
       .contentShape(Rectangle())
-      .pointerStyle(axis == .column ? .columnResize : .rowResize)
+      .resizePointer(axis == .column ? .horizontal : .vertical)
       .onHover { isHovering = $0 }
       .offset(x: rect.minX, y: rect.minY)
   }

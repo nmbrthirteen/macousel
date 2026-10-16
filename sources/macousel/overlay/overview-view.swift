@@ -12,14 +12,13 @@ struct OverviewView: View {
         if let lift = model.lift, let slot = geometry.cards.first(where: { $0.id == lift.window }) {
           OverviewPlaceholderView(rect: slot.rect)
         }
-        GlassEffectContainer(spacing: 0) {
-          ZStack(alignment: .topLeading) {
-            ForEach(geometry.cards) { card in
-              cardView(card)
-            }
+        ZStack(alignment: .topLeading) {
+          ForEach(geometry.cards) { card in
+            cardView(card)
           }
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .glassContainer(spacing: 0)
         if model.lift == nil {
           OverviewHandlesView(
             areas: geometry.hitAreas, activeColumnWindow: model.resizeLabel?.window,

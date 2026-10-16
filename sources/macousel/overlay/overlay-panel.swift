@@ -24,11 +24,22 @@ final class OverlayPanel: NSPanel {
 
     let hostingView = NSHostingView(rootView: content)
     hostingView.sizingOptions = []
-    if let glassCornerRadius {
+    if let glassCornerRadius, #available(macOS 26, *) {
       let glassView = NSGlassEffectView()
       glassView.cornerRadius = glassCornerRadius
       glassView.contentView = hostingView
       contentView = glassView
+    } else if let glassCornerRadius {
+      let materialView = NSVisualEffectView()
+      materialView.material = .hudWindow
+      materialView.state = .active
+      materialView.wantsLayer = true
+      materialView.layer?.cornerRadius = glassCornerRadius
+      materialView.layer?.masksToBounds = true
+      hostingView.frame = materialView.bounds
+      hostingView.autoresizingMask = [.width, .height]
+      materialView.addSubview(hostingView)
+      contentView = materialView
     } else {
       contentView = hostingView
     }

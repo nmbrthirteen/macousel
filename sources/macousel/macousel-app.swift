@@ -18,13 +18,34 @@ struct MacouselApp: App {
         store: delegate.store, manager: delegate.manager, updater: delegate.updater,
         diagnostics: delegate.diagnostics, onShowWelcome: delegate.onboarding.show
       )
-      .windowFullScreenBehavior(.disabled)
+      .fullScreenDisabled()
       .dimsWindowButtons(.miniaturizeButton, .zoomButton)
     }
     .defaultSize(width: Metrics.Size.settingsWidth, height: Metrics.Size.settingsHeight)
     .windowResizability(.contentMinSize)
-    .defaultLaunchBehavior(.suppressed)
-    .restorationBehavior(.disabled)
+    .hiddenAtLaunch()
     .commands { SettingsCommands() }
+  }
+}
+
+extension View {
+  @ViewBuilder
+  fileprivate func fullScreenDisabled() -> some View {
+    if #available(macOS 15, *) {
+      windowFullScreenBehavior(.disabled)
+    } else {
+      self
+    }
+  }
+}
+
+extension Scene {
+  // macOS 14 has neither modifier, so AppDelegate closes the window at launch instead.
+  fileprivate func hiddenAtLaunch() -> some Scene {
+    if #available(macOS 15, *) {
+      return defaultLaunchBehavior(.suppressed).restorationBehavior(.disabled)
+    } else {
+      return self
+    }
   }
 }

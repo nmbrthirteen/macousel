@@ -61,7 +61,7 @@ struct SessionRestoreTests {
     second.launch()
 
     #expect(windows.compactMapValues(\.frame) == arranged)
-    #expect(Set(arranged.values).count == 4)
+    #expect(Set(arranged.values.map { [$0.minX, $0.minY, $0.width, $0.height] }).count == 4)
     #expect(second.overlays.tabBars.count == 1)
     #expect(second.overlays.tabBars.first?.tabs.map(\.title).sorted() == ["Build", "Docs"])
   }

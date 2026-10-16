@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     terminationSignals.install()
+    if #unavailable(macOS 15) { closeSettingsWindow() }
     manager.start()
     let pendingNotes = PendingReleaseNotes(defaults: .standard)
       .take(for: BundleInfo(bundle: .main).version)
@@ -34,6 +35,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       whatsNew.show(pendingNotes)
     }
     updater.startAutomaticChecks()
+  }
+
+  private func closeSettingsWindow() {
+    for window in NSApp.windows
+    where window.identifier?.rawValue.hasPrefix(SettingsWindow.id) == true {
+      window.close()
+    }
   }
 
   func applicationWillTerminate(_ notification: Notification) {

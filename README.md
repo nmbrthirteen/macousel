@@ -73,7 +73,7 @@ Switch engines in Settings > General. Macousel stops one and starts the other wi
 
 ## Requirements
 
-- macOS 26 or later.
+- macOS 14 or later.
 - Accessibility permission. macOS only lets an app move other apps' windows through the Accessibility API. It is the only permission Macousel asks for, and Paneru runs under it as a child of the app.
 - No other copy of Paneru running. Two window managers would both move your windows, so Macousel shows a message and does not start its own.
 

@@ -8,7 +8,7 @@ cask "macousel" do
   homepage "https://github.com/nmbrthirteen/macousel"
 
   depends_on arch: :arm64
-  depends_on macos: :tahoe
+  depends_on macos: :sonoma
 
   app "Macousel.app"
 

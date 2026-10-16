@@ -17,6 +17,12 @@ struct SceneWallpaper: View {
   ]
 
   var body: some View {
-    MeshGradient(width: 3, height: 3, points: Self.points, colors: Self.colors)
+    if #available(macOS 15, *) {
+      MeshGradient(width: 3, height: 3, points: Self.points, colors: Self.colors)
+    } else {
+      LinearGradient(
+        colors: [Self.colors[0], Self.colors[4], Self.colors[8]], startPoint: .topLeading,
+        endPoint: .bottomTrailing)
+    }
   }
 }
