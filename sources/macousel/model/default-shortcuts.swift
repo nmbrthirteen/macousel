@@ -8,7 +8,9 @@ extension Hotkey {
 }
 
 extension Action {
-  static let defaultShortcuts: [Action: [Hotkey]] = {
+  static let defaultShortcuts = defaultShortcuts(base: .controlOption)
+
+  static func defaultShortcuts(base shortcutBase: ShortcutBase) -> [Action: [Hotkey]] {
     let base: Hotkey.Modifiers = [.control, .option]
     let shifted: Hotkey.Modifiers = [.control, .option, .shift]
     let commanded: Hotkey.Modifiers = [.control, .option, .command]
@@ -55,6 +57,8 @@ extension Action {
       shortcuts[.focusColumn(place)] = [Hotkey(key, base)]
       shortcuts[.moveToColumn(place)] = [Hotkey(key, shifted)]
     }
-    return shortcuts
-  }()
+    return shortcuts.mapValues { hotkeys in
+      hotkeys.map { Hotkey(keyCode: $0.keyCode, modifiers: shortcutBase.adapting($0.modifiers)) }
+    }
+  }
 }

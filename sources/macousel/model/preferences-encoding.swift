@@ -1,6 +1,6 @@
 extension Preferences {
   enum CodingKeys: String, CodingKey {
-    case engine, layout, shortcuts, animationSpeed, showsFocusBorder, focusBorderWidth
+    case engine, layout, shortcutBase, shortcuts, animationSpeed, showsFocusBorder, focusBorderWidth
     case dimsInactiveWindows, dimAmount, showsMinimap, menuBarIndicator, restoresSession
     case scrollGestureEnabled, swipeGestureEnabled, swipeFingers, swipeSensitivity, swipeStep
     case reversesSwipeDirection
@@ -18,6 +18,7 @@ extension Preferences {
     var values = encoder.container(keyedBy: CodingKeys.self)
     try values.encode(engine, forKey: .engine)
     try values.encode(layout, forKey: .layout)
+    try values.encode(shortcutBase, forKey: .shortcutBase)
     if sortingUnorderedValues {
       try values.encode(SortedShortcuts(shortcuts: shortcuts), forKey: .shortcuts)
     } else {

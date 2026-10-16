@@ -5,6 +5,7 @@ import WindowSystem
 struct Preferences: Codable, Equatable {
   var engine = WindowEngine.preferred
   var layout = LayoutConfig()
+  var shortcutBase = ShortcutBase.controlOption
   var shortcuts: [Action: [Hotkey]] = Action.defaultShortcuts
   var animationSpeed = AnimationSpeed.fast
   var showsFocusBorder = false
@@ -43,7 +44,9 @@ struct Preferences: Codable, Equatable {
     engine = value(.engine, or: defaults.engine)
     layout = value(.layout, or: defaults.layout)
     let savedShortcuts: [Action: [Hotkey]] = value(.shortcuts, or: [:])
-    shortcuts = defaults.shortcuts.merging(savedShortcuts) { _, saved in saved }
+    shortcutBase = value(.shortcutBase, or: defaults.shortcutBase)
+    shortcuts = Action.defaultShortcuts(base: shortcutBase)
+      .merging(savedShortcuts) { _, saved in saved }
     animationSpeed = value(.animationSpeed, or: defaults.animationSpeed)
     showsFocusBorder = value(.showsFocusBorder, or: defaults.showsFocusBorder)
     focusBorderWidth = value(.focusBorderWidth, or: defaults.focusBorderWidth)
@@ -107,7 +110,18 @@ final class PreferencesStore {
   }
 
   func resetShortcuts() {
-    preferences.shortcuts = Action.defaultShortcuts
+    preferences.shortcuts = Action.defaultShortcuts(base: preferences.shortcutBase)
+  }
+
+  func setShortcutBase(_ base: ShortcutBase) {
+    var updated = preferences
+    let old = Action.defaultShortcuts(base: updated.shortcutBase)
+    let new = Action.defaultShortcuts(base: base)
+    for (action, hotkeys) in updated.shortcuts where hotkeys == old[action] {
+      updated.shortcuts[action] = new[action]
+    }
+    updated.shortcutBase = base
+    preferences = updated
   }
 
   private static func stored(in defaults: UserDefaults) -> Preferences? {
