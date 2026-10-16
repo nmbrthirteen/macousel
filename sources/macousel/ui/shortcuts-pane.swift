@@ -46,6 +46,6 @@ struct ShortcutsPane: View {
   }
 
   private var baseBinding: Binding<ShortcutBase> {
-    Binding(get: { store.preferences.shortcutBase }, set: store.setShortcutBase)
+    Binding(get: { store.preferences.shortcutBase }, set: { store.setShortcutBase($0) })
   }
 }
