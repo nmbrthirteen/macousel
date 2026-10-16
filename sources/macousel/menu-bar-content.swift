@@ -5,8 +5,12 @@ import os
 struct MenuBarContent: View {
   let manager: WindowManager
   let updater: Updater
+  let store: PreferencesStore
   let diagnostics: DiagnosticsAction
   let onShowWelcome: () -> Void
+
+  @Environment(\.openWindow) private var openWindow
+  @AppStorage(SettingsSection.storageKey) private var settingsSelection = SettingsSection.general
 
   private static let logger = Logger(subsystem: "dev.macousel.app", category: "menu")
 
@@ -33,6 +37,8 @@ struct MenuBarContent: View {
       manager.perform(.togglePaused)
     }
 
+    shortcutsMenu
+
     OpenSettingsButton()
 
     Button("Show welcome guide", action: onShowWelcome)
@@ -55,6 +61,31 @@ struct MenuBarContent: View {
       NSApp.terminate(nil)
     }
     .keyboardShortcut("q")
+  }
+
+  private var shortcutsMenu: some View {
+    Menu("Shortcuts") {
+      ForEach(ShortcutMenuItems.sections(in: store.preferences)) { section in
+        Menu(section.title) {
+          ForEach(section.items) { item in
+            Button {
+              manager.perform(item.action)
+            } label: {
+              Text(item.title)
+              Text(item.keys)
+            }
+          }
+        }
+      }
+
+      Divider()
+
+      Button("Edit shortcuts…") {
+        settingsSelection = .shortcuts
+        openWindow(id: SettingsWindow.id)
+        NSApp.activate()
+      }
+    }
   }
 
   private func restart() {

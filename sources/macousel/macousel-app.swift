@@ -6,7 +6,7 @@ struct MacouselApp: App {
   var body: some Scene {
     MenuBarExtra {
       MenuBarContent(
-        manager: delegate.manager, updater: delegate.updater,
+        manager: delegate.manager, updater: delegate.updater, store: delegate.store,
         diagnostics: delegate.diagnostics, onShowWelcome: delegate.onboarding.show)
     } label: {
       MenuBarLabel(manager: delegate.manager, store: delegate.store)
