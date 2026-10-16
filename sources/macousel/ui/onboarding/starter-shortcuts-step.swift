@@ -2,11 +2,11 @@ import SwiftUI
 import WindowSystem
 
 struct StarterShortcutsStep: View {
-  private static let starterActions: [Action] = [
-    .focusLeft, .focusRight, .moveLeft, .moveRight, .cycleWidth, .toggleOverview,
-  ]
-
   let preferences: Preferences
+
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var practice = ShortcutPractice()
+  @State private var tap = PracticeKeyTap()
 
   var body: some View {
     OnboardingStepLayout(
@@ -14,14 +14,22 @@ struct StarterShortcutsStep: View {
         frames: OnboardingScenes.shortcuts(keys: preferences.primaryKeys(for:)),
         description: "Shortcuts move focus, move a window, change its width, and open the overview"),
       title: "Shortcuts to start",
-      subtitle: "Change any of them later in Settings."
+      subtitle: "Try each one now. Change any of them later in Settings."
     ) {
       Grid(alignment: .leading, verticalSpacing: Metrics.Spacing.compact) {
-        ForEach(Self.starterActions, id: \.self) { action in
-          row(action.title, keys: preferences.primaryKeys(for: action) ?? "Not set")
+        ForEach(ShortcutPractice.starterActions, id: \.self) { action in
+          row(
+            action.title, keys: preferences.primaryKeys(for: action) ?? "Not set",
+            done: practice.isPracticed(action))
         }
-        row("Jump to a column", keys: Self.columnJumpKeys(in: preferences.shortcuts))
+        row(
+          "Jump to a column", keys: Self.columnJumpKeys(in: preferences.shortcuts),
+          done: practice.isPracticed(ShortcutPractice.columnJump))
       }
+      .onAppear {
+        tap.start { hotkey in practice.record(hotkey, shortcuts: preferences.shortcuts) }
+      }
+      .onDisappear { tap.stop() }
     }
   }
 
@@ -32,8 +40,13 @@ struct StarterShortcutsStep: View {
     return "\(first.displayString) to \(last.displayString)"
   }
 
-  private func row(_ title: String, keys: String) -> some View {
+  private func row(_ title: String, keys: String, done: Bool) -> some View {
     GridRow {
+      Image(systemName: done ? "checkmark.circle.fill" : "circle")
+        .foregroundStyle(done ? Color.accentColor : Color.secondary)
+        .contentTransition(.symbolEffect(.replace))
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: done)
+        .accessibilityHidden(true)
       Text(title)
       Text(keys)
         .monospacedDigit()
@@ -41,5 +54,7 @@ struct StarterShortcutsStep: View {
         .gridColumnAlignment(.trailing)
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
+    .accessibilityElement(children: .combine)
+    .accessibilityValue(done ? "Done" : "Not tried yet")
   }
 }
