@@ -6,6 +6,8 @@ import WindowSystem
 final class MacSetupChecks {
   private(set) var checks: [SetupCheck] = []
   @ObservationIgnored private var activation: Task<Void, Never>?
+  @ObservationIgnored private var yabaiCheck: Task<Void, Never>?
+  @ObservationIgnored private var runsYabai = false
   @ObservationIgnored private let store: PreferencesStore
   @ObservationIgnored private let readers: SystemDefaultsReaders
   @ObservationIgnored private let bundleURL: URL
@@ -34,9 +36,22 @@ final class MacSetupChecks {
   func stop() {
     activation?.cancel()
     activation = nil
+    yabaiCheck?.cancel()
+    yabaiCheck = nil
   }
 
   func refresh() {
+    rebuild()
+    yabaiCheck?.cancel()
+    yabaiCheck = Task { [weak self] in
+      let running = await CompetingWindowManagers.isYabaiRunning()
+      guard let self, !Task.isCancelled, running != self.runsYabai else { return }
+      self.runsYabai = running
+      self.rebuild()
+    }
+  }
+
+  private func rebuild() {
     let preferences = store.preferences
     let swipe = SwipeGestureCheck(
       trackpads: readers.trackpads, isSwipeEnabled: preferences.swipeGestureEnabled,
@@ -47,7 +62,7 @@ final class MacSetupChecks {
       [accessibilityCheck, location.check]
       + SystemSettingsChecks(readers: readers).all
       + [swipe.check].compactMap { $0 }
-      + [competitorsCheck(running: CompetingWindowManagers.running())]
+      + [competitorsCheck(running: CompetingWindowManagers.running(includingYabai: runsYabai))]
   }
 
   private var accessibilityCheck: SetupCheck {

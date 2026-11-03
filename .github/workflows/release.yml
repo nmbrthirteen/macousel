@@ -5,19 +5,52 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
-  release:
+  # Runs third-party build scripts through cargo, so it holds no secrets and
+  # signs nothing. The release job only takes the built app from it.
+  build:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Test
         run: swift test
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          rustup default 1.95.0
+      - name: Build the app
+        run: VERSION="${GITHUB_REF_NAME#v}" scripts/bundle.sh
+      - name: Archive the app
+        run: tar -cf build/Macousel.app.tar -C build Macousel.app
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unsigned-app
+          path: build/Macousel.app.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: macos-26
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: unsigned-app
+          path: build
+      - name: Unpack the app
+        run: tar -xf build/Macousel.app.tar -C build && rm build/Macousel.app.tar
       - name: Import the signing certificate
         env:
           SIGNING_CERTIFICATE_P12: ${{ secrets.SIGNING_CERTIFICATE_P12 }}
@@ -35,27 +68,21 @@ jobs:
             -k "$keychain_password" "$keychain" > /dev/null
           security list-keychains -d user -s "$keychain" login.keychain-db
           rm "$RUNNER_TEMP/certificate.p12"
-      - name: Install Rust
+      - name: Sign the app
         run: |
-          rustup toolchain install 1.95.0 --profile minimal
-          rustup default 1.95.0
-      - name: Read the engine version
-        id: engine
-        run: echo "version=$(tr -d '[:space:]' < support/engine-version)" >> "$GITHUB_OUTPUT"
-      - name: Cache the engine
-        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
-        with:
-          path: |
-            build/engine-${{ steps.engine.outputs.version }}
-            ~/.cargo/registry
-          key: engine-${{ runner.os }}-${{ steps.engine.outputs.version }}-${{ hashFiles('engine-bridge/Cargo.toml', 'engine-bridge/Cargo.lock', 'engine-bridge/src/**', 'support/engine-patches/**') }}
-      - name: Build the app
-        env:
-          CODESIGN_IDENTITY: Macousel Release Signing
-        run: VERSION="${GITHUB_REF_NAME#v}" scripts/bundle.sh
+          identity="Macousel Release Signing"
+          app=build/Macousel.app
+          codesign --force --options runtime --sign "$identity" "$app/Contents/Helpers/paneru"
+          codesign --force --options runtime --sign "$identity" "$app/Contents/Helpers/engine-bridge"
+          codesign --force --options runtime --sign "$identity" "$app"
+      - name: Remove the signing keychain
+        if: always()
+        run: |
+          security list-keychains -d user -s login.keychain-db
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
       - name: Check the signature
         run: |
-          codesign --verify --deep build/Macousel.app
+          codesign --verify --deep --strict build/Macousel.app
           codesign -d -r- build/Macousel.app 2>&1 | grep 'certificate leaf'
       - name: Package
         run: scripts/package.sh
@@ -63,18 +90,28 @@ jobs:
         env:
           UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
         run: swift scripts/sign-update.swift build/Macousel.zip build/Macousel.zip.sig
+      - name: Stamp the installer
+        run: |
+          leaf="$(sed -n 's/^  local signing_leaf="\([0-9a-f]*\)"$/\1/p' scripts/install.sh)"
+          codesign --verify --deep --strict \
+            -R="identifier \"dev.macousel.app\" and certificate leaf = H\"$leaf\"" build/Macousel.app
+          sum="$(shasum -a 256 build/Macousel.zip | cut -d' ' -f1)"
+          sed -e "s/@RELEASE_TAG@/$GITHUB_REF_NAME/" -e "s/@ZIP_SHA256@/$sum/" \
+            scripts/install.sh > build/install.sh
+          ! grep -q '@[A-Z0-9_]*@' build/install.sh
       - name: Attest build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             build/Macousel.dmg
             build/Macousel.zip
+            build/install.sh
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            build/Macousel.dmg build/Macousel.zip build/Macousel.zip.sig scripts/install.sh \
+            build/Macousel.dmg build/Macousel.zip build/Macousel.zip.sig build/install.sh \
             --title "Macousel ${GITHUB_REF_NAME#v}" \
             --generate-notes
           sums="$(cd build && shasum -a 256 Macousel.dmg Macousel.zip)"
@@ -87,6 +124,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           checksum="$(shasum -a 256 build/Macousel.dmg | cut -d' ' -f1)"
+          gh auth setup-git
           git fetch origin main
           git checkout -B main origin/main
           sed -i '' -e "s/^  version \".*\"/  version \"$version\"/" \

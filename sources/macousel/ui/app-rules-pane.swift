@@ -10,7 +10,7 @@ struct AppRulesPane: View {
         config: store.preferences.layout,
         keepsFloatingOnTop: store.preferences.keepsFloatingWindowsOnTop)
 
-      SettingsGroup(title: "Floating Windows") {
+      SettingsGroup(title: "Floating windows") {
         ToggleRow(
           title: "Keep floating windows above tiled windows",
           isOn: $store.preferences.keepsFloatingWindowsOnTop,

@@ -12,7 +12,7 @@ struct MenuBarContent: View {
   @Environment(\.openWindow) private var openWindow
   @AppStorage(SettingsSection.storageKey) private var settingsSelection = SettingsSection.general
 
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "menu")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "menu")
 
   var body: some View {
     Text(statusText)

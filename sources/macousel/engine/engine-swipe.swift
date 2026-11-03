@@ -40,9 +40,7 @@ final class EngineSwipe {
     if phase == .began { reset() }
     guard !isSuppressed() else { return }
     let preferences = store.preferences
-    let sensitivity = min(
-      max(preferences.swipeSensitivity, Preferences.swipeSensitivityRange.lowerBound),
-      Preferences.swipeSensitivityRange.upperBound)
+    let sensitivity = preferences.clampedSwipeSensitivity
     let towardEarlier = (preferences.reversesSwipeDirection ? -share : share) * sensitivity
     step(by: -stepper.advance(by: towardEarlier))
     if phase == .ended { reset() }

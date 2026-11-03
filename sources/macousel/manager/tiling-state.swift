@@ -28,6 +28,13 @@ final class TilingState {
 
   var pointerKey: Workspace.Key? { activeKey(at: pointer.location) }
 
+  var tabbedWindows: Set<WindowID> {
+    Set(
+      activeKeys.flatMap { key in
+        (workspaces[key]?.strip.columns ?? []).filter { $0.display == .tabbed }.flatMap(\.windows)
+      })
+  }
+
   func refreshDisplays() {
     displays = environment.displays
     activeKeys = tiledDisplays.map {

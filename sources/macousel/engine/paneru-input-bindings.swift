@@ -1,6 +1,9 @@
 import WindowSystem
+import os
 
 final class PaneruInputBindings {
+  private static let logger = Logger(subsystem: Log.subsystem, category: "shortcuts")
+
   private let store: PreferencesStore
   private let shortcuts: any ShortcutRegistry
 
@@ -17,18 +20,14 @@ final class PaneruInputBindings {
       shortcuts.removeAll()
       return
     }
-    var bindings: [Hotkey: () -> Void] = [:]
-    for action in [Action.togglePaused, .toggleOverview] where isRunning || action == .togglePaused {
-      for key in store.preferences.shortcuts[action] ?? [] {
-        bindings[key] = { perform(action) }
-      }
+    let bindings = store.preferences.hotkeyBindings(
+      including: { $0 == .togglePaused || ($0 == .toggleOverview && isRunning) },
+      perform: perform, jump: isRunning ? jump : nil)
+    let failures = shortcuts.setBindings(bindings)
+    if failures > 0 {
+      Self.logger.error(
+        "\(failures, privacy: .public) of \(bindings.count) shortcuts failed to register")
     }
-    if isRunning {
-      for shortcut in store.preferences.appShortcuts {
-        bindings[shortcut.hotkey] = { jump(shortcut.bundleIdentifier) }
-      }
-    }
-    _ = shortcuts.setBindings(bindings)
   }
 
   func release() {

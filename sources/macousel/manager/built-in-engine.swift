@@ -3,7 +3,7 @@ import StripCore
 import WindowSystem
 import os
 
-private let logger = Logger(subsystem: "dev.macousel.app", category: "window-manager")
+private let logger = Logger(subsystem: Log.subsystem, category: "window-manager")
 
 @Observable
 final class BuiltInEngine: ManagementEngine {
@@ -34,10 +34,7 @@ final class BuiltInEngine: ManagementEngine {
   @ObservationIgnored private var hasLostAccess = false
   @ObservationIgnored private var restoresArrivingWindows = false
 
-  init(
-    store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults,
-    polling: AccessibilityMonitor.Intervals = .standard
-  ) {
+  init(store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults) {
     let parts = ManagerComponents(store: store, ports: ports, defaults: defaults)
     self.store = store
     self.source = ports.source
@@ -48,7 +45,7 @@ final class BuiltInEngine: ManagementEngine {
     focus = parts.focus
     release = parts.release
     router = parts.router
-    accessibility = AccessibilityMonitor(environment: ports.environment, intervals: polling)
+    accessibility = AccessibilityMonitor(environment: ports.environment)
     let interactions = ManagerInteractions(
       state: parts.state, source: ports.source, presenter: parts.presenter, focus: parts.focus,
       store: store, ports: ports)

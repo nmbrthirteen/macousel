@@ -132,17 +132,32 @@ struct EngineHelperTests {
     #expect(!FileManager.default.fileExists(atPath: log.previous.path))
   }
 
-  @Test func returnsTheLastLinesOfTheLog() throws {
+  @Test func returnsTheLastLinesOfTheLog() async throws {
     let directory = try TemporaryDirectory()
     defer { directory.remove() }
     let log = EngineLog(url: directory.url.appendingPathComponent("engine.log"))
     log.append(Data((1...300).map { "line \($0)\n" }.joined().utf8))
 
-    let tail = log.lastLines(200).split(separator: "\n", omittingEmptySubsequences: true)
+    let tail = await log.lastLines(200).split(separator: "\n", omittingEmptySubsequences: true)
 
     #expect(tail.count == 200)
     #expect(tail.last == "line 300")
-    #expect(log.lastLines(5).isEmpty == false)
-    #expect(EngineLog(url: directory.url.appendingPathComponent("none.log")).lastLines(5) == "")
+    #expect(await log.lastLines(5).isEmpty == false)
+    let missing = EngineLog(url: directory.url.appendingPathComponent("none.log"))
+    #expect(await missing.lastLines(5) == "")
+  }
+
+  @Test func theTailReachesIntoTheRotatedLog() async throws {
+    let directory = try TemporaryDirectory()
+    defer { directory.remove() }
+    let log = EngineLog(url: directory.url.appendingPathComponent("engine.log"))
+    try Data((1...150).map { "old \($0)\n" }.joined().utf8).write(to: log.previous)
+    log.append(Data((1...100).map { "new \($0)\n" }.joined().utf8))
+
+    let tail = await log.lastLines(200).split(separator: "\n", omittingEmptySubsequences: true)
+
+    #expect(tail.count == 200)
+    #expect(tail.first == "old 51")
+    #expect(tail.last == "new 100")
   }
 }

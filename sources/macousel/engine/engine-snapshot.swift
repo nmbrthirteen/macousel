@@ -1,5 +1,7 @@
 import Foundation
 import StripCore
+import WindowSystem
+import os
 
 nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
   var version: Int
@@ -15,7 +17,13 @@ nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
     init(from decoder: Decoder) throws {
       let values = try decoder.container(keyedBy: CodingKeys.self)
       state = try values.decode(EngineSnapshot.self, forKey: .state)
-      layout = try? values.decodeIfPresent(EngineLayout.self, forKey: .layout)
+      // The layout only refines column grouping, so a snapshot without it still works.
+      do {
+        layout = try values.decodeIfPresent(EngineLayout.self, forKey: .layout)
+      } catch {
+        EngineSnapshot.logger.error("Could not read the engine layout: \(error, privacy: .public)")
+        layout = nil
+      }
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -23,12 +31,23 @@ nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
     }
   }
 
+  fileprivate static let logger = Logger(subsystem: Log.subsystem, category: "engine")
+
   static func decode(_ text: String) -> EngineSnapshot? {
-    try? decoder.decode(EngineSnapshot.self, from: Data(text.utf8))
+    do {
+      return try decoder.decode(EngineSnapshot.self, from: Data(text.utf8))
+    } catch {
+      logger.error("Could not read the engine state: \(error, privacy: .public)")
+      return nil
+    }
   }
 
   static func decode(bridged text: String) -> EngineSnapshot? {
-    guard let bridged = try? decoder.decode(Bridged.self, from: Data(text.utf8)) else {
+    let bridged: Bridged
+    do {
+      bridged = try decoder.decode(Bridged.self, from: Data(text.utf8))
+    } catch {
+      logger.error("Could not read the bridged engine state: \(error, privacy: .public)")
       return nil
     }
     var snapshot = bridged.state

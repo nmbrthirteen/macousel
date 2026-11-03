@@ -19,10 +19,18 @@ nonisolated struct EngineLog: Sendable {
     try? handle.write(contentsOf: data)
   }
 
-  func lastLines(_ count: Int) -> String {
-    guard let text = try? String(contentsOf: url, encoding: .utf8) else { return "" }
-    return text.split(separator: "\n", omittingEmptySubsequences: true).suffix(count)
-      .joined(separator: "\n")
+  // Reads up to two megabytes, so it stays off the main actor. A fresh rotation leaves the
+  // current file short, and the rest of the tail comes from the previous one.
+  @concurrent func lastLines(_ count: Int) async -> String {
+    let current = Self.lines(in: url)
+    let missing = count - current.count
+    let earlier = missing > 0 ? Self.lines(in: previous).suffix(missing) : []
+    return (earlier + current.suffix(count)).joined(separator: "\n")
+  }
+
+  private static func lines(in file: URL) -> [Substring] {
+    guard let text = try? String(contentsOf: file, encoding: .utf8) else { return [] }
+    return text.split(separator: "\n", omittingEmptySubsequences: true)
   }
 
   private func rotateIfNeeded(_ manager: FileManager) {

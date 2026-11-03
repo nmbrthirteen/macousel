@@ -19,7 +19,7 @@ struct SceneCursorView: View {
   }
 }
 
-private struct ArrowShape: Shape {
+private nonisolated struct ArrowShape: Shape {
   private static let outline: [CGPoint] = [
     CGPoint(x: 0, y: 0), CGPoint(x: 0, y: 0.84), CGPoint(x: 0.3, y: 0.66),
     CGPoint(x: 0.56, y: 0.98), CGPoint(x: 0.75, y: 0.9), CGPoint(x: 0.52, y: 0.6),

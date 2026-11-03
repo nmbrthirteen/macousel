@@ -1,8 +1,9 @@
 import AppKit
+import WindowSystem
 import os
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "commands")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "commands")
   private static let loggedHostLength = 40
 
   let store: PreferencesStore
@@ -12,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   let diagnostics: DiagnosticsAction
   private let whatsNew = WhatsNewWindowController()
   private let terminationSignals = TerminationSignals()
+  private var isDuplicate = false
 
   override init() {
     let store = PreferencesStore()
@@ -21,11 +23,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     updater = Updater(
       feed: GitHubReleaseFeed(), installer: UpdateInstaller.running(),
       currentVersion: BundleInfo(bundle: .main).version, store: store)
-    diagnostics = DiagnosticsAction(store: store, engineReport: { [manager] in manager.engineReport() })
+    diagnostics = DiagnosticsAction(store: store, engineReport: { [manager] in await manager.engineReport() })
     super.init()
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    // Two copies would share one engine service name and both move every window.
+    if let other = Self.otherRunningCopy() {
+      Self.logger.error("Another copy of Macousel is running, quitting this one")
+      isDuplicate = true
+      other.activate()
+      NSApp.terminate(nil)
+      return
+    }
     terminationSignals.install()
     if #unavailable(macOS 15) { closeSettingsWindow() }
     manager.start()
@@ -45,10 +55,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
+    guard !isDuplicate else { return }
     manager.shutdown()
   }
 
+  private static func otherRunningCopy() -> NSRunningApplication? {
+    guard let identifier = Bundle.main.bundleIdentifier else { return nil }
+    let current = NSRunningApplication.current
+    return NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
+      .first { $0 != current && !$0.isTerminated && $0.activationPolicy != .prohibited }
+  }
+
   func application(_ application: NSApplication, open urls: [URL]) {
+    guard !isDuplicate else { return }
     for url in urls {
       if CommandURL.isReloadSettings(url) {
         store.reload()
@@ -57,6 +76,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       guard let action = CommandURL.action(from: url) else {
         let host = String((url.host ?? "").prefix(Self.loggedHostLength))
         Self.logger.error("Ignored unknown command URL with host: \(host, privacy: .public)")
+        continue
+      }
+      guard CommandURL.accepts(action) else {
+        Self.logger.error("Ignored command URL for \(action.commandName, privacy: .public)")
         continue
       }
       manager.perform(action)

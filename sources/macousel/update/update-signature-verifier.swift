@@ -17,7 +17,8 @@ nonisolated struct UpdateSignatureVerifier {
     return publicKey.isValidSignature(signature, for: archive)
   }
 
-  func isValid(signatureFile: URL, archiveFile: URL) -> Bool {
+  // Hashes the whole archive, so it runs off the main actor.
+  @concurrent func isValid(signatureFile: URL, archiveFile: URL) async -> Bool {
     guard let signature = try? Data(contentsOf: signatureFile),
       let archive = try? Data(contentsOf: archiveFile, options: .mappedIfSafe)
     else { return false }

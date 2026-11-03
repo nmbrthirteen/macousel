@@ -8,6 +8,7 @@ final class SystemWindowProbe: WindowProbing {
 
   init(tracker: WindowTracker) {
     self.tracker = tracker
+    tracker.observeTermination { [reader] pid in reader.forget(pid: pid) }
   }
 
   func probe(

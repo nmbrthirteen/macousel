@@ -20,4 +20,12 @@ enum CommandURL {
     guard url.scheme == scheme, let host = url.host else { return nil }
     return Action(commandName: host)
   }
+
+  // Any web page can open a macousel:// link, so the scheme leaves out the one action that
+  // silently stops the window manager until the user notices.
+  static let actions = Action.allCases.filter { $0 != .togglePaused }
+
+  static func accepts(_ action: Action) -> Bool {
+    actions.contains(action)
+  }
 }

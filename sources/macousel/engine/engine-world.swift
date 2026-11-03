@@ -10,9 +10,11 @@ final class EngineWorld {
   @ObservationIgnored var onAdopted: ((EngineSnapshot) -> Void)?
   @ObservationIgnored private let commands: any EngineCommanding
   @ObservationIgnored private let sleep: (Duration) async throws -> Void
-  @ObservationIgnored private var isRefreshing = false
   @ObservationIgnored private var needsAnother = false
   @ObservationIgnored private var connecting: Task<Void, Never>?
+  @ObservationIgnored private var refreshing: Task<Void, Never>?
+  // A fetch that started before clear() must not adopt its result afterwards.
+  @ObservationIgnored private var generation = 0
 
   init(commands: any EngineCommanding, sleep: @escaping (Duration) async throws -> Void) {
     self.commands = commands
@@ -23,10 +25,11 @@ final class EngineWorld {
 
   func connect() {
     connecting?.cancel()
+    let current = generation
     connecting = Task {
       for _ in 0..<Self.connectAttempts {
         if let fetched = await commands.fetchSnapshot() {
-          adopt(fetched)
+          if current == generation { adopt(fetched) }
           return
         }
         try? await sleep(Self.connectInterval)
@@ -36,28 +39,38 @@ final class EngineWorld {
   }
 
   func clear() {
+    generation += 1
     connecting?.cancel()
     connecting = nil
+    refreshing?.cancel()
+    refreshing = nil
+    needsAnother = false
     snapshot = nil
   }
 
   func handle(_ event: EngineEvent) {
-    if case .windowTitleChanged = event, snapshot == nil { return }
+    // A title change carries everything it changes, so it skips the refetch.
+    if case .windowTitleChanged(let id, let title) = event {
+      guard var updated = snapshot else { return }
+      updated.retitle(window: id, to: title)
+      if updated != snapshot { adopt(updated) }
+      return
+    }
     refresh()
   }
 
   func refresh() {
-    guard !isRefreshing else {
+    guard refreshing == nil else {
       needsAnother = true
       return
     }
-    isRefreshing = true
-    Task {
+    let current = generation
+    refreshing = Task {
       repeat {
         needsAnother = false
-        if let fetched = await commands.fetchSnapshot() { adopt(fetched) }
-      } while needsAnother
-      isRefreshing = false
+        if let fetched = await commands.fetchSnapshot(), current == generation { adopt(fetched) }
+      } while needsAnother && current == generation
+      if current == generation { refreshing = nil }
     }
   }
 
@@ -66,5 +79,17 @@ final class EngineWorld {
     snapshot = fetched
     if previous?.focusedColumnIndex != fetched.focusedColumnIndex { onFocusMoved?(fetched) }
     onAdopted?(fetched)
+  }
+}
+
+extension EngineSnapshot {
+  fileprivate mutating func retitle(window id: Int32, to title: String) {
+    for workspace in virtualWorkspaces.indices {
+      for window in virtualWorkspaces[workspace].windows.indices
+      where virtualWorkspaces[workspace].windows[window].windowId == id {
+        virtualWorkspaces[workspace].windows[window].title = title
+      }
+    }
+    if active.focusedWindowId == id { active.focusedWindowTitle = title }
   }
 }

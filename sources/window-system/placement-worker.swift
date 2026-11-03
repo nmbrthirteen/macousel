@@ -3,7 +3,7 @@ import CoreGraphics
 import Foundation
 import os
 
-private nonisolated let logger = Logger(subsystem: "dev.macousel.app", category: "frame-applier")
+private nonisolated let logger = Logger(subsystem: Log.subsystem, category: "frame-applier")
 
 nonisolated final class PlacementWorker: Sendable {
   private let sizes = OSAllocatedUnfairLock(initialState: [CGWindowID: CGSize]())
@@ -53,10 +53,7 @@ nonisolated final class PlacementWorker: Sendable {
       element.set(point: frame.origin, for: kAXPositionAttribute)
       return
     }
-    let sized = element.set(size: frame.size, for: kAXSizeAttribute)
-    element.set(point: frame.origin, for: kAXPositionAttribute)
-    element.set(size: frame.size, for: kAXSizeAttribute)
-    if sized { sizes.withLock { $0[window] = frame.size } }
+    if element.place(frame) { sizes.withLock { $0[window] = frame.size } }
   }
 
   func forget(_ window: CGWindowID) {
@@ -77,5 +74,11 @@ nonisolated final class PlacementWorker: Sendable {
 
   func restoreEnhancedInterface(of pid: pid_t) {
     enhancedInterface.restore(pid)
+  }
+
+  func forget(pid: pid_t) {
+    timings.withLock { $0[pid] = nil }
+    responsiveness.forget(pid)
+    enhancedInterface.forget(pid)
   }
 }

@@ -1,7 +1,7 @@
 import StripCore
 import SwiftUI
 
-struct PreviewArrow: Shape {
+nonisolated struct PreviewArrow: Shape {
   let direction: StripCore.HorizontalDirection
   let headSize: Double
 

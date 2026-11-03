@@ -1,10 +1,12 @@
+import WindowSystem
+
 struct SystemLogReader: LogReading {
   struct Failure: Error {
     let status: Int32
     let output: String
   }
 
-  static let subsystem = "dev.macousel.app"
+  static let subsystem = Log.subsystem
   static let window = "15m"
 
   func recentEntries() async throws -> String {

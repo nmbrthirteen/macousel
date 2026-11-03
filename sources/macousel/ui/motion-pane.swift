@@ -2,7 +2,6 @@ import SwiftUI
 
 struct MotionPane: View {
   private static let dimRange = 0.05...0.6
-  private static let borderWidthRange = 1.0...8.0
 
   @Bindable var store: PreferencesStore
 
@@ -25,7 +24,7 @@ struct MotionPane: View {
         ToggleRow(title: "Show focus border", isOn: $store.preferences.showsFocusBorder)
         LabelledSliderRow(
           title: "Border width", value: $store.preferences.focusBorderWidth,
-          range: Self.borderWidthRange, step: 1, readout: .points)
+          range: Preferences.focusBorderWidthRange, step: 1, readout: .points)
           .disabled(!store.preferences.showsFocusBorder)
         ToggleRow(title: "Dim inactive windows", isOn: $store.preferences.dimsInactiveWindows)
         LabelledSliderRow(
@@ -39,7 +38,7 @@ struct MotionPane: View {
         MinimapPreview(config: store.preferences.layout, isEnabled: store.preferences.showsMinimap)
       }
 
-      SettingsGroup(title: "Menu Bar") {
+      SettingsGroup(title: "Menu bar") {
         MenuBarIndicatorPicker(selection: $store.preferences.menuBarIndicator)
       }
     }

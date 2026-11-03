@@ -5,11 +5,12 @@ extension PaneruEngine {
   static func system(
     store: PreferencesStore, environment: any DesktopEnvironment, shortcuts: any ShortcutRegistry,
     overlays: any OverlayHost = SystemOverlayHost(),
-    pointer: any PointerDevice = SystemPointerDevice(tap: InputEventTap()),
-    gestures: any GestureInput = SystemGestureInput(tap: InputEventTap()),
-    clock: any AnimationClock = SystemAnimationClock(), bundle: Bundle = .main,
-    polling: AccessibilityMonitor.Intervals = .standard
+    pointer: (any PointerDevice)? = nil, gestures: (any GestureInput)? = nil,
+    clock: any AnimationClock = SystemAnimationClock(), bundle: Bundle = .main
   ) -> PaneruEngine {
+    let tap = InputEventTap()
+    let pointer = pointer ?? SystemPointerDevice(tap: tap)
+    let gestures = gestures ?? SystemGestureInput(tap: tap)
     let paths = EnginePaths.system()
     let log = EngineLog(url: paths.log)
     let locator = EngineHelperLocator.system(bundle: bundle)
@@ -31,8 +32,7 @@ extension PaneruEngine {
           }
         },
         isTrusted: { environment.isAccessibilityGranted }, writeConfig: { try sync.writeCurrent() },
-        now: { ContinuousClock.now }, sleep: { try await Task.sleep(for: $0) },
-        pause: { Thread.sleep(forTimeInterval: $0.timeInterval) }))
+        now: { ContinuousClock.now }, sleep: { try await Task.sleep(for: $0) }))
     let displays: () -> [Display] = { environment.displays }
     let reorder = EngineReorder(commands: commands, sleep: { try await Task.sleep(for: $0) })
     let world = EngineWorld(commands: commands, sleep: { try await Task.sleep(for: $0) })
@@ -59,7 +59,6 @@ extension PaneruEngine {
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
           commands: commands, reorder: reorder, activate: { environment.activateOrLaunch(bundleIdentifier: $0) }),
-        polling: polling,
         reporter: EngineReporter(
           version: locator.version, locate: locate, supervisor: supervisor, sync: sync, log: log)))
   }

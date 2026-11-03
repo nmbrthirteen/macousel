@@ -10,6 +10,7 @@ final class SystemFramePlacer: FramePlacer {
 
   init(tracker: WindowTracker) {
     self.tracker = tracker
+    tracker.observeTermination { [applier] pid in applier.forget(pid: pid) }
     applier.observeSlowChanges { [weak self] bundleIdentifier, isSlow in
       DispatchQueue.main.async {
         MainActor.assumeIsolated { self?.onSlowAppChange?(bundleIdentifier, isSlow) }

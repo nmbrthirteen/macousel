@@ -1,6 +1,10 @@
 import Foundation
 
 public final class InputEventTap {
+  public enum Client: Hashable, Sendable {
+    case scroll, mouse
+  }
+
   public var scrollModifiers: Hotkey.Modifiers {
     get { configuredModifiers.value }
     set { configuredModifiers.value = newValue }
@@ -10,12 +14,24 @@ public final class InputEventTap {
 
   private let configuredModifiers = InputEventTapModifiers()
   private var handle: TapThreadHandle?
+  // Scrolling and the pointer share one tap, so it runs while either still needs it.
+  private var clients: Set<Client> = []
 
   public init() {}
 
   public var isRunning: Bool { handle != nil }
 
-  public func start() -> Bool {
+  public func start(for client: Client) -> Bool {
+    clients.insert(client)
+    return start()
+  }
+
+  public func stop(for client: Client) {
+    clients.remove(client)
+    if clients.isEmpty { stop() }
+  }
+
+  private func start() -> Bool {
     if handle != nil { return true }
     let handle = TapThreadHandle()
     let modifiers = configuredModifiers
@@ -35,7 +51,7 @@ public final class InputEventTap {
     return true
   }
 
-  public func stop() {
+  private func stop() {
     guard let handle else { return }
     self.handle = nil
     handle.stopAndWait()

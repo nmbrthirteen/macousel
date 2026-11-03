@@ -13,5 +13,4 @@ enum OnboardingMetrics {
   static let continueHorizontalPadding = 22.0
   static let continueVerticalPadding = 10.0
   static let pressedOpacity = 0.8
-  static let stepTransitionOffset = 8.0
 }

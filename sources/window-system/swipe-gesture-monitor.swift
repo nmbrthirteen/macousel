@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let logger = Logger(subsystem: "dev.macousel.app", category: "swipe-gesture-monitor")
+private let logger = Logger(subsystem: Log.subsystem, category: "swipe-gesture-monitor")
 
 private struct WeakMonitor {
   weak var monitor: SwipeGestureMonitor?
@@ -50,8 +50,39 @@ public final class SwipeGestureMonitor {
   }
 
   private struct Api {
+    let createList: MTDeviceCreateListFunction
+    let register: MTRegisterFunction
     let unregister: MTRegisterFunction
+    let startDevice: MTDeviceStartFunction
     let stopDevice: MTDeviceStopFunction
+
+    // Loaded once. The framework stays mapped for the life of the process either way.
+    static let shared: Api? = load()
+
+    private static func load() -> Api? {
+      guard let handle = dlopen(multitouchFrameworkPath, RTLD_LAZY) else {
+        logger.error("MultitouchSupport could not be loaded")
+        return nil
+      }
+      guard
+        let createList: MTDeviceCreateListFunction = symbol("MTDeviceCreateList", in: handle),
+        let register: MTRegisterFunction = symbol("MTRegisterContactFrameCallback", in: handle),
+        let unregister: MTRegisterFunction = symbol("MTUnregisterContactFrameCallback", in: handle),
+        let startDevice: MTDeviceStartFunction = symbol("MTDeviceStart", in: handle),
+        let stopDevice: MTDeviceStopFunction = symbol("MTDeviceStop", in: handle)
+      else { return nil }
+      return Api(
+        createList: createList, register: register, unregister: unregister,
+        startDevice: startDevice, stopDevice: stopDevice)
+    }
+
+    private static func symbol<T>(_ name: String, in handle: UnsafeMutableRawPointer) -> T? {
+      guard let address = dlsym(handle, name) else {
+        logger.error("MultitouchSupport is missing \(name)")
+        return nil
+      }
+      return unsafeBitCast(address, to: T.self)
+    }
   }
 
   public var fingerCount: Int {
@@ -68,38 +99,27 @@ public final class SwipeGestureMonitor {
 
   public func start() -> Bool {
     if api != nil { return true }
-    guard MemoryLayout<MTTouch>.size == mtTouchSize,
-      MemoryLayout<MTTouch>.offset(of: \.state) == 20,
-      MemoryLayout<MTTouch>.offset(of: \.positionX) == 32,
-      MemoryLayout<MTTouch>.offset(of: \.positionY) == 36
-    else {
-      logger.error("MTTouch layout is \(MemoryLayout<MTTouch>.size) bytes, expected \(mtTouchSize)")
+    let size = MemoryLayout<MTTouch>.size
+    let state = MemoryLayout<MTTouch>.offset(of: \.state)
+    let positionX = MemoryLayout<MTTouch>.offset(of: \.positionX)
+    let positionY = MemoryLayout<MTTouch>.offset(of: \.positionY)
+    guard size == mtTouchSize, state == 20, positionX == 32, positionY == 36 else {
+      logger.error(
+        "MTTouch layout is size \(size), state at \(state ?? -1), x at \(positionX ?? -1), y at \(positionY ?? -1); expected \(mtTouchSize), 20, 32, 36"
+      )
       return false
     }
-    guard let handle = dlopen(multitouchFrameworkPath, RTLD_LAZY) else {
-      logger.error("MultitouchSupport could not be loaded")
-      return false
-    }
-    guard
-      let createList: MTDeviceCreateListFunction = Self.symbol("MTDeviceCreateList", in: handle),
-      let register: MTRegisterFunction = Self.symbol("MTRegisterContactFrameCallback", in: handle),
-      let unregister: MTRegisterFunction = Self.symbol(
-        "MTUnregisterContactFrameCallback", in: handle),
-      let startDevice: MTDeviceStartFunction = Self.symbol("MTDeviceStart", in: handle),
-      let stopDevice: MTDeviceStopFunction = Self.symbol("MTDeviceStop", in: handle)
-    else { return false }
-
-    guard let list = createList()?.takeRetainedValue(), CFArrayGetCount(list) > 0 else {
+    guard let api = Api.shared else { return false }
+    guard let list = api.createList()?.takeRetainedValue(), CFArrayGetCount(list) > 0 else {
       logger.error("No multitouch device found")
       return false
     }
-    let api = Api(
-      unregister: unregister, stopDevice: stopDevice)
     for index in 0..<CFArrayGetCount(list) {
       guard let device = CFArrayGetValueAtIndex(list, index) else { continue }
       let pointer = UnsafeMutableRawPointer(mutating: device)
-      register(pointer, contactFrameCallback)
-      _ = startDevice(pointer, 0)
+      api.register(pointer, contactFrameCallback)
+      let status = api.startDevice(pointer, 0)
+      if status != 0 { logger.error("MTDeviceStart failed for device \(index): \(status)") }
     }
     self.api = api
     devices = list
@@ -115,7 +135,8 @@ public final class SwipeGestureMonitor {
       guard let device = CFArrayGetValueAtIndex(devices, index) else { continue }
       let pointer = UnsafeMutableRawPointer(mutating: device)
       api.unregister(pointer, contactFrameCallback)
-      _ = api.stopDevice(pointer)
+      let status = api.stopDevice(pointer)
+      if status != 0 { logger.error("MTDeviceStop failed for device \(index): \(status)") }
     }
     activeMonitors.removeAll { $0.monitor == nil || $0.monitor === self }
     self.api = nil
@@ -150,13 +171,5 @@ public final class SwipeGestureMonitor {
     case .ignored:
       break
     }
-  }
-
-  private static func symbol<T>(_ name: String, in handle: UnsafeMutableRawPointer) -> T? {
-    guard let address = dlsym(handle, name) else {
-      logger.error("MultitouchSupport is missing \(name)")
-      return nil
-    }
-    return unsafeBitCast(address, to: T.self)
   }
 }

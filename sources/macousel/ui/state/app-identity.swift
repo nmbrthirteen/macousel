@@ -21,6 +21,25 @@ struct AppIdentity: Identifiable {
     )
   }
 
+  private struct CacheKey: Hashable {
+    let bundleIdentifier: String
+    let iconSide: Double
+  }
+
+  private static var cache: [CacheKey: AppIdentity] = [:]
+
+  // Rows rebuild on every settings change, and each lookup asks Launch Services and
+  // resizes an icon.
+  static func cached(bundleIdentifier: String, iconSide: Double = Metrics.Size.appIcon)
+    -> AppIdentity
+  {
+    let key = CacheKey(bundleIdentifier: bundleIdentifier, iconSide: iconSide)
+    if let hit = cache[key] { return hit }
+    let identity = AppIdentity(bundleIdentifier: bundleIdentifier, iconSide: iconSide)
+    cache[key] = identity
+    return identity
+  }
+
   init?(running application: NSRunningApplication) {
     guard let identifier = application.bundleIdentifier, let name = application.localizedName
     else { return nil }

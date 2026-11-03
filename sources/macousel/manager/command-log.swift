@@ -1,8 +1,9 @@
 import StripCore
+import WindowSystem
 import os
 
 struct CommandLog {
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "commands")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "commands")
 
   func performed(
     _ action: Action, outcome: StripCommandOutcome, before: Strip, after: Strip

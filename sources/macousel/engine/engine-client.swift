@@ -1,6 +1,10 @@
 import Foundation
+import WindowSystem
+import os
 
 final class EngineClient: EngineCommanding {
+  private static let logger = Logger(subsystem: Log.subsystem, category: "engine")
+
   private let locate: () -> URL?
   private let locateBridge: () -> URL?
   private let service: String
@@ -17,7 +21,12 @@ final class EngineClient: EngineCommanding {
   }
 
   func send(_ words: [String]) async {
-    _ = await run(["send-cmd"] + words)
+    guard let output = await run(["send-cmd"] + words) else { return }
+    if output.status != 0 {
+      let command = words.first ?? ""
+      Self.logger.error(
+        "The engine refused \(command, privacy: .public), status \(output.status)")
+    }
   }
 
   func fetchSnapshot() async -> EngineSnapshot? {
@@ -42,8 +51,12 @@ final class EngineClient: EngineCommanding {
   }
 
   private func run(_ helper: URL, _ arguments: [String]) async -> ProcessOutput? {
-    var environment = ProcessInfo.processInfo.environment
-    environment[EngineService.variable] = service
-    return await runner.run(helper, arguments: arguments, environment: environment)
+    let environment = ChildEnvironment.current(adding: [EngineService.variable: service])
+    guard let output = await runner.run(helper, arguments: arguments, environment: environment)
+    else {
+      Self.logger.error("Could not run \(helper.lastPathComponent, privacy: .public)")
+      return nil
+    }
+    return output
   }
 }

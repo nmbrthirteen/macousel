@@ -5,7 +5,10 @@ import WindowSystem
 
 @MainActor
 final class FakeDesktopEnvironment: DesktopEnvironment {
-  var isAccessibilityGranted = true
+  var isAccessibilityGranted = true {
+    didSet { onAccessibilityChanged?() }
+  }
+  var onAccessibilityChanged: (() -> Void)?
   var bootSessionIdentifier = "boot-1"
   var displays: [Display]
   var frontmostProcessID: pid_t?

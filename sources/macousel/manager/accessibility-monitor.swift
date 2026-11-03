@@ -1,44 +1,38 @@
 final class AccessibilityMonitor {
-  struct Intervals {
-    var whileWaiting: Duration
-    var whileWatching: Duration
-
-    static let standard = Intervals(whileWaiting: .seconds(1), whileWatching: .seconds(2))
-  }
-
   private let environment: any DesktopEnvironment
-  private let intervals: Intervals
   private var task: Task<Void, Never>?
 
-  init(environment: any DesktopEnvironment, intervals: Intervals) {
+  init(environment: any DesktopEnvironment) {
     self.environment = environment
-    self.intervals = intervals
   }
 
   func waitForGrant(then granted: @escaping () -> Void) {
-    task?.cancel()
-    task = Task {
-      while !environment.isAccessibilityGranted {
-        try? await Task.sleep(for: intervals.whileWaiting)
-        if Task.isCancelled { return }
-      }
-      granted()
-    }
+    watch(until: true, then: granted)
   }
 
   func watchForLoss(then lost: @escaping () -> Void) {
-    task?.cancel()
-    task = Task {
-      while environment.isAccessibilityGranted {
-        try? await Task.sleep(for: intervals.whileWatching)
-        if Task.isCancelled { return }
-      }
-      lost()
-    }
+    watch(until: false, then: lost)
   }
 
   func stop() {
     task?.cancel()
     task = nil
+    environment.onAccessibilityChanged = nil
+  }
+
+  // The callback runs on a later turn so it never re-enters the engine method that armed it.
+  private func watch(until granted: Bool, then action: @escaping () -> Void) {
+    stop()
+    let check = { [weak self, environment] in
+      guard let self, self.task == nil, environment.isAccessibilityGranted == granted
+      else { return }
+      environment.onAccessibilityChanged = nil
+      self.task = Task {
+        if Task.isCancelled { return }
+        action()
+      }
+    }
+    environment.onAccessibilityChanged = check
+    check()
   }
 }

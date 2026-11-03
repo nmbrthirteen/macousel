@@ -71,6 +71,31 @@ struct SettingsFileTests {
     #expect(throws: SettingsFileError.missingPreferences) { try decode(#"{"formatVersion": 1}"#) }
   }
 
+  @Test func anUnknownShortcutActionIsRejected() {
+    let text = #"{"preferences": {"shortcuts": ["flyAway", []]}}"#
+
+    #expect(throws: SettingsFileError.self) { try decode(text) }
+  }
+
+  @Test func aValueOfTheWrongTypeIsRejectedWithItsField() {
+    let text = #"{"preferences": {"showsMinimap": "no"}}"#
+
+    #expect(throws: SettingsFileError.invalidValue("showsMinimap")) { try decode(text) }
+  }
+
+  @Test func outOfRangeValuesAreRejected() {
+    #expect(throws: SettingsFileError.invalidValue("focusBorderWidth")) {
+      try decode(#"{"preferences": {"focusBorderWidth": 400}}"#)
+    }
+    #expect(throws: SettingsFileError.invalidValue("swipeFingers")) {
+      try decode(#"{"preferences": {"swipeFingers": 7}}"#)
+    }
+    let farSlot = #"{"bundleIdentifier": "test.app", "behavior": {"slot": {"_0": 40}}}"#
+    #expect(throws: SettingsFileError.invalidValue("appRules slot for test.app")) {
+      try decode(#"{"preferences": {"appRules": [\#(farSlot)]}}"#)
+    }
+  }
+
   @Test func theOnboardingFlagIsNeverWritten() throws {
     var preferences = customized()
     preferences.hasCompletedOnboarding = true

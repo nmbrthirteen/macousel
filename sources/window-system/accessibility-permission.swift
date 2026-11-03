@@ -12,18 +12,22 @@ public enum AccessibilityPermission {
   }
 
   @discardableResult
-  public static func resetGrant() -> Bool {
+  public static func resetGrant() async -> Bool {
     guard let identifier = Bundle.main.bundleIdentifier else { return false }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
     process.arguments = ["reset", "Accessibility", identifier]
-    do {
-      try process.run()
-    } catch {
-      return false
+    return await withCheckedContinuation { continuation in
+      process.terminationHandler = { finished in
+        continuation.resume(returning: finished.terminationStatus == 0)
+      }
+      do {
+        try process.run()
+      } catch {
+        process.terminationHandler = nil
+        continuation.resume(returning: false)
+      }
     }
-    process.waitUntilExit()
-    return process.terminationStatus == 0
   }
 
   public static func openSystemSettings() {

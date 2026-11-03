@@ -14,7 +14,7 @@ nonisolated final class FocusRequests: Sendable {
     var disabledAt: ContinuousClock.Instant?
   }
 
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "focus")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "focus")
   private static let missesBeforeDisabling = 3
   private static let rearmDelay = Duration.seconds(60)
 

@@ -4,7 +4,7 @@ import WindowSystem
 import os
 
 final class WindowReconciler {
-  private static let signposter = OSSignposter(subsystem: "dev.macousel.app", category: "reconcile")
+  private static let signposter = OSSignposter(subsystem: Log.subsystem, category: "reconcile")
 
   private let state: TilingState
   private let source: any WindowSource

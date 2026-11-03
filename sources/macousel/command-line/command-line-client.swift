@@ -18,13 +18,18 @@ enum CommandLineClient {
       return nil
     }
     if command == listCommand {
-      write(Action.allCases.map(\.commandName).joined(separator: "\n") + "\n", to: .standardOutput)
+      let names = CommandURL.actions.map(\.commandName)
+      write(names.joined(separator: "\n") + "\n", to: .standardOutput)
       return 0
     }
     guard let action = Action(commandName: command) else {
       write(
         "Unknown command: \(command). Run 'Macousel list' to see the commands.\n",
         to: .standardError)
+      return usageExitCode
+    }
+    guard CommandURL.accepts(action) else {
+      write("\(command) runs from its shortcut or the menu bar only.\n", to: .standardError)
       return usageExitCode
     }
     guard let url = CommandURL.url(for: action), NSWorkspace.shared.open(url) else {

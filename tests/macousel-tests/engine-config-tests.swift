@@ -154,5 +154,7 @@ struct EngineConfigTests {
 
   @Test func escapesQuotesInBundleIdentifiers() {
     #expect(TomlString.quoted("a\"b\\c") == "\"a\\\"b\\\\c\"")
+    #expect(TomlString.quoted("a\r\nb\tc") == #""a\r\nb\tc""#)
+    #expect(TomlString.quoted("bell\u{07}del\u{7F}") == #""bell\u0007del\u007F""#)
   }
 }

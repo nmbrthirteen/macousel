@@ -5,7 +5,7 @@ import os
 
 final class LayoutPresenter {
   private static let narrowestVisibleEntrance: CGFloat = 40
-  private static let signposter = OSSignposter(subsystem: "dev.macousel.app", category: "layout")
+  private static let signposter = OSSignposter(subsystem: Log.subsystem, category: "layout")
 
   let overlays: OverlayPresenter
   private let indicator: StripPositionIndicator

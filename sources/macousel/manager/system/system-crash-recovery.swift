@@ -1,8 +1,9 @@
 import Foundation
+import WindowSystem
 import os
 
 final class SystemCrashRecovery: CrashRecovery {
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "crash-recovery")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "crash-recovery")
   private static let recoveryFlag = "--recover-windows"
   private static let cleanExitMarker = "x"
   private static let watchScript =

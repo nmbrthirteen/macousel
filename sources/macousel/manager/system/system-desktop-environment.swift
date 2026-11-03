@@ -3,8 +3,20 @@ import WindowSystem
 
 final class SystemDesktopEnvironment: DesktopEnvironment {
   private let observer = EnvironmentObserver()
+  private let trust = AccessibilityTrustObserver()
+  private let grants = AccessibilityGrantHistory(
+    defaults: .standard, build: BundleInfo(bundle: .main).build)
 
-  var isAccessibilityGranted: Bool { AccessibilityPermission.isGranted }
+  var isAccessibilityGranted: Bool {
+    let granted = AccessibilityPermission.isGranted
+    if granted { grants.recordGranted() }
+    return granted
+  }
+
+  var onAccessibilityChanged: (() -> Void)? {
+    get { trust.onChange }
+    set { trust.onChange = newValue }
+  }
 
   var bootSessionIdentifier: String { BootSession.identifier }
 
@@ -29,8 +41,14 @@ final class SystemDesktopEnvironment: DesktopEnvironment {
   }
 
   func requestAccessibilityAccess() {
-    AccessibilityPermission.resetGrant()
-    AccessibilityPermission.requestWithPrompt()
+    guard grants.takeStaleGrantReset(isGranted: AccessibilityPermission.isGranted) else {
+      AccessibilityPermission.requestWithPrompt()
+      return
+    }
+    Task {
+      await AccessibilityPermission.resetGrant()
+      AccessibilityPermission.requestWithPrompt()
+    }
   }
 
   func currentSpace(of display: Display) -> UInt64 {

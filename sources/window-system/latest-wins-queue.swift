@@ -13,7 +13,7 @@ nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
 
   private enum Step {
     case work(CGWindowID, Request)
-    case done(generation: Int, queue: DispatchQueue)
+    case done(generation: Int, queue: DispatchQueue?)
   }
 
   private let state = OSAllocatedUnfairLock(initialState: State())
@@ -23,10 +23,12 @@ nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
   private let release: @Sendable (pid_t) -> Void
   private let quietDelay: TimeInterval
   private let idleDelay: TimeInterval
+  private let flushTimeout: TimeInterval
 
   init(
     quietDelay: TimeInterval = 0.3,
     idleDelay: TimeInterval = 30,
+    flushTimeout: TimeInterval = 1,
     apply: @escaping @Sendable (CGWindowID, Request) -> Void,
     beginBurst: @escaping @Sendable (pid_t) -> Void,
     endBurst: @escaping @Sendable (pid_t) -> Void,
@@ -34,6 +36,7 @@ nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
   ) {
     self.quietDelay = quietDelay
     self.idleDelay = idleDelay
+    self.flushTimeout = flushTimeout
     self.apply = apply
     self.beginBurst = beginBurst
     self.endBurst = endBurst
@@ -78,9 +81,24 @@ nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
     }
   }
 
+  // The caller restores windows next and must not race a placement, so this waits for the
+  // queues to drain. All queues drain at once, and a hung app holds the caller for at most
+  // the timeout.
   func flush() {
     let queues = state.withLock { Array($0.queues) }
-    for (pid, queue) in queues { queue.sync { self.finish(pid) } }
+    let group = DispatchGroup()
+    for (pid, queue) in queues { queue.async(group: group) { self.finish(pid) } }
+    _ = group.wait(timeout: .now() + flushTimeout)
+  }
+
+  func forget(pid: pid_t) {
+    state.withLock { state in
+      state.pending[pid] = nil
+      guard !state.running.contains(pid) else { return }
+      state.queues[pid] = nil
+      state.bursting.remove(pid)
+      state.generation[pid] = nil
+    }
   }
 
   private func finish(_ pid: pid_t) {
@@ -105,12 +123,13 @@ nonisolated final class LatestWinsQueue<Request: Sendable>: Sendable {
         state.running.remove(pid)
         let generation = (state.generation[pid] ?? 0) + 1
         state.generation[pid] = generation
-        return .done(generation: generation, queue: state.queues[pid]!)
+        return .done(generation: generation, queue: state.queues[pid])
       }
       switch step {
       case .work(let window, let request):
         apply(window, request)
       case .done(let generation, let queue):
+        guard let queue else { return }
         queue.asyncAfter(deadline: .now() + quietDelay) {
           self.endBurstIfQuiet(pid, generation: generation)
         }

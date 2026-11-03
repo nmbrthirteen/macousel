@@ -22,11 +22,11 @@ enum RaycastScriptExporter {
   static func export(to directory: URL) throws -> Int {
     let files = FileManager.default
     try files.createDirectory(at: directory, withIntermediateDirectories: true)
-    for action in Action.allCases {
+    for action in CommandURL.actions {
       let file = directory.appendingPathComponent(fileName(for: action))
       try Data(script(for: action).utf8).write(to: file)
       try files.setAttributes([.posixPermissions: executablePermissions], ofItemAtPath: file.path)
     }
-    return Action.allCases.count
+    return CommandURL.actions.count
   }
 }

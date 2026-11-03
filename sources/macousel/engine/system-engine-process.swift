@@ -1,4 +1,6 @@
 import Foundation
+import WindowSystem
+import os
 
 final class SystemEngineProcess: EngineProcess {
   let exits: AsyncStream<Int32>
@@ -21,6 +23,8 @@ final class SystemEngineProcess: EngineProcess {
 }
 
 final class SystemEngineLauncher: EngineProcessLauncher {
+  private static let logger = Logger(subsystem: Log.subsystem, category: "engine")
+
   private let log: EngineLog
 
   init(log: EngineLog) {
@@ -55,6 +59,24 @@ final class SystemEngineLauncher: EngineProcessLauncher {
       continuation.finish()
     }
     try process.run()
+    startWatchdog(engine: process.processIdentifier)
     return SystemEngineProcess(process: process, exits: exits)
+  }
+
+  private func startWatchdog(engine: pid_t) {
+    guard let executable = Bundle.main.executableURL else { return }
+    let watchdog = Process()
+    watchdog.executableURL = executable
+    watchdog.arguments = EngineWatchdog.arguments(
+      parent: ProcessInfo.processInfo.processIdentifier, engine: engine)
+    watchdog.environment = ChildEnvironment.current()
+    watchdog.standardInput = FileHandle.nullDevice
+    watchdog.standardOutput = FileHandle.nullDevice
+    watchdog.standardError = FileHandle.nullDevice
+    do {
+      try watchdog.run()
+    } catch {
+      Self.logger.error("Could not start the engine watchdog: \(error, privacy: .public)")
+    }
   }
 }

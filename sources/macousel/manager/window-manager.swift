@@ -24,11 +24,11 @@ final class WindowManager {
 
   init(
     store: PreferencesStore, ports: ManagerPorts, defaults: UserDefaults,
-    polling: AccessibilityMonitor.Intervals = .standard, paneru: PaneruEngine? = nil
+    paneru: PaneruEngine? = nil
   ) {
     self.store = store
     selected = store.preferences.engine
-    builtIn = BuiltInEngine(store: store, ports: ports, defaults: defaults, polling: polling)
+    builtIn = BuiltInEngine(store: store, ports: ports, defaults: defaults)
     self.paneru =
       paneru
       ?? .system(
@@ -61,8 +61,8 @@ final class WindowManager {
     active.shutdown()
   }
 
-  func engineReport() -> EngineReport {
-    paneru.report(selected: selected)
+  func engineReport() async -> EngineReport {
+    await paneru.report(selected: selected)
   }
 
   private func preferencesChanged() {

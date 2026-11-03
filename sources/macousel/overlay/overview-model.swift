@@ -25,10 +25,10 @@ final class OverviewModel {
   @ObservationIgnored var onMove: (WindowID, DropTarget) -> Void = { _, _ in }
   @ObservationIgnored var onColumnWidth: (WindowID, Double) -> Void = { _, _ in }
   @ObservationIgnored var onRowHeight: (WindowID, Double, VerticalNeighbor) -> Void = { _, _, _ in }
-  @ObservationIgnored private let icons = OverviewIconCache()
+  @ObservationIgnored private let icons = AppIconCache(iconSide: Metrics.Overview.iconSide)
 
   func icon(for bundleIdentifier: String?) -> NSImage? {
-    icons.icon(for: bundleIdentifier)
+    bundleIdentifier.map(icons.icon(for:))
   }
 
   func show(_ snapshot: OverviewSnapshot) {

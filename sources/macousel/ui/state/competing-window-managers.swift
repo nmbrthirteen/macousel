@@ -14,24 +14,14 @@ enum CompetingWindowManagers {
   private static let yabaiProcessName = "yabai"
   private static let pgrepPath = "/usr/bin/pgrep"
 
-  static func running() -> [String] {
+  static func running(includingYabai runsYabai: Bool) -> [String] {
     let identifiers = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
     let found = bundled.filter { identifiers.contains($0.bundleIdentifier) }.map(\.name)
-    return isProcessRunning(named: yabaiProcessName) ? found + [yabaiProcessName] : found
+    return runsYabai ? found + [yabaiProcessName] : found
   }
 
-  private static func isProcessRunning(named name: String) -> Bool {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: pgrepPath)
-    process.arguments = ["-x", name]
-    process.standardOutput = FileHandle.nullDevice
-    process.standardError = FileHandle.nullDevice
-    do {
-      try process.run()
-    } catch {
-      return false
-    }
-    process.waitUntilExit()
-    return process.terminationStatus == 0
+  // yabai is a bare process with no bundle, so finding it takes pgrep.
+  static func isYabaiRunning() async -> Bool {
+    (try? await ProcessRunner.run(pgrepPath, ["-x", yabaiProcessName])) == 0
   }
 }

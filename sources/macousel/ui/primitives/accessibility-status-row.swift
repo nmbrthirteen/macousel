@@ -24,7 +24,9 @@ struct AccessibilityStatusRow: View {
   }
 
   private func resetAndAsk() {
-    AccessibilityPermission.resetGrant()
-    AccessibilityPermission.requestWithPrompt()
+    Task {
+      await AccessibilityPermission.resetGrant()
+      AccessibilityPermission.requestWithPrompt()
+    }
   }
 }

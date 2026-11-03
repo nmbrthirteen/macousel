@@ -1,8 +1,9 @@
 import Foundation
+import WindowSystem
 import os
 
 struct BundleSwapper {
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "updates")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "updates")
 
   func swap(installed: URL, with replacement: URL) throws {
     let files = FileManager.default

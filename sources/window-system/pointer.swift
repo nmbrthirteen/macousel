@@ -12,13 +12,9 @@ public enum Pointer {
   }
 
   public static func windowID(at point: CGPoint) -> CGWindowID? {
-    let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-    guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
-    else { return nil }
     let ownPID = ProcessInfo.processInfo.processIdentifier
-    for info in list {
-      guard (info[kCGWindowLayer as String] as? Int) == 0,
-        (info[kCGWindowOwnerPID as String] as? pid_t) != ownPID,
+    for info in Spaces.onScreenWindowInfo() {
+      guard (info[kCGWindowOwnerPID as String] as? pid_t) != ownPID,
         let boundsDictionary = info[kCGWindowBounds as String] as? NSDictionary,
         let bounds = CGRect(dictionaryRepresentation: boundsDictionary),
         bounds.contains(point),

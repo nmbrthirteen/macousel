@@ -19,7 +19,7 @@ final class MinimapModel {
   @ObservationIgnored var onSelect: (WindowID) -> Void = { _ in }
   @ObservationIgnored var onMove: (WindowID, DropTarget) -> Void = { _, _ in }
   @ObservationIgnored var onVisibilityChange: (Bool) -> Void = { _ in }
-  @ObservationIgnored let icons = MinimapIconCache()
+  @ObservationIgnored let icons = AppIconCache(iconSide: Metrics.Minimap.iconSide)
   @ObservationIgnored private let schedule: (Duration, @escaping () -> Void) -> Void
   @ObservationIgnored private var lingerGeneration = 0
 

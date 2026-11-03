@@ -78,7 +78,7 @@ final class OverlayPresenter {
   }
 
   func refreshTitles(using probed: [CGWindowID: String]) {
-    let tabbed = tabbedWindows()
+    let tabbed = state.tabbedWindows
     tabTitles = tabTitles.filter { tabbed.contains($0.key) }
     for window in tabbed {
       guard let title = probed[window.rawValue], let handle = source.window(window.rawValue)
@@ -93,7 +93,7 @@ final class OverlayPresenter {
   }
 
   func readMissingTitles() {
-    for window in tabbedWindows() where tabTitles[window] == nil {
+    for window in state.tabbedWindows where tabTitles[window] == nil {
       tabTitles[window] = source.window(window.rawValue).map { Self.tabTitle($0.title, of: $0) }
     }
   }
@@ -106,14 +106,6 @@ final class OverlayPresenter {
       return
     }
     host.showMinimap(snapshot, update: update, on: display.visibleFrame)
-  }
-
-  private func tabbedWindows() -> Set<WindowID> {
-    Set(
-      state.activeKeys.flatMap { key in
-        (state.workspaces[key]?.strip.columns ?? []).filter { $0.display == .tabbed }
-          .flatMap(\.windows)
-      })
   }
 
   private static func tabTitle(_ title: String, of window: any WindowHandle) -> String {

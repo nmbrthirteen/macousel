@@ -2,7 +2,7 @@ import WindowSystem
 import os
 
 final class InputBindings {
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "shortcuts")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "shortcuts")
 
   private let store: PreferencesStore
   private let shortcuts: any ShortcutRegistry
@@ -37,17 +37,26 @@ final class InputBindings {
     () -> Void]
   {
     guard !store.isRecordingShortcut else { return [:] }
+    return store.preferences.hotkeyBindings(
+      including: { isTiling || $0 == .togglePaused }, perform: perform,
+      jump: isTiling ? { [appShortcuts] in appShortcuts.jump(to: $0) } : nil)
+  }
+}
+
+extension Preferences {
+  func hotkeyBindings(
+    including includes: (Action) -> Bool, perform: @escaping (Action) -> Void,
+    jump: ((String) -> Void)?
+  ) -> [Hotkey: () -> Void] {
     var bindings: [Hotkey: () -> Void] = [:]
-    for (action, keys) in store.preferences.shortcuts where isTiling || action == .togglePaused {
+    for (action, keys) in shortcuts where includes(action) {
       for key in keys {
         bindings[key] = { perform(action) }
       }
     }
-    guard isTiling else { return bindings }
-    for shortcut in store.preferences.appShortcuts {
-      bindings[shortcut.hotkey] = { [appShortcuts] in
-        appShortcuts.jump(to: shortcut.bundleIdentifier)
-      }
+    guard let jump else { return bindings }
+    for shortcut in appShortcuts {
+      bindings[shortcut.hotkey] = { jump(shortcut.bundleIdentifier) }
     }
     return bindings
   }

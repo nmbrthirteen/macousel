@@ -9,10 +9,10 @@ struct EngineReporter {
   let sync: EngineConfigSync
   let log: EngineLog
 
-  func report(selected: WindowEngine) -> EngineReport {
+  func report(selected: WindowEngine) async -> EngineReport {
     EngineReport(
       selected: selected, version: version, helperFound: locate() != nil,
       state: supervisor.state.description, restartCount: supervisor.restartCount,
-      config: sync.currentText, logTail: log.lastLines(Self.logLines))
+      config: sync.currentText, logTail: await log.lastLines(Self.logLines))
   }
 }

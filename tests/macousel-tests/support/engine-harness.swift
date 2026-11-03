@@ -19,7 +19,6 @@ final class EngineHarness {
   var hasHelper = true
   var now = ContinuousClock.now
   private(set) var sleeps: [Duration] = []
-  private(set) var pauses: [Duration] = []
   private(set) var activatedApps: [String] = []
 
   init() {
@@ -50,8 +49,7 @@ final class EngineHarness {
           try sync.writeCurrent()
         },
         now: { [self] in now },
-        sleep: { [self] duration in sleeps.append(duration) },
-        pause: { [self] duration in pauses.append(duration) }))
+        sleep: { [self] duration in sleeps.append(duration) }))
   }
 
   func makeEngine(
@@ -86,8 +84,6 @@ final class EngineHarness {
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
           commands: commands, reorder: reorder, activate: { [self] in activatedApps.append($0) }),
-        polling: AccessibilityMonitor.Intervals(
-          whileWaiting: .milliseconds(10), whileWatching: .milliseconds(10)),
         reporter: EngineReporter(
           version: "0.5.2", locate: { URL(fileURLWithPath: "/tmp/paneru") },
           supervisor: supervisor, sync: sync,
