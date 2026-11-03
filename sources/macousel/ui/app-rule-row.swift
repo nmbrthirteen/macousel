@@ -1,15 +1,13 @@
 import SwiftUI
 
 struct AppRuleRow: View {
-  private static let slotRange = 1...9
-
   @Binding var rule: AppRule
   private let identity: AppIdentity
   private let onRemove: () -> Void
 
   init(rule: Binding<AppRule>, onRemove: @escaping () -> Void) {
     _rule = rule
-    identity = AppIdentity(bundleIdentifier: rule.wrappedValue.bundleIdentifier)
+    identity = AppIdentity.cached(bundleIdentifier: rule.wrappedValue.bundleIdentifier)
     self.onRemove = onRemove
   }
 
@@ -45,7 +43,7 @@ struct AppRuleRow: View {
       HStack(spacing: Metrics.Spacing.regular) {
         Text("\(slot.wrappedValue)")
           .monospacedDigit()
-        Stepper("Column for \(identity.name)", value: slot, in: Self.slotRange)
+        Stepper("Column for \(identity.name)", value: slot, in: Preferences.slotRange)
           .labelsHidden()
       }
     }

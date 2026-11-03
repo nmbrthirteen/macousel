@@ -1,8 +1,11 @@
 import AppKit
 import Carbon.HIToolbox
 import WindowSystem
+import os
 
 final class SystemPointerDevice: PointerDevice {
+  private static let logger = Logger(subsystem: Log.subsystem, category: "input-event-tap")
+
   private let tap: InputEventTap
   private let movement = PointerMonitor()
   private let keys = GlobalEventMonitor(matching: .keyDown)
@@ -44,12 +47,12 @@ final class SystemPointerDevice: PointerDevice {
       case .released: handler(.released)
       }
     }
-    _ = tap.start()
+    if !tap.start(for: .mouse) { Self.logger.error("Could not start the mouse button tap") }
   }
 
   func stopObservingPrimaryButton() {
     tap.onMouse = nil
-    tap.stop()
+    tap.stop(for: .mouse)
   }
 
   func startObservingEscape(_ handler: @escaping () -> Void) {

@@ -1,7 +1,7 @@
 import Carbon.HIToolbox
 import os
 
-private let logger = Logger(subsystem: "dev.macousel.app", category: "shortcuts")
+private let logger = Logger(subsystem: Log.subsystem, category: "shortcuts")
 
 private nonisolated func hotKeyHandler(
   _ next: EventHandlerCallRef?, _ event: EventRef?, _ refcon: UnsafeMutableRawPointer?
@@ -30,6 +30,11 @@ public final class HotkeyCenter {
   private var hotkeys: [UInt32: Hotkey] = [:]
 
   public init() {}
+
+  // The Carbon handler holds an unretained pointer to self.
+  isolated deinit {
+    removeAll()
+  }
 
   public func setBindings(_ bindings: [Hotkey: () -> Void]) -> Int {
     unregisterAll()

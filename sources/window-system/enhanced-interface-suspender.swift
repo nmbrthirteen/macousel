@@ -2,7 +2,7 @@ import ApplicationServices
 import Foundation
 import os
 
-private nonisolated let logger = Logger(subsystem: "dev.macousel.app", category: "frame-applier")
+private nonisolated let logger = Logger(subsystem: Log.subsystem, category: "frame-applier")
 
 nonisolated final class EnhancedInterfaceSuspender: Sendable {
   private struct Reading: Sendable {
@@ -10,7 +10,7 @@ nonisolated final class EnhancedInterfaceSuspender: Sendable {
     var at: ContinuousClock.Instant
   }
 
-  private static let attribute = "AXEnhancedUserInterface"
+  private static let attribute = AXUIElement.enhancedUserInterfaceAttribute
   private static let readingLifetime = Duration.seconds(5)
 
   private let suspended = OSAllocatedUnfairLock(initialState: Set<pid_t>())
@@ -38,13 +38,28 @@ nonisolated final class EnhancedInterfaceSuspender: Sendable {
     logger.info("pid \(pid, privacy: .public) enhanced interface restored")
   }
 
+  func forget(_ pid: pid_t) {
+    suspended.withLock { _ = $0.remove(pid) }
+    readings.withLock { _ = $0.removeValue(forKey: pid) }
+  }
+
   private func isEnhanced(_ app: AXUIElement, pid: pid_t) -> Bool {
     if let cached = readings.withLock({ $0[pid] }),
       cached.at.duration(to: .now) < Self.readingLifetime
     {
       return cached.isEnhanced
     }
-    let enhanced: Bool = app.attribute(Self.attribute) ?? false
+    var value: CFTypeRef?
+    let error = AXUIElementCopyAttributeValue(app, Self.attribute as CFString, &value)
+    let enhanced: Bool
+    switch error {
+    case .success: enhanced = (value as? Bool) ?? false
+    case .attributeUnsupported, .noValue: enhanced = false
+    default:
+      // A timeout says nothing about the app, so the next burst asks again.
+      logger.error("pid \(pid, privacy: .public) enhanced interface read failed: \(error.rawValue)")
+      return false
+    }
     readings.withLock { $0[pid] = Reading(isEnhanced: enhanced, at: .now) }
     return enhanced
   }

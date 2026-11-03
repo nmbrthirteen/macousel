@@ -34,18 +34,42 @@ enum SettingsFile {
   static func decode(_ data: Data, keepingOnboardingFrom current: Preferences) throws
     -> Preferences
   {
+    guard (try? JSONSerialization.jsonObject(with: data)) is [String: Any] else {
+      throw SettingsFileError.notASettingsFile
+    }
+    let decoder = JSONDecoder()
+    decoder.userInfo[Preferences.strictDecoding] = true
     let file: Reading
     do {
-      file = try JSONDecoder().decode(Reading.self, from: data)
-    } catch {
-      throw SettingsFileError.notASettingsFile
+      file = try decoder.decode(Reading.self, from: data)
+    } catch let error as DecodingError {
+      throw SettingsFileError.invalidValue(error.fieldPath)
     }
     let version = file.formatVersion ?? currentFormatVersion
     guard version <= currentFormatVersion else {
       throw SettingsFileError.unsupportedVersion(version)
     }
     guard var preferences = file.preferences else { throw SettingsFileError.missingPreferences }
+    if let field = preferences.outOfRangeValue { throw SettingsFileError.invalidValue(field) }
     preferences.hasCompletedOnboarding = current.hasCompletedOnboarding
     return preferences
+  }
+}
+
+extension DecodingError {
+  fileprivate var fieldPath: String {
+    let path: [any CodingKey]
+    switch self {
+    case .typeMismatch(_, let context), .valueNotFound(_, let context),
+      .dataCorrupted(let context):
+      path = context.codingPath
+    case .keyNotFound(let key, let context):
+      path = context.codingPath + [key]
+    @unknown default:
+      path = []
+    }
+    let names = path.map { $0.intValue.map { "[\($0)]" } ?? $0.stringValue }
+      .filter { $0 != "preferences" }
+    return names.isEmpty ? "preferences" : names.joined(separator: ".")
   }
 }

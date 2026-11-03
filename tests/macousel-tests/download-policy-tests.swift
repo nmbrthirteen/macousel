@@ -22,6 +22,8 @@ struct DownloadPolicyTests {
     "https://github.com.evil.example/nmbrthirteen/macousel/releases/download/v/Macousel.zip",
     "https://evil.example/nmbrthirteen/macousel/releases/download/v/Macousel.zip",
     "file:///tmp/Macousel.zip",
+    "https://github.com/nmbrthirteen/macousel/releases/download/../../../evil/repo/Macousel.zip",
+    "https://github.com/nmbrthirteen/macousel/releases/download/%2E%2E/%2E%2E/x/Macousel.zip",
   ])
   func rejectsEveryOtherInitialURL(text: String) throws {
     let url = try #require(URL(string: text))

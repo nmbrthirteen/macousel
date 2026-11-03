@@ -34,6 +34,10 @@ public final class WindowFactsReader {
     DispatchQueue.main.asyncAfter(deadline: .now() + deadline) { batch.expire() }
   }
 
+  public func forget(pid: pid_t) {
+    queues[pid] = nil
+  }
+
   private func queue(for pid: pid_t) -> DispatchQueue {
     if let queue = queues[pid] { return queue }
     let queue = DispatchQueue(label: "dev.macousel.window-facts.\(pid)", qos: .userInitiated)

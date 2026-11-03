@@ -14,6 +14,5 @@ struct PaneruEngineParts {
   var swipe: EngineSwipe
   var bindings: PaneruInputBindings
   var appShortcuts: EngineAppShortcuts
-  var polling: AccessibilityMonitor.Intervals
   var reporter: EngineReporter
 }

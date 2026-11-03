@@ -26,7 +26,7 @@ struct UpdateInstaller: ReleaseInstalling {
         release.archiveURL, into: work, named: Release.archiveName)
       let signature = try await downloader.fetch(
         release.signatureURL, into: work, named: Release.signatureName)
-      guard verifier.isValid(signatureFile: signature, archiveFile: archive) else {
+      guard await verifier.isValid(signatureFile: signature, archiveFile: archive) else {
         throw UpdateInstallError.unverifiedUpdate
       }
       let unpacked = work.appendingPathComponent("unpacked", isDirectory: true)

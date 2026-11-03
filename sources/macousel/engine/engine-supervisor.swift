@@ -1,12 +1,17 @@
 import Foundation
 import Observation
+import WindowSystem
+import os
 
 @Observable
 final class EngineSupervisor {
   static let orphanChecks = 20
   static let orphanInterval = Duration.milliseconds(100)
-  static let terminationPolls = 40
+  // Paneru saves its state and puts every window back on SIGTERM, which takes a moment.
+  static let terminationPolls = 100
   static let terminationInterval = Duration.milliseconds(50)
+
+  private static let logger = Logger(subsystem: Log.subsystem, category: "engine")
 
   struct Dependencies {
     var launcher: any EngineProcessLauncher
@@ -17,7 +22,6 @@ final class EngineSupervisor {
     var writeConfig: () throws -> Void
     var now: () -> ContinuousClock.Instant
     var sleep: (Duration) async throws -> Void
-    var pause: (Duration) -> Void
   }
 
   private(set) var state = EngineRunState.stopped {
@@ -30,6 +34,7 @@ final class EngineSupervisor {
   @ObservationIgnored private var policy = EngineRestartPolicy()
   @ObservationIgnored private var generation = 0
   @ObservationIgnored private var tasks: [Task<Void, Never>] = []
+  @ObservationIgnored private var retiring: [ObjectIdentifier: any EngineProcess] = [:]
 
   init(_ dependencies: Dependencies) {
     self.dependencies = dependencies
@@ -49,7 +54,7 @@ final class EngineSupervisor {
     generation += 1
     tasks.forEach { $0.cancel() }
     tasks = []
-    if let process { terminateAndWait(process) }
+    if let process { retire(process) }
     process = nil
     state = .stopped
   }
@@ -67,18 +72,25 @@ final class EngineSupervisor {
       if current == generation { state = .failed(.standaloneRunning) }
       return
     }
-    await clearOrphan()
+    await awaitRetired()
+    let cleared = await clearOrphan()
     guard current == generation else { return }
+    guard cleared else {
+      state = .failed(.orphanRunning)
+      return
+    }
     launch(generation: current)
   }
 
-  private func clearOrphan() async {
-    guard await dependencies.commands.isAnswering() else { return }
+  private func clearOrphan() async -> Bool {
+    guard await dependencies.commands.isAnswering() else { return true }
     await dependencies.commands.send(["quit"])
     for _ in 0..<Self.orphanChecks {
-      if !(await dependencies.commands.isAnswering()) { return }
+      if !(await dependencies.commands.isAnswering()) { return true }
       try? await dependencies.sleep(Self.orphanInterval)
     }
+    Self.logger.error("An engine from an earlier run still answers after quit")
+    return false
   }
 
   private func launch(generation current: Int) {
@@ -89,6 +101,7 @@ final class EngineSupervisor {
     do {
       try dependencies.writeConfig()
     } catch {
+      Self.logger.error("Could not write the engine configuration: \(error, privacy: .public)")
       state = .failed(.configUnwritable)
       return
     }
@@ -98,6 +111,7 @@ final class EngineSupervisor {
       state = .running
       tasks.append(Task { await watch(started, generation: current) })
     } catch {
+      Self.logger.error("Could not launch the engine: \(error, privacy: .public)")
       state = .failed(.launchFailed)
     }
   }
@@ -114,16 +128,29 @@ final class EngineSupervisor {
       state = .waitingToRestart
       try? await dependencies.sleep(delay)
       guard current == generation, state == .waitingToRestart else { return }
-      launch(generation: current)
+      await boot(generation: current)
     }
   }
 
-  private func terminateAndWait(_ running: any EngineProcess) {
+  // Waits off the caller so quitting or switching engines never blocks the main thread. If
+  // Macousel exits before the grace runs out, the engine watchdog finishes the job.
+  private func retire(_ running: any EngineProcess) {
     running.terminate()
-    for _ in 0..<Self.terminationPolls {
-      if !running.isRunning { return }
-      dependencies.pause(Self.terminationInterval)
+    let key = ObjectIdentifier(running)
+    retiring[key] = running
+    Task {
+      for _ in 0..<Self.terminationPolls {
+        if !running.isRunning { break }
+        try? await dependencies.sleep(Self.terminationInterval)
+      }
+      if running.isRunning { running.kill() }
+      retiring[key] = nil
     }
-    running.kill()
+  }
+
+  private func awaitRetired() async {
+    while retiring.values.contains(where: \.isRunning) {
+      try? await dependencies.sleep(Self.terminationInterval)
+    }
   }
 }

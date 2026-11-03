@@ -1,6 +1,7 @@
 import Foundation
 import StripCore
 import WindowSystem
+import os
 
 struct Preferences: Codable, Equatable {
   var engine = WindowEngine.preferred
@@ -32,45 +33,80 @@ struct Preferences: Codable, Equatable {
   var checksForUpdates = true
 
   static let swipeSensitivityRange = 0.5...2.0
+  static let focusBorderWidthRange = 1.0...8.0
+  static let swipeFingerOptions = [3, 4]
+  static let slotRange = Action.places
+
+  // Stored preferences fall back per key so one bad value never resets the rest. An imported
+  // file sets this key, so a typo there fails loudly instead.
+  static let strictDecoding = CodingUserInfoKey(rawValue: "dev.macousel.strictDecoding")!
 
   init() {}
 
   init(from decoder: Decoder) throws {
     let values = try decoder.container(keyedBy: CodingKeys.self)
-    func value<T: Decodable>(_ key: CodingKeys, or fallback: T) -> T {
-      (try? values.decodeIfPresent(T.self, forKey: key)) ?? fallback
+    let strict = decoder.userInfo[Self.strictDecoding] as? Bool == true
+    func value<T: Decodable>(_ key: CodingKeys, or fallback: T) throws -> T {
+      if strict { return try values.decodeIfPresent(T.self, forKey: key) ?? fallback }
+      return (try? values.decodeIfPresent(T.self, forKey: key)) ?? fallback
     }
     let defaults = Preferences()
-    engine = value(.engine, or: defaults.engine)
-    layout = value(.layout, or: defaults.layout)
-    let savedShortcuts: [Action: [Hotkey]] = value(.shortcuts, or: [:])
-    shortcutBase = value(.shortcutBase, or: defaults.shortcutBase)
+    engine = try value(.engine, or: defaults.engine)
+    layout = try value(.layout, or: defaults.layout)
+    let savedShortcuts: [Action: [Hotkey]] = try value(.shortcuts, or: [:])
+    shortcutBase = try value(.shortcutBase, or: defaults.shortcutBase)
     shortcuts = Action.defaultShortcuts(base: shortcutBase)
       .merging(savedShortcuts) { _, saved in saved }
-    animationSpeed = value(.animationSpeed, or: defaults.animationSpeed)
-    showsFocusBorder = value(.showsFocusBorder, or: defaults.showsFocusBorder)
-    focusBorderWidth = value(.focusBorderWidth, or: defaults.focusBorderWidth)
-    dimsInactiveWindows = value(.dimsInactiveWindows, or: defaults.dimsInactiveWindows)
-    dimAmount = value(.dimAmount, or: defaults.dimAmount)
-    showsMinimap = value(.showsMinimap, or: defaults.showsMinimap)
-    menuBarIndicator = value(.menuBarIndicator, or: defaults.menuBarIndicator)
-    restoresSession = value(.restoresSession, or: defaults.restoresSession)
-    scrollGestureEnabled = value(.scrollGestureEnabled, or: defaults.scrollGestureEnabled)
-    swipeGestureEnabled = value(.swipeGestureEnabled, or: defaults.swipeGestureEnabled)
-    swipeFingers = value(.swipeFingers, or: defaults.swipeFingers)
-    swipeSensitivity = value(.swipeSensitivity, or: defaults.swipeSensitivity)
-    swipeStep = value(.swipeStep, or: defaults.swipeStep)
-    reversesSwipeDirection = value(.reversesSwipeDirection, or: defaults.reversesSwipeDirection)
-    displayFollowsPointer = value(.displayFollowsPointer, or: defaults.displayFollowsPointer)
-    focusFollowsMouse = value(.focusFollowsMouse, or: defaults.focusFollowsMouse)
-    mouseFollowsFocus = value(.mouseFollowsFocus, or: defaults.mouseFollowsFocus)
-    keepsFloatingWindowsOnTop = value(
+    animationSpeed = try value(.animationSpeed, or: defaults.animationSpeed)
+    showsFocusBorder = try value(.showsFocusBorder, or: defaults.showsFocusBorder)
+    focusBorderWidth = try value(.focusBorderWidth, or: defaults.focusBorderWidth)
+    dimsInactiveWindows = try value(.dimsInactiveWindows, or: defaults.dimsInactiveWindows)
+    dimAmount = try value(.dimAmount, or: defaults.dimAmount)
+    showsMinimap = try value(.showsMinimap, or: defaults.showsMinimap)
+    menuBarIndicator = try value(.menuBarIndicator, or: defaults.menuBarIndicator)
+    restoresSession = try value(.restoresSession, or: defaults.restoresSession)
+    scrollGestureEnabled = try value(.scrollGestureEnabled, or: defaults.scrollGestureEnabled)
+    swipeGestureEnabled = try value(.swipeGestureEnabled, or: defaults.swipeGestureEnabled)
+    swipeFingers = try value(.swipeFingers, or: defaults.swipeFingers)
+    swipeSensitivity = try value(.swipeSensitivity, or: defaults.swipeSensitivity)
+    swipeStep = try value(.swipeStep, or: defaults.swipeStep)
+    reversesSwipeDirection = try value(.reversesSwipeDirection, or: defaults.reversesSwipeDirection)
+    displayFollowsPointer = try value(.displayFollowsPointer, or: defaults.displayFollowsPointer)
+    focusFollowsMouse = try value(.focusFollowsMouse, or: defaults.focusFollowsMouse)
+    mouseFollowsFocus = try value(.mouseFollowsFocus, or: defaults.mouseFollowsFocus)
+    keepsFloatingWindowsOnTop = try value(
       .keepsFloatingWindowsOnTop, or: defaults.keepsFloatingWindowsOnTop)
-    appRules = value(.appRules, or: defaults.appRules)
-    appShortcuts = value(.appShortcuts, or: defaults.appShortcuts)
-    disabledDisplays = value(.disabledDisplays, or: defaults.disabledDisplays)
-    hasCompletedOnboarding = value(.hasCompletedOnboarding, or: defaults.hasCompletedOnboarding)
-    checksForUpdates = value(.checksForUpdates, or: defaults.checksForUpdates)
+    appRules = try value(.appRules, or: defaults.appRules)
+    appShortcuts = try value(.appShortcuts, or: defaults.appShortcuts)
+    disabledDisplays = try value(.disabledDisplays, or: defaults.disabledDisplays)
+    hasCompletedOnboarding = try value(.hasCompletedOnboarding, or: defaults.hasCompletedOnboarding)
+    checksForUpdates = try value(.checksForUpdates, or: defaults.checksForUpdates)
+  }
+
+  var clampedSwipeSensitivity: Double {
+    min(
+      max(swipeSensitivity, Self.swipeSensitivityRange.lowerBound),
+      Self.swipeSensitivityRange.upperBound)
+  }
+
+  var outOfRangeValue: String? {
+    if !Self.focusBorderWidthRange.contains(focusBorderWidth) { return "focusBorderWidth" }
+    if !Self.swipeFingerOptions.contains(swipeFingers) { return "swipeFingers" }
+    if layout.presetWidths.isEmpty
+      || !layout.presetWidths.allSatisfy(Strip.widthFractionRange.contains)
+    {
+      return "layout.presetWidths"
+    }
+    for rule in appRules {
+      switch rule.behavior {
+      case .width(let fraction) where !Strip.widthFractionRange.contains(fraction):
+        return "appRules width for \(rule.bundleIdentifier)"
+      case .slot(let place) where !Self.slotRange.contains(place):
+        return "appRules slot for \(rule.bundleIdentifier)"
+      default: continue
+      }
+    }
+    return nil
   }
 
   func rule(for bundleIdentifier: String?) -> AppRule.Behavior? {
@@ -124,8 +160,20 @@ final class PreferencesStore {
     preferences = updated
   }
 
+  private static let logger = Logger(subsystem: Log.subsystem, category: "preferences")
+  static let backupKey = "preferences.unreadable"
+
+  // A file that no longer decodes is kept under another key, so the next save cannot
+  // overwrite the user's settings with defaults.
   private static func stored(in defaults: UserDefaults) -> Preferences? {
-    defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(Preferences.self, from: $0) }
+    guard let data = defaults.data(forKey: key) else { return nil }
+    do {
+      return try JSONDecoder().decode(Preferences.self, from: data)
+    } catch {
+      logger.error("Stored preferences do not decode, kept a backup: \(error, privacy: .public)")
+      defaults.set(data, forKey: backupKey)
+      return nil
+    }
   }
 
   private func save() {

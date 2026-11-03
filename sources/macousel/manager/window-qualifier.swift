@@ -98,10 +98,6 @@ final class WindowQualifier {
   }
 
   private func tabbedWindows() -> Set<CGWindowID> {
-    Set(
-      state.activeKeys.flatMap { key in
-        (state.workspaces[key]?.strip.columns ?? []).filter { $0.display == .tabbed }
-          .flatMap(\.windows)
-      }.map(\.rawValue))
+    Set(state.tabbedWindows.map(\.rawValue))
   }
 }

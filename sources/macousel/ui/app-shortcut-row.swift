@@ -43,6 +43,6 @@ struct AppShortcutRow: View {
   }
 
   private var identity: AppIdentity {
-    AppIdentity(bundleIdentifier: bundleIdentifier)
+    AppIdentity.cached(bundleIdentifier: bundleIdentifier)
   }
 }

@@ -1,0 +1,51 @@
+diff --git a/src/ecs/restore.rs b/src/ecs/restore.rs
+--- a/src/ecs/restore.rs
++++ b/src/ecs/restore.rs
+@@ -16,6 +16,7 @@
+ use crate::ecs::params::{WindowCtx, Windows};
+ use crate::ecs::state::{
+     PaneruState, SavedColumn, SavedStackItem, SavedStrip, SavedWindow, SavedWorkspace,
++    title_digest,
+ };
+ use crate::ecs::workspace::PreviousStripPosition;
+ use crate::ecs::{
+@@ -623,7 +624,7 @@
+         let Some(window) = windows.get(identity.entity) else {
+             continue;
+         };
+-        identity.title = window.title().unwrap_or_default();
++        identity.title = title_digest(&window.title().unwrap_or_default());
+         if identity.title.is_empty() {
+             continue;
+         }
+diff --git a/src/ecs/state.rs b/src/ecs/state.rs
+--- a/src/ecs/state.rs
++++ b/src/ecs/state.rs
+@@ -149,7 +149,7 @@
+             pid: window.pid().ok()?,
+             psn: app.psn(),
+             bundle_id: app.bundle_id().unwrap_or_default().clone(),
+-            title: window.title().unwrap_or_default(),
++            title: title_digest(&window.title().unwrap_or_default()),
+             identifier: window.identifier().unwrap_or_default(),
+             role: window.role().unwrap_or_default(),
+             subrole: window.subrole().unwrap_or_default(),
+@@ -160,6 +160,18 @@
+         // 1. Exact match (including bundle to avoid cross-app PID collisions in edge cases)
+         self.window_id == other_id && self.pid == other_proc_id && self.bundle_id == other_bundle
+     }
++}
++
++/// The state file outlives the session, so it keeps a digest of each window
++/// title instead of the title. FNV-1a stays stable across Rust releases.
++pub(crate) fn title_digest(title: &str) -> String {
++    if title.is_empty() {
++        return String::new();
++    }
++    let hash = title.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
++        (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3)
++    });
++    format!("{hash:016x}")
+ }
+ 
+ impl PaneruState {

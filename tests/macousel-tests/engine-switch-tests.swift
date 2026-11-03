@@ -102,10 +102,10 @@ struct EngineSwitchTests {
     #expect(await harness.eventually { harness.commands.sent == [["window", "focus", "east"]] })
   }
 
-  @Test func theDiagnosticsReportNamesTheSelectedEngine() throws {
+  @Test func theDiagnosticsReportNamesTheSelectedEngine() async throws {
     let fixture = try makeFixture(engine: .builtIn)
 
-    let report = fixture.manager.engineReport()
+    let report = await fixture.manager.engineReport()
 
     #expect(report.selected == .builtIn)
     #expect(report.text.contains("Engine: Built-in"))

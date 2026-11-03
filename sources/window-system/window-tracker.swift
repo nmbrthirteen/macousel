@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 import os
 
-private let logger = Logger(subsystem: "dev.macousel.app", category: "window-tracker")
+private let logger = Logger(subsystem: Log.subsystem, category: "window-tracker")
 
 private nonisolated func observerCallback(
   _ observer: AXObserver, _ element: AXUIElement, _ notification: CFString,
@@ -51,8 +51,14 @@ public final class WindowTracker {
   private var attachTasks: [pid_t: Task<Void, Never>] = [:]
   private var idsByElement: [ElementKey: CGWindowID] = [:]
   private var workspaceTokens: [NSObjectProtocol] = []
+  private var terminationObservers: [(pid_t) -> Void] = []
 
   public init() {}
+
+  // Each AX observer holds an unretained pointer to self.
+  isolated deinit {
+    stop()
+  }
 
   public func start() {
     guard workspaceTokens.isEmpty else { return }
@@ -82,6 +88,11 @@ public final class WindowTracker {
     for pid in Array(apps.keys) { detach(pid: pid) }
     windows = [:]
     idsByElement = [:]
+  }
+
+  // Lets the per-app caches next to the tracker drop an app that quit.
+  public func observeTermination(_ observer: @escaping (pid_t) -> Void) {
+    terminationObservers.append(observer)
   }
 
   public func focusedWindow() -> ManagedWindow? {
@@ -116,9 +127,14 @@ public final class WindowTracker {
     let ids = windows.values.filter { $0.pid == pid }.map(\.id)
     detach(pid: pid)
     for id in ids { onEvent?(.destroyed(id)) }
+    for observer in terminationObservers { observer(pid) }
   }
 
   private func appActivated(pid: pid_t) {
+    // An app that missed every attach attempt at launch gets another chance once it is used.
+    if apps[pid] == nil, let app = NSRunningApplication(processIdentifier: pid) {
+      attach(app, announce: true)
+    }
     guard let entry = apps[pid],
       NSWorkspace.shared.frontmostApplication?.processIdentifier == pid,
       let element = entry.element.elementAttribute(kAXFocusedWindowAttribute),
@@ -198,7 +214,11 @@ public final class WindowTracker {
 
     let refcon = Unmanaged.passUnretained(self).toOpaque()
     for name in Self.windowNotifications {
-      AXObserverAddNotification(entry.observer, element, name as CFString, refcon)
+      let result = AXObserverAddNotification(entry.observer, element, name as CFString, refcon)
+      if result != .success && result != .notificationAlreadyRegistered {
+        logger.error(
+          "Could not observe \(name, privacy: .public) on window \(id): \(result.rawValue)")
+      }
     }
     let window = ManagedWindow(
       id: id, element: element, applicationElement: entry.element, app: entry.app)

@@ -22,9 +22,18 @@ private nonisolated func practiceTapCallback(
 // A later head-insert tap sits ahead of it. An active tap needs only Accessibility, while a
 // listen-only keyboard tap would need Input Monitoring. The callback never alters the event.
 final class PracticeKeyTap {
-  private var port: CFMachPort?
-  private var source: CFRunLoopSource?
+  // The tap holds an unretained pointer to self, so deinit must tear it down. Both CF calls
+  // are safe from any thread, and deinit can run off the main actor.
+  private nonisolated(unsafe) var port: CFMachPort?
+  private nonisolated(unsafe) var source: CFRunLoopSource?
   private var onHotkey: ((Hotkey) -> Void)?
+
+  deinit {
+    guard let port, let source else { return }
+    CGEvent.tapEnable(tap: port, enable: false)
+    CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+    CFMachPortInvalidate(port)
+  }
 
   func start(_ onHotkey: @escaping (Hotkey) -> Void) {
     stop()

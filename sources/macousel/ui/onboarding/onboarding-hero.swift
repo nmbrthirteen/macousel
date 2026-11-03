@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OnboardingHero: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.controlActiveState) private var activeState
   @State private var start = Date.now
   let timeline: SceneTimeline
   let description: String
@@ -12,7 +13,8 @@ struct OnboardingHero: View {
   }
 
   var body: some View {
-    TimelineView(.animation(paused: reduceMotion)) { context in
+    // Redraws every frame, so it stops while the window is in the background.
+    TimelineView(.animation(paused: reduceMotion || activeState == .inactive)) { context in
       SceneDesktop(
         pose: reduceMotion
           ? timeline.restingPose : timeline.pose(at: context.date.timeIntervalSince(start)))

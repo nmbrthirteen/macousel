@@ -10,13 +10,13 @@ struct PersistedSettingsView: View {
 
   init(
     store: PreferencesStore, manager: WindowManager, updater: Updater,
-    diagnostics: DiagnosticsAction? = nil, onShowWelcome: @escaping () -> Void
+    diagnostics: DiagnosticsAction, onShowWelcome: @escaping () -> Void
   ) {
     self.store = store
     self.manager = manager
     self.updater = updater
     self.onShowWelcome = onShowWelcome
-    _diagnostics = State(initialValue: diagnostics ?? DiagnosticsAction(store: store, engineReport: { manager.engineReport() }))
+    _diagnostics = State(initialValue: diagnostics)
   }
 
   var body: some View {

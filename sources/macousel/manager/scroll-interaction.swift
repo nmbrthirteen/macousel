@@ -64,9 +64,7 @@ final class ScrollInteraction {
   private func swiped(byPadShare share: Double, phase: ScrollGesturePhase) {
     guard let key = gesture?.key ?? state.pointerKey, let display = state.display(for: key)
     else { return }
-    let sensitivity = min(
-      max(store.preferences.swipeSensitivity, Preferences.swipeSensitivityRange.lowerBound),
-      Preferences.swipeSensitivityRange.upperBound)
+    let sensitivity = store.preferences.clampedSwipeSensitivity
     let travel =
       share * state.usableWidth(of: display) * Self.swipeTravelPerPadWidth * sensitivity
     scrolled(by: travel, phase: phase)
@@ -118,9 +116,7 @@ final class ScrollInteraction {
   private func smoothedVelocity(of gesture: Gesture, after travel: Double) -> Double {
     let elapsed = gesture.lastSample.duration(to: now())
     guard elapsed > .zero, elapsed < Self.longestVelocitySample else { return gesture.velocity }
-    let seconds =
-      Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
-    let instantaneous = travel / seconds
+    let instantaneous = travel / elapsed.timeInterval
     return Self.velocitySmoothing * instantaneous
       + (1 - Self.velocitySmoothing) * gesture.velocity
   }

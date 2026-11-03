@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MinimapCellView: View {
   let cell: MinimapCell
-  let icons: MinimapIconCache
+  let icons: AppIconCache
   var isPlaceholder = false
   var isLifted = false
   var liftOffset = 0.0

@@ -62,7 +62,7 @@ struct UpdateSignatureTests {
     _ = try Curve25519.Signing.PublicKey(rawRepresentation: raw)
   }
 
-  @Test func verifiesFilesOnDisk() throws {
+  @Test func verifiesFilesOnDisk() async throws {
     let directory = try TemporaryDirectory()
     defer { directory.remove() }
     let archiveFile = directory.url.appendingPathComponent("Macousel.zip")
@@ -70,9 +70,9 @@ struct UpdateSignatureTests {
     try archive.write(to: archiveFile)
     try signature(of: archive).write(to: signatureFile)
 
-    #expect(verifier.isValid(signatureFile: signatureFile, archiveFile: archiveFile))
+    #expect(await verifier.isValid(signatureFile: signatureFile, archiveFile: archiveFile))
     try Data("tampered".utf8).write(to: archiveFile)
-    #expect(!verifier.isValid(signatureFile: signatureFile, archiveFile: archiveFile))
+    #expect(await !verifier.isValid(signatureFile: signatureFile, archiveFile: archiveFile))
   }
 
   private func installer(

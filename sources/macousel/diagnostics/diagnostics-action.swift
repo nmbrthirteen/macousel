@@ -1,16 +1,17 @@
 import AppKit
+import WindowSystem
 import os
 
 @Observable
 final class DiagnosticsAction {
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "diagnostics")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "diagnostics")
 
   private(set) var failureMessage: String?
   private(set) var isSaving = false
   @ObservationIgnored private let store: PreferencesStore
-  @ObservationIgnored private let engineReport: () -> EngineReport?
+  @ObservationIgnored private let engineReport: () async -> EngineReport?
 
-  init(store: PreferencesStore, engineReport: @escaping () -> EngineReport?) {
+  init(store: PreferencesStore, engineReport: @escaping () async -> EngineReport?) {
     self.store = store
     self.engineReport = engineReport
   }
@@ -28,7 +29,7 @@ final class DiagnosticsAction {
           .appendingPathComponent("Library/Logs/DiagnosticReports", isDirectory: true)),
       logReader: SystemLogReader(), now: { Date() })
     do {
-      let file = try await saver.save(preferences: store.preferences, engine: engineReport())
+      let file = try await saver.save(preferences: store.preferences, engine: await engineReport())
       failureMessage = nil
       NSWorkspace.shared.activateFileViewerSelecting([file])
     } catch {

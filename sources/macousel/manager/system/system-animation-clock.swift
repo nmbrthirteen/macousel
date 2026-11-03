@@ -1,3 +1,4 @@
+import Foundation
 import WindowSystem
 
 final class SystemAnimationClock: AnimationClock {
@@ -22,10 +23,10 @@ final class SystemAnimationClock: AnimationClock {
     ticker.stop()
   }
 
+  // The drag poller calls this every frame, so it avoids allocating a Task per tick.
   func schedule(after delay: Duration, _ action: @escaping () -> Void) {
-    Task {
-      try? await Task.sleep(for: delay)
-      action()
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay.timeInterval) {
+      MainActor.assumeIsolated(action)
     }
   }
 }

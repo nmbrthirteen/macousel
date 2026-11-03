@@ -1,6 +1,18 @@
 import ApplicationServices
 
 extension AXUIElement {
+  nonisolated static let enhancedUserInterfaceAttribute = "AXEnhancedUserInterface"
+
+  // Size, then position, then size again: a window that cannot grow past the screen edge
+  // takes the full size only once it has moved.
+  @discardableResult
+  nonisolated func place(_ frame: CGRect) -> Bool {
+    let sized = set(size: frame.size, for: kAXSizeAttribute)
+    set(point: frame.origin, for: kAXPositionAttribute)
+    set(size: frame.size, for: kAXSizeAttribute)
+    return sized
+  }
+
   nonisolated func attribute<T>(_ name: String, noting timeouts: ReadTimeoutFlag? = nil) -> T? {
     copyValue(name, noting: timeouts) as? T
   }

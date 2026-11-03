@@ -124,7 +124,7 @@ With Homebrew, `brew uninstall --zap macousel` does steps 3 and 4.
 
 I do not have an Apple Developer ID. Releases are signed with a certificate of my own, which macOS does not recognise. Two things follow from that:
 
-- If you used the DMG or Homebrew, macOS blocks the first launch. Open System Settings > Privacy & Security and click "Open Anyway". The installer script clears the quarantine flag, so it skips this step.
+- If you used the DMG or Homebrew, macOS blocks the first launch. Open System Settings > Privacy & Security and click "Open Anyway". The installer script checks the zip against the SHA-256 published with its release and the app against the release signing certificate. Then it clears the quarantine flag, so it skips this step.
 - The Accessibility grant is tied to that certificate, so it carries over from one release to the next. Releases up to 0.1.4 were signed ad hoc, so the first update from one of them asks for access once more.
 
 Updates are verified with a signing key that I hold, and the app is not notarized. The signature proves an update came from me. It does not replace Apple's notarization.
@@ -180,11 +180,11 @@ Paneru only stacks a window onto the column on its left, so both stack shortcuts
 
 ## What Macousel stores and sends
 
-Layout restore keeps the app identifiers and a hash of each window title in the app's preferences. It never stores a title in plain text. Nothing is sent anywhere, except two requests to GitHub: the update check once a day, which you can turn off in Settings > General, and the download when you install an update.
+Layout restore keeps the app identifiers and a hash of each window title in the app's preferences. It never stores a title in plain text. With Paneru selected, the engine's own state file in `~/Library/Application Support/Macousel/engine/state` keeps the same kind of hash, through a patch in `support/engine-patches`. Nothing is sent anywhere, except two requests to GitHub: the update check once a day, which you can turn off in Settings > General, and the download when you install an update.
 
 ## Reporting a problem
 
-Choose "Save diagnostics…" from the menu bar icon. It writes one text file to your Desktop with the app's log, your settings, your displays, the names of any crash reports, and the names of any apps that respond slowly. It also holds the selected engine, the Paneru version, the state of the engine process, the configuration Macousel wrote for it, and the last 200 lines of the engine log. Attach it to the issue.
+Choose "Save diagnostics…" from the menu bar icon. It writes one text file to your Desktop with the app's log, your settings, your displays, the names of any crash reports, and the names of any apps that respond slowly. It also holds the selected engine, the Paneru version, the state of the engine process, the configuration Macousel wrote for it, and the last 200 lines of the engine log. The app's log records each shortcut you press, as a key code and modifiers, and the bundle IDs of the apps Macousel manages. Read the file, then attach it to the issue.
 
 The engine log is `~/Library/Logs/Macousel/engine.log`. It rotates at 1 MB and keeps one previous file.
 
@@ -202,6 +202,8 @@ Run one from the command line or through the URL scheme:
 build/Macousel.app/Contents/MacOS/Macousel focus-left
 open "macousel://cycle-width"
 ```
+
+Pause tiling runs from its shortcut or the menu bar only, because any web page can open a `macousel://` link.
 
 Write a Raycast script command for every action:
 
@@ -239,7 +241,7 @@ The code has no comments. Names carry the meaning.
 
 ### Releasing
 
-Push a version tag. The release workflow runs the tests, builds the app with that version, signs the zip with the update key, attests build provenance, and publishes `Macousel.dmg`, `Macousel.zip`, `Macousel.zip.sig`, and `install.sh` to a GitHub release. The release notes list the SHA-256 sums of the DMG and the zip.
+Push a version tag. The release workflow runs the tests and builds the app with that version in a job that holds no secrets. A second job takes only the built app. It signs the app, signs the zip with the update key, writes the zip's SHA-256 into `install.sh`, attests build provenance, and publishes `Macousel.dmg`, `Macousel.zip`, `Macousel.zip.sig`, and `install.sh` to a GitHub release. The release notes list the SHA-256 sums of the DMG and the zip.
 
 The workflow installs a pinned Rust toolchain and caches the engine build, keyed on the version in `support/engine-version` and the patches. To move to a newer Paneru, change that file, rebase the patches, and read the new release's configuration notes first.
 
@@ -268,9 +270,10 @@ The DMG layout lives in `support/installer`. `scripts/package.sh` builds it with
 Macousel uses a few private macOS calls. Every Mac window manager needs the same ones, and they rule out the Mac App Store.
 
 - `_AXUIElementGetWindow` maps an Accessibility element to a window ID.
-- `CGSManagedDisplayGetCurrentSpace` reads the active Space of a display.
-- `_SLPSSetFrontProcessWithOptions` and `SLPSPostEventRecordTo` focus one window without raising the whole app. If they stop working, Macousel falls back to normal app activation.
+- `CGSMainConnectionID` and `CGSManagedDisplayGetCurrentSpace` read the active Space of a display.
+- `GetProcessForPID`, loaded through `dlsym`, `_SLPSSetFrontProcessWithOptions`, and `SLPSPostEventRecordTo` focus one window without raising the whole app. If they stop working, Macousel falls back to normal app activation.
 - `MultitouchSupport` reads raw trackpad touches for the swipe gesture.
+- The undocumented Accessibility attributes `AXEnhancedUserInterface` and `AXFullScreen`. Macousel switches `AXEnhancedUserInterface` off while it moves an app's windows and turns it back on afterwards. It reads `AXFullScreen` to tell when a window is in full screen.
 
 ## License
 

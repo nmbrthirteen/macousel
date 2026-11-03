@@ -36,7 +36,7 @@ struct SceneMenuBar: View {
   @ViewBuilder
   private var appItem: some View {
     if let position, let geometry = MenuBarPagesGeometry(position: position) {
-      Image(nsImage: MenuBarPagesImage.make(geometry))
+      Image(nsImage: MenuBarPagesImage.cached(geometry))
         .renderingMode(.template)
     } else {
       Image(systemName: "rectangle.split.3x1")

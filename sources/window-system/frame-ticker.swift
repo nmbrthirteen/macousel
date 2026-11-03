@@ -22,6 +22,12 @@ public final class FrameTicker {
     }
   }
 
+  // The display link retains its target and the run loop retains the link.
+  isolated deinit {
+    link?.invalidate()
+    if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
+  }
+
   public var isRunning: Bool {
     isActive
   }

@@ -1,8 +1,9 @@
 import CoreGraphics
+import WindowSystem
 import os
 
 struct DragLog {
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "drag")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "drag")
 
   func pressed(_ window: CGWindowID, isTiled: Bool) {
     Self.logger.info(

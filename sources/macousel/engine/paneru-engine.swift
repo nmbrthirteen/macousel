@@ -4,7 +4,7 @@ import os
 
 @Observable
 final class PaneruEngine: ManagementEngine {
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "engine")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "engine")
 
   private(set) var status = WindowManager.Status.needsPermission
   private(set) var displays: [Display] = []
@@ -14,7 +14,7 @@ final class PaneruEngine: ManagementEngine {
 
   init(_ parts: PaneruEngineParts) {
     self.parts = parts
-    accessibility = AccessibilityMonitor(environment: parts.environment, intervals: parts.polling)
+    accessibility = AccessibilityMonitor(environment: parts.environment)
     parts.supervisor.onStateChange = { [weak self] state in self?.supervisorChanged(state) }
     parts.events.onEvent = { [weak self] event in self?.parts.world.handle(event) }
     parts.events.onConnect = { [weak self] in self?.parts.world.refresh() }
@@ -28,8 +28,8 @@ final class PaneruEngine: ManagementEngine {
 
   var notice: String? { parts.supervisor.state.failure?.message }
 
-  func report(selected: WindowEngine) -> EngineReport {
-    parts.reporter.report(selected: selected)
+  func report(selected: WindowEngine) async -> EngineReport {
+    await parts.reporter.report(selected: selected)
   }
 
   func start() {
@@ -64,7 +64,7 @@ final class PaneruEngine: ManagementEngine {
       do {
         try parts.sync.writeIfChanged()
       } catch {
-        Self.logger.error("Could not rewrite the engine configuration")
+        Self.logger.error("Could not rewrite the engine configuration: \(error, privacy: .public)")
       }
     }
     if !parts.store.preferences.showsMinimap { parts.minimap.hide() }
@@ -135,7 +135,9 @@ final class PaneruEngine: ManagementEngine {
       applyBindings()
     case .needsPermission:
       awaitAccessibility()
-    case .stopped, .starting, .waitingToRestart:
+    case .waitingToRestart:
+      parts.events.stop()
+    case .stopped, .starting:
       break
     }
   }

@@ -126,7 +126,7 @@ struct EngineSupervisorTests {
     #expect(engine.state == .stopped)
   }
 
-  @Test func escalatesToSigkillAfterTwoSeconds() async throws {
+  @Test func escalatesToSigkillAfterFiveSecondsWithoutBlocking() async throws {
     harness.launcher.exitsOnTerminate = false
     let engine = try supervisor()
     engine.start()
@@ -134,11 +134,38 @@ struct EngineSupervisorTests {
 
     engine.stop()
 
+    #expect(engine.state == .stopped)
+    #expect(!harness.log.entries.contains("kill"))
+    #expect(await harness.eventually { harness.log.entries.contains("kill") })
     let terminate = try #require(harness.log.index(of: "terminate"))
     let kill = try #require(harness.log.index(of: "kill"))
     #expect(terminate < kill)
-    let waited = harness.pauses.reduce(Duration.zero, +)
-    #expect(waited == .seconds(2))
+    let waited = harness.sleeps.filter { $0 == EngineSupervisor.terminationInterval }
+      .reduce(Duration.zero, +)
+    #expect(waited == .seconds(5))
+  }
+
+  @Test func failsInsteadOfLaunchingBesideAnOrphanThatWillNotQuit() async throws {
+    harness.commands.isAlive = true
+    harness.commands.quitEndsIt = false
+    let engine = try supervisor()
+
+    engine.start()
+
+    #expect(await harness.eventually { engine.state == .failed(.orphanRunning) })
+    #expect(harness.launcher.launches.isEmpty)
+  }
+
+  @Test func aRestartChecksForAStandaloneInstanceFirst() async throws {
+    let engine = try supervisor()
+    engine.start()
+    #expect(await harness.eventually { engine.state == .running })
+
+    harness.standalone.isAlive = true
+    harness.launcher.processes[0].crash()
+
+    #expect(await harness.eventually { engine.state == .failed(.standaloneRunning) })
+    #expect(harness.launcher.processes.count == 1)
   }
 
   @Test func anExitAfterStopIsNotRestarted() async throws {

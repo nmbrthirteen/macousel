@@ -1,4 +1,6 @@
 import Foundation
+import WindowSystem
+import os
 
 nonisolated enum EngineEvent: Decodable, Equatable, Sendable {
   case virtualWorkspaceChanged(EngineActive)
@@ -43,9 +45,16 @@ nonisolated enum EngineEvent: Decodable, Equatable, Sendable {
     }
   }
 
+  private static let logger = Logger(subsystem: Log.subsystem, category: "engine")
+
   static func decode(line: String) -> EngineEvent? {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
-    return try? decoder.decode(EngineEvent.self, from: Data(line.utf8))
+    do {
+      return try decoder.decode(EngineEvent.self, from: Data(line.utf8))
+    } catch {
+      logger.error("Could not read an engine event: \(error, privacy: .public)")
+      return nil
+    }
   }
 }

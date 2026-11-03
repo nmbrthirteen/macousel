@@ -25,9 +25,9 @@ struct RaycastScriptTests {
       .appendingPathComponent("macousel-raycast-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: directory) }
 
-    #expect(try RaycastScriptExporter.export(to: directory) == Action.allCases.count)
+    #expect(try RaycastScriptExporter.export(to: directory) == CommandURL.actions.count)
     let files = try FileManager.default.contentsOfDirectory(atPath: directory.path)
-    #expect(Set(files) == Set(Action.allCases.map(RaycastScriptExporter.fileName)))
+    #expect(Set(files) == Set(CommandURL.actions.map(RaycastScriptExporter.fileName)))
     let sample = directory.appendingPathComponent(RaycastScriptExporter.fileName(for: .cycleWidth))
     #expect(FileManager.default.isExecutableFile(atPath: sample.path))
   }

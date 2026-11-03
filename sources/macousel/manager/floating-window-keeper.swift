@@ -7,7 +7,7 @@ final class FloatingWindowKeeper {
   static let raiseDelay = Duration.milliseconds(60)
   static let minimumOverlap: CGFloat = 8
 
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "floating")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "floating")
 
   var isSuppressed: () -> Bool = { false }
 

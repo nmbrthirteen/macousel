@@ -18,6 +18,6 @@ struct EngineLaunch: Equatable {
     ]
     return EngineLaunch(
       executable: helper, arguments: [],
-      environment: base.merging(overrides) { _, override in override })
+      environment: ChildEnvironment.sanitized(base).merging(overrides) { _, override in override })
   }
 }

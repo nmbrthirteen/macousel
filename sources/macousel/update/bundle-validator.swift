@@ -1,13 +1,24 @@
 import Foundation
+import WindowSystem
+import os
 
 struct BundleValidator {
+  private nonisolated static let logger = Logger(subsystem: Log.subsystem, category: "updates")
+
   typealias SignatureCheck = @Sendable (URL) async -> Bool
 
   static let bundleName = "Macousel.app"
 
   static let codesign: SignatureCheck = { bundle in
-    let status = try? await ProcessRunner.run("/usr/bin/codesign", ["--verify", "--deep", bundle.path])
-    return status == 0
+    do {
+      let status = try await ProcessRunner.run(
+        "/usr/bin/codesign", ["--verify", "--deep", bundle.path])
+      if status != 0 { logger.error("codesign rejected the update, status \(status)") }
+      return status == 0
+    } catch {
+      logger.error("Could not run codesign: \(error, privacy: .public)")
+      return false
+    }
   }
 
   let runningIdentifier: String

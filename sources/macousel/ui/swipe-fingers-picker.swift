@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SwipeFingersPicker: View {
-  static let options = [3, 4]
+  static let options = Preferences.swipeFingerOptions
 
   @Binding var selection: Int
   let reversesDirection: Bool

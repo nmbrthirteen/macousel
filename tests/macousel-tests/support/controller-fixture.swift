@@ -53,8 +53,6 @@ final class ControllerFixture {
         pointer: pointer, shortcuts: shortcuts, gestures: gestures, overlays: overlays,
         crashRecovery: crashRecovery),
       defaults: suite.defaults,
-      polling: AccessibilityMonitor.Intervals(
-        whileWaiting: .milliseconds(10), whileWatching: .milliseconds(10)),
       paneru: paneru?(store, environment, shortcuts))
     try FixtureRegistry.enroll(self)
   }

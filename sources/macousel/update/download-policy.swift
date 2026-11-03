@@ -6,6 +6,7 @@ nonisolated enum DownloadPolicy {
 
   static func allowsInitial(_ url: URL) -> Bool {
     isHTTPS(url) && url.host?.lowercased() == "github.com"
+      && !url.pathComponents.contains { $0 == ".." || $0 == "." }
       && url.path.hasPrefix(releaseDownloadPathPrefix)
   }
 

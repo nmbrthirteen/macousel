@@ -1,4 +1,5 @@
 import Foundation
+import WindowSystem
 import os
 
 @Observable
@@ -6,13 +7,14 @@ final class Updater {
   typealias Sleep = (Duration) async throws -> Void
 
   static let checkInterval: TimeInterval = 24 * 60 * 60
+  static let retryInterval: TimeInterval = 60 * 60
   static let launchDelay = Duration.seconds(30)
   static let lastCheckKey = "lastUpdateCheck"
   static let developmentBuildMessage =
     "This is a development build, so it cannot check for updates. Install a release from the releases page."
   static let unknownFailureMessage = "The update failed. Check your internet connection and try again."
 
-  private static let logger = Logger(subsystem: "dev.macousel.app", category: "updates")
+  private static let logger = Logger(subsystem: Log.subsystem, category: "updates")
 
   private(set) var state = UpdateState.idle
 
@@ -68,7 +70,7 @@ final class Updater {
       try await sleep(Self.launchDelay)
       while true {
         await checkIfDue()
-        try await sleep(.seconds(Self.checkInterval))
+        try await sleep(.seconds(nextCheckDelay))
       }
     } catch {
       return
@@ -78,6 +80,16 @@ final class Updater {
   private func checkIfDue() async {
     guard store.preferences.checksForUpdates, isDue else { return }
     await performCheck(isAutomatic: true)
+  }
+
+  // Counts from the last successful check, so a relaunch an hour before the next check waits
+  // one hour, never a full day. A failed check leaves no date and tries again after an hour.
+  private var nextCheckDelay: TimeInterval {
+    guard let last = defaults.object(forKey: Self.lastCheckKey) as? Date else {
+      return Self.retryInterval
+    }
+    let remaining = Self.checkInterval - now().timeIntervalSince(last)
+    return min(max(remaining, Self.retryInterval), Self.checkInterval)
   }
 
   private var isDue: Bool {

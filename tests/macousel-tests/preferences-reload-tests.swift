@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import Macousel
@@ -18,6 +19,17 @@ struct PreferencesReloadTests {
     #expect(running.preferences.showsMinimap == false)
     #expect(running.preferences.swipeFingers == 3)
     #expect(changes == 1)
+  }
+
+  @Test func anUnreadableStoredValueIsBackedUpBeforeDefaultsReplaceIt() throws {
+    let suite = try IsolatedDefaults()
+    let garbage = Data("not json".utf8)
+    suite.defaults.set(garbage, forKey: "preferences")
+
+    let store = PreferencesStore(defaults: suite.defaults)
+    store.preferences.showsMinimap = false
+
+    #expect(suite.defaults.data(forKey: PreferencesStore.backupKey) == garbage)
   }
 
   @Test func reloadWithNothingNewStaysQuiet() throws {

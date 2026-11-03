@@ -3,7 +3,6 @@ import Foundation
 
 public struct DropRule: Sendable {
   public static let sideBandShare = 0.2
-  public static let stackZoneShare = 1 - 2 * sideBandShare
 
   private struct ColumnSpan {
     var minX: CGFloat

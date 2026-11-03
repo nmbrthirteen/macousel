@@ -5,6 +5,19 @@ enum MenuBarPagesImage {
   private static let outlineOpacity = 0.55
   private static let numberSize = 8.5
 
+  private static let cacheLimit = 16
+  private static var cache: [(geometry: MenuBarPagesGeometry, image: NSImage)] = []
+
+  // The onboarding scene asks for an image every animation frame, and most frames repeat a
+  // geometry it has already drawn.
+  static func cached(_ geometry: MenuBarPagesGeometry) -> NSImage {
+    if let hit = cache.first(where: { $0.geometry == geometry }) { return hit.image }
+    let image = make(geometry)
+    cache.append((geometry, image))
+    if cache.count > cacheLimit { cache.removeFirst() }
+    return image
+  }
+
   static func make(_ geometry: MenuBarPagesGeometry) -> NSImage {
     let image = NSImage(size: geometry.size, flipped: true) { _ in
       for page in geometry.pages {

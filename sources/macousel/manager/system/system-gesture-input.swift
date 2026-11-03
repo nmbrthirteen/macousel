@@ -1,6 +1,9 @@
 import WindowSystem
+import os
 
 final class SystemGestureInput: GestureInput {
+  private static let logger = Logger(subsystem: Log.subsystem, category: "input-event-tap")
+
   private let tap: InputEventTap
   private let swipes = SwipeGestureMonitor()
 
@@ -20,16 +23,17 @@ final class SystemGestureInput: GestureInput {
 
   func startScrolling(modifiers: Hotkey.Modifiers) {
     tap.scrollModifiers = modifiers
-    _ = tap.start()
+    if !tap.start(for: .scroll) { Self.logger.error("Could not start the scroll gesture tap") }
   }
 
   func stopScrolling() {
     tap.scrollModifiers = []
+    tap.stop(for: .scroll)
   }
 
   func startSwiping(fingerCount: Int) {
     swipes.fingerCount = fingerCount
-    _ = swipes.start()
+    if !swipes.start() { Self.logger.error("Could not start the trackpad swipe monitor") }
   }
 
   func stopSwiping() {

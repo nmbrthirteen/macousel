@@ -3,7 +3,7 @@ import Foundation
 import os
 
 private nonisolated let logger = Logger(
-  subsystem: "dev.macousel.app", category: "input-event-tap")
+  subsystem: Log.subsystem, category: "input-event-tap")
 
 private nonisolated func inputTapCallback(
   _ proxy: CGEventTapProxy, _ type: CGEventType, _ event: CGEvent,

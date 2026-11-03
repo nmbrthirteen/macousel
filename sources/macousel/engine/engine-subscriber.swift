@@ -1,6 +1,10 @@
 import Foundation
+import WindowSystem
+import os
 
 final class EngineSubscriber: EngineEventSource {
+  private static let logger = Logger(subsystem: Log.subsystem, category: "engine")
+
   var onEvent: ((EngineEvent) -> Void)?
   var onConnect: (() -> Void)?
 
@@ -41,13 +45,16 @@ final class EngineSubscriber: EngineEventSource {
     let output = Pipe()
     child.executableURL = helper
     child.arguments = ["subscribe"]
-    child.environment = ProcessInfo.processInfo.environment.merging([EngineService.variable: service]) {
-      _, override in override
-    }
+    child.environment = ChildEnvironment.current(adding: [EngineService.variable: service])
     child.standardInput = FileHandle.nullDevice
     child.standardError = FileHandle.nullDevice
     child.standardOutput = output
-    guard (try? child.run()) != nil else { return }
+    do {
+      try child.run()
+    } catch {
+      Self.logger.error("Could not subscribe to engine events: \(error, privacy: .public)")
+      return
+    }
     process = child
     onConnect?()
     do {
@@ -55,7 +62,7 @@ final class EngineSubscriber: EngineEventSource {
         if let event = EngineEvent.decode(line: line) { onEvent?(event) }
       }
     } catch {
-      return
+      Self.logger.error("The engine event stream failed: \(error, privacy: .public)")
     }
   }
 }

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct OverviewView: View {
   let model: OverviewModel
-  @State private var isPressing = false
 
   var body: some View {
     GeometryReader { proxy in
@@ -30,6 +29,10 @@ struct OverviewView: View {
       .contentShape(Rectangle())
       .gesture(pointerGesture(size: proxy.size))
     }
+    .onDisappear {
+      if case .idle = model.interaction { return }
+      model.endInteraction()
+    }
   }
 
   private func cardView(_ card: OverviewGeometry.Card) -> some View {
@@ -54,16 +57,10 @@ struct OverviewView: View {
   private func pointerGesture(size: CGSize) -> some Gesture {
     DragGesture(minimumDistance: 0)
       .onChanged { value in
-        if !isPressing {
-          isPressing = true
-          model.pressed(at: value.startLocation, in: size)
-        }
+        if case .idle = model.interaction { model.pressed(at: value.startLocation, in: size) }
         model.dragged(to: value.location, in: size)
       }
-      .onEnded { value in
-        isPressing = false
-        model.released(at: value.location, in: size)
-      }
+      .onEnded { model.released(at: $0.location, in: size) }
   }
 
   private var backdrop: some View {

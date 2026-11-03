@@ -27,6 +27,10 @@ nonisolated final class AppResponsivenessBook: Sendable {
     state.withLock { Self.app(for: pid, bundleIdentifier, in: &$0).isSlow }
   }
 
+  func forget(_ pid: pid_t) {
+    state.withLock { _ = $0.apps.removeValue(forKey: pid) }
+  }
+
   func record(_ pid: pid_t, bundleIdentifier: String?, milliseconds: Double) -> Change? {
     let change = state.withLock { state -> Change? in
       var app = Self.app(for: pid, bundleIdentifier, in: &state)

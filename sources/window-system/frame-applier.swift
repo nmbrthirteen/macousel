@@ -60,6 +60,11 @@ public final class FrameApplier {
     queue.flush()
   }
 
+  public func forget(pid: pid_t) {
+    queue.forget(pid: pid)
+    worker.forget(pid: pid)
+  }
+
   public func forget(_ window: CGWindowID) {
     queue.forget(window)
     worker.forget(window)

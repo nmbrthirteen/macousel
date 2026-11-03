@@ -6,8 +6,11 @@ public final class ManagedWindow {
   private static let focusQueue = DispatchQueue(
     label: "dev.macousel.focus", qos: .userInteractive)
   private static let focusRequests = FocusRequests()
-  private nonisolated static let logger = Logger(subsystem: "dev.macousel.app", category: "focus")
+  private nonisolated static let logger = Logger(subsystem: Log.subsystem, category: "focus")
   private static let windowServerSettleDelay = 0.15
+  // A busy app can take longer than the first check to come forward, so a miss is only
+  // counted, and the fallback only used, once this later check also fails.
+  private static let windowServerLateDelay = 0.5
 
   public let id: CGWindowID
   public let pid: pid_t
@@ -39,23 +42,13 @@ public final class ManagedWindow {
   }
 
   public func setFrame(_ frame: CGRect) {
-    let enhanced: Bool = applicationElement.attribute("AXEnhancedUserInterface") ?? false
-    if enhanced { applicationElement.set(bool: false, for: "AXEnhancedUserInterface") }
+    let attribute = AXUIElement.enhancedUserInterfaceAttribute
+    let enhanced: Bool = applicationElement.attribute(attribute) ?? false
+    if enhanced { applicationElement.set(bool: false, for: attribute) }
     defer {
-      if enhanced { applicationElement.set(bool: true, for: "AXEnhancedUserInterface") }
+      if enhanced { applicationElement.set(bool: true, for: attribute) }
     }
-
-    element.set(size: frame.size, for: kAXSizeAttribute)
-    element.set(point: frame.origin, for: kAXPositionAttribute)
-    element.set(size: frame.size, for: kAXSizeAttribute)
-  }
-
-  public func setPosition(_ origin: CGPoint) {
-    element.set(point: origin, for: kAXPositionAttribute)
-  }
-
-  public var isMinimized: Bool {
-    element.attribute(kAXMinimizedAttribute) ?? false
+    element.place(frame)
   }
 
   public func focus(raising: Bool = true) {
@@ -64,6 +57,7 @@ public final class ManagedWindow {
     let id = id
     let requests = Self.focusRequests
     let settleDelay = Self.windowServerSettleDelay
+    let lateDelay = Self.windowServerLateDelay
     let request = requests.begin()
     Self.focusQueue.async {
       guard requests.isLatest(request) else { return }
@@ -84,16 +78,34 @@ public final class ManagedWindow {
         deadline: .now() + (usedWindowServer ? settleDelay : 0)
       ) {
         guard requests.isLatest(request) else { return }
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier != pid else {
+        guard !Self.isFrontmost(pid) else {
           if usedWindowServer { requests.recordHit() }
           return
         }
-        if usedWindowServer { requests.recordMiss() }
-        Self.logger.info(
-          "focus verification failed: window \(id, privacy: .public), activating the app")
-        NSRunningApplication(processIdentifier: pid)?.activate()
+        guard usedWindowServer else {
+          Self.activate(pid, window: id)
+          return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (lateDelay - settleDelay)) {
+          guard requests.isLatest(request) else { return }
+          guard !Self.isFrontmost(pid) else {
+            requests.recordHit()
+            return
+          }
+          requests.recordMiss()
+          Self.activate(pid, window: id)
+        }
       }
     }
+  }
+
+  private static func isFrontmost(_ pid: pid_t) -> Bool {
+    NSWorkspace.shared.frontmostApplication?.processIdentifier == pid
+  }
+
+  private static func activate(_ pid: pid_t, window id: CGWindowID) {
+    logger.info("focus verification failed: window \(id, privacy: .public), activating the app")
+    NSRunningApplication(processIdentifier: pid)?.activate()
   }
 
   public func raise() {

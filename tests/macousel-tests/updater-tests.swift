@@ -179,6 +179,18 @@ struct UpdaterTests {
     #expect(feed.fetchCount == 2)
   }
 
+  @Test func aRecentCheckSchedulesTheNextOneFromItsDate() async {
+    suite.defaults.set(
+      launch.addingTimeInterval(30 - Updater.checkInterval + 7_200), forKey: Updater.lastCheckKey)
+    let clock = clock(allowedSleeps: 1)
+    let updater = updater(clock: clock)
+
+    await updater.runAutomaticChecks()
+
+    #expect(feed.fetchCount == 0)
+    #expect(clock.durations == [Updater.launchDelay, .seconds(7_200)])
+  }
+
   @Test func anAutomaticFailureLeavesTheStateUntouched() async {
     feed.result = .failure(.noConnection)
     let updater = updater()
