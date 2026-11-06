@@ -15,6 +15,7 @@ final class EngineHarness {
   let pointer = FakePointerDevice()
   let gestures = FakeGestureInput()
   let clock = ManualClock()
+  let windows = FakeEngineWindowControl()
   var isTrusted = true
   var hasHelper = true
   var now = ContinuousClock.now
@@ -61,7 +62,8 @@ final class EngineHarness {
     let displays: () -> [Display] = { environment.displays }
     let reorder = EngineReorder(commands: commands, sleep: { _ in }, now: { FrozenInstant.now })
     let world = EngineWorld(commands: commands, sleep: { _ in })
-    let overview = EngineOverview(host: overlays, displays: displays, reorder: reorder)
+    let overview = EngineOverview(
+      host: overlays, displays: displays, reorder: reorder, windows: windows)
     let drag = EngineDrag(
       pointer: pointer, clock: clock, host: overlays, world: world, displays: displays,
       reorder: reorder,
@@ -84,6 +86,10 @@ final class EngineHarness {
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
           commands: commands, reorder: reorder, activate: { [self] in activatedApps.append($0) }),
+        windows: windows,
+        floating: EngineFloatingKeeper(
+          store: store, clock: clock, windows: windows,
+          stackingOrder: { environment.orderedOnScreenWindowIDs() }),
         reporter: EngineReporter(
           version: "0.5.2", locate: { URL(fileURLWithPath: "/tmp/paneru") },
           supervisor: supervisor, sync: sync,

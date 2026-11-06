@@ -25,12 +25,14 @@ struct OverviewView: View {
           OverviewPlaceholderView(rect: slot.rect, radius: geometry.cornerRadius)
         }
         ZStack(alignment: .topLeading) {
-          ForEach(geometry.cards) { card in
+          ForEach(geometry.everyCard) { card in
             cardView(card, radius: geometry.cornerRadius)
           }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassContainer(spacing: 0)
+        if let origin = geometry.floatingTitleOrigin {
+          floatingTitle(at: origin)
+        }
         if model.lift == nil, model.isExpanded {
           OverviewHandlesView(
             areas: geometry.hitAreas, activeColumnWindow: model.resizeLabel?.window,
@@ -48,6 +50,8 @@ struct OverviewView: View {
     }
   }
 
+  // The shadow sits outside the flight scale, so a card at its window frame casts a window's
+  // shadow rather than a magnified card shadow.
   private func cardView(_ card: OverviewGeometry.Card, radius: Double) -> some View {
     let isLifted = model.lift?.window == card.id
     let isHovered = model.hovered == card.id && model.isExpanded && model.lift == nil
@@ -55,12 +59,17 @@ struct OverviewView: View {
     let flight = model.isExpanded ? OverviewFlight.Transform.identity : collapsedFlight(of: card)
     return OverviewCardView(
       card: card, icon: model.icon(for: card.content.bundleIdentifier), previews: model.previews,
-      radius: radius, isLifted: isLifted, isHovered: isHovered
+      radius: radius, isLifted: isLifted, isHovered: isHovered, showsChrome: model.isExpanded
     )
     .frame(width: rect.width, height: rect.height)
     .onHover { model.hover(card.id, isInside: $0) }
     .scaleEffect(flight.scale)
     .offset(flight.offset)
+    .shadow(
+      color: Color(nsColor: .shadowColor).opacity(
+        model.isExpanded ? Metrics.Opacity.overviewCardShadow : Metrics.Opacity.windowShadow),
+      radius: model.isExpanded ? Metrics.Overview.cardShadowRadius : Metrics.Overview.windowShadowRadius,
+      y: model.isExpanded ? Metrics.Overview.cardShadowOffset : Metrics.Overview.windowShadowOffset)
     .opacity(model.isExpanded || (model.animates && card.content.frame != nil) ? 1 : 0)
     .offset(x: rect.minX, y: rect.minY)
     .zIndex(isLifted ? 2 : isHovered ? 1 : 0)
@@ -78,6 +87,17 @@ struct OverviewView: View {
     if let label = model.resizeLabel, let card = geometry.cards.first(where: { $0.id == label.window }) {
       OverviewResizeLabel(text: label.text, anchor: card.rect)
     }
+  }
+
+  private func floatingTitle(at origin: CGPoint) -> some View {
+    Text("Floating")
+      .font(.overlay(.regular, weight: .semibold))
+      .foregroundStyle(.secondary)
+      .frame(height: Metrics.Overview.floatingTitleHeight, alignment: .topLeading)
+      .offset(x: origin.x, y: origin.y)
+      .opacity(model.isExpanded ? 1 : 0)
+      .allowsHitTesting(false)
+      .accessibilityAddTraits(.isHeader)
   }
 
   private func pointerGesture(size: CGSize) -> some Gesture {

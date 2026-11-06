@@ -40,7 +40,8 @@ extension Strip {
     case .equalizeHeights: performing { $0.equalizeHeights() }
     case .center: centering(viewportWidth: viewportWidth, config: config)
     case .togglePaused, .toggleFloating, .sendToNextDisplay, .sendToNextDisplayWithoutFollowing,
-      .focusNextDisplay, .toggleOverview, .sendToScratchpad, .toggleScratchpad:
+      .focusNextDisplay, .toggleOverview, .sendToScratchpad, .toggleScratchpad, .focusPrevious,
+      .switchToFloatingWindows, .bringBackFloatingWindows, .pinWindow, .togglePinnedWindows:
       .ignored
     }
   }

@@ -221,4 +221,34 @@ struct OverviewModelTests {
 
     #expect(OverviewSnapshots.windows(model.arrangement) == [[2], [1]])
   }
+
+  @Test func cardsStartFromWhereTheCaptureFoundTheWindows() {
+    let layout = CGRect(x: 0, y: 16, width: 300, height: 768)
+    let real = CGRect(x: 0, y: 16, width: 360, height: 768)
+    let snapshot = OverviewSnapshots.make(columns: [[1]]).placing { _ in layout }
+    let model = OverviewModel(previews: OverviewPreviews(capture: FakeWindowCapture()))
+    model.prepare(snapshot, on: CGRect(origin: .zero, size: size))
+
+    model.adopt([WindowID(1): real])
+
+    #expect(model.arrangement.columns[0].cards[0].frame == real)
+  }
+
+  @Test func theRealFrameHoldsUntilTheLayoutMovesTheWindow() {
+    let layout = CGRect(x: 0, y: 16, width: 300, height: 768)
+    let real = CGRect(x: 0, y: 16, width: 360, height: 768)
+    let moved = CGRect(x: 400, y: 16, width: 300, height: 768)
+    let snapshot = OverviewSnapshots.make(columns: [[1]]).placing { _ in layout }
+    let model = OverviewModel(previews: OverviewPreviews(capture: FakeWindowCapture()))
+    model.prepare(snapshot, on: CGRect(origin: .zero, size: size))
+    model.adopt([WindowID(1): real])
+
+    var reselected = snapshot
+    reselected.selection = WindowID(1)
+    model.show(reselected)
+    #expect(model.snapshot.columns[0].cards[0].frame == real)
+
+    model.show(snapshot.placing { _ in moved })
+    #expect(model.snapshot.columns[0].cards[0].frame == moved)
+  }
 }

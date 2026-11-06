@@ -9,7 +9,7 @@ nonisolated enum EngineFeature: CaseIterable, Sendable {
     switch (self, engine) {
     case (.nativeTabGrouping, _): engine == .paneru
     case (_, .builtIn): true
-    case (.dragPreviews, .paneru): true
+    case (.dragPreviews, .paneru), (.floatingWindowsOnTop, .paneru): true
     case (_, .paneru): false
     }
   }

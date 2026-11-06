@@ -35,7 +35,8 @@ final class EngineDragFixture {
     let reorder = EngineReorder(
       commands: commands, sleep: { _ in await Task.yield() }, now: { FrozenInstant.now })
     let world = EngineWorld(commands: commands, sleep: { _ in })
-    let overview = EngineOverview(host: host, displays: displays, reorder: reorder)
+    let overview = EngineOverview(
+      host: host, displays: displays, reorder: reorder, windows: FakeEngineWindowControl())
     let centering = EngineCentering(
       commands: commands, pointer: pointer, displays: displays,
       isEnabled: { probe.centersFocus },

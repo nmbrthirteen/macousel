@@ -1,0 +1,16 @@
+diff --git a/src/ecs/focus.rs b/src/ecs/focus.rs
+--- a/src/ecs/focus.rs
++++ b/src/ecs/focus.rs
+@@ -534,9 +534,9 @@ fn recover_lost_focus(
+     if windows.focused().is_some() {
+         return;
+     }
+-    if let Ok(strip) = active_workspace
+-        .single()
+-        .inspect_err(|err| error!("Unable to get current workspace: {err}"))
++    // No active workspace is normal while the screen is locked or the displays sleep, and
++    // this runs every second, so it stays quiet instead of logging an error each time.
++    if let Ok(strip) = active_workspace.single()
+         && let Some(entity) = strip.first().ok().and_then(|col| col.top())
+     {
+         error!("Lost focus marker, recovering!");

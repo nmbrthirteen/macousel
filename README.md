@@ -33,6 +33,10 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 - Floating windows over the focused window come back to the front when you focus a tiled window, without taking focus. Settings > App rules has a switch for it.
 - Switch between the floating windows and the strip with one shortcut.
 - "Bring back floating windows" moves every floating window that is mostly off screen onto the active display, at the same size. It has no default shortcut.
+- A floating window belongs to the Paneru virtual workspace it was on. Switching away parks it at the corner of the display, and switching back returns it.
+- Pin a window to keep it on screen across virtual workspaces. Pinning a tiled window floats it first. Unpinning leaves it floating.
+- "Show pinned windows" parks every pinned window at the corner of its display and brings them back where they were.
+- A pinned window stays on the macOS Space where you pinned it. It does not follow you to another Space. Pinning is Paneru only.
 - Windows that an app merges into native tabs, like Finder or Terminal tabs, share one column. Settings > Layout has a switch for it. This is Paneru only.
 
 **Input**
@@ -179,6 +183,8 @@ Two columns of two stacked windows make a 2 by 2 grid. I build one by stacking e
 | Tabbed column | ⌃⌥⇧ T |
 | Float | ⌃⌥ T |
 | Switch to floating windows | ⌃⌥ ` |
+| Pin or unpin the window | ⌃⌥ P |
+| Show or hide pinned windows | ⌃⌥⇧ P |
 | Send to the next display | ⌃⌥ N |
 | Send to the next display and stay here | ⌃⌥⇧ N |
 | Focus the next display | ⌃⌥ D |

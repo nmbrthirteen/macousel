@@ -13,8 +13,8 @@ final class OverviewOverlay {
   private let panel: OverlayPanel
   private let backdrop = OverviewBackdrop()
   private var shownFrame: CGRect?
-  private var isOpen = false
-  private var closings = 0
+  private var transition = OverviewTransition()
+  private var capturing: Task<Void, Never>?
 
   init(capture: any WindowCapture) {
     model = OverviewModel(previews: OverviewPreviews(capture: capture))
@@ -39,38 +39,77 @@ final class OverviewOverlay {
       shownFrame = displayFrame
       panel.setFrame(displayFrame.axToCocoa, display: true)
     }
-    guard !isOpen else {
+    switch transition.open() {
+    case .update:
       model.show(snapshot)
-      return
+    case .expand:
+      model.show(snapshot)
+      expand()
+    case .capture(let generation):
+      capture(snapshot, on: displayFrame, generation: generation)
     }
-    isOpen = true
+  }
+
+  func hide() {
+    switch transition.close() {
+    case .none:
+      return
+    case .abandon:
+      capturing?.cancel()
+      capturing = nil
+      shownFrame = nil
+      model.previews.release()
+    case .collapse(let generation):
+      model.endInteraction()
+      model.previews.stopLoading()
+      backdrop.fade(in: false, duration: transitionDuration(OverlayTiming.overviewCloseResponse))
+      // The panel only leaves once every picture sits on its real window again, so the swap
+      // back to the real windows happens between two identical frames.
+      model.collapse { [weak self] in
+        guard let self, self.transition.landed(generation) else { return }
+        self.shownFrame = nil
+        self.panel.dismiss(fadeDuration: 0)
+        self.backdrop.release()
+        self.model.previews.release()
+      }
+    }
+  }
+
+  // Nothing shows until the pictures are in, so the first frame can match the desktop exactly.
+  private func capture(_ snapshot: OverviewSnapshot, on displayFrame: CGRect, generation: Int) {
     model.prepare(snapshot, on: displayFrame)
+    let geometry = OverviewGeometry(snapshot: snapshot, size: displayFrame.size)
+    let scale = panel.backingScaleFactor
+    let flies = model.animates
+    let requests = OverviewPreviews.requests(
+      for: geometry, fullSizeOn: flies ? displayFrame : nil, backingScale: scale)
+    let desktop =
+      flies
+      ? DesktopCaptureRequest(
+        displayFrame: displayFrame, backingScale: scale, excluding: geometry.everyCard.map(\.id))
+      : nil
+    let previews = model.previews
+    capturing = Task { [weak self] in
+      await previews.load(requests, desktop: desktop, budget: OverlayTiming.overviewCaptureBudget)
+      guard let self, self.transition.captured(generation) else { return }
+      self.capturing = nil
+      self.reveal()
+    }
+  }
+
+  private func reveal() {
+    model.adopt(model.previews.frames)
+    backdrop.prepare(desktop: model.previews.desktop)
     panel.present(fadeDuration: 0)
     // Cards must render once at their window frames before the spring starts, or SwiftUI
     // would show them already in place.
     panel.displayIfNeeded()
-    model.previews.load(
-      OverviewPreviews.requests(
-        for: OverviewGeometry(snapshot: snapshot, size: displayFrame.size),
-        backingScale: panel.backingScaleFactor))
-    model.expand()
-    backdrop.fade(in: true, duration: transitionDuration(OverlayTiming.overviewOpenResponse))
+    expand()
   }
 
-  func hide() {
-    guard isOpen else { return }
-    isOpen = false
-    closings += 1
-    let closing = closings
-    model.endInteraction()
-    model.previews.stopLoading()
-    backdrop.fade(in: false, duration: transitionDuration(OverlayTiming.overviewCloseResponse))
-    model.collapse { [weak self] in
-      guard let self, !self.isOpen, self.closings == closing else { return }
-      self.shownFrame = nil
-      self.panel.dismiss(fadeDuration: 0)
-      self.model.previews.release()
-    }
+  private func expand() {
+    model.expand()
+    backdrop.fade(in: true, duration: transitionDuration(OverlayTiming.overviewOpenResponse))
   }
 
   private func transitionDuration(_ response: TimeInterval) -> TimeInterval {

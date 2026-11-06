@@ -103,13 +103,19 @@ final class FloatingWindowKeeper {
     Self.logger.info("Raised \(covered.count, privacy: .public) floating windows")
   }
 
-  private func floatingWindows() -> [CGWindowID] {
+  func floatingFrames(on display: CGRect) -> [(window: CGWindowID, frame: CGRect)] {
+    floatingWindows().compactMap { id in
+      frames.frame(of: id).flatMap { display.intersects($0) ? (id, $0) : nil }
+    }
+  }
+
+  func floatingWindows() -> [CGWindowID] {
     environment.orderedOnScreenWindowIDs().filter { id in
       source.window(id) != nil && !state.isTiled(WindowID(id)) && !scratchpad.isHidden(id)
     }
   }
 
-  private static func overlaps(_ first: CGRect, _ second: CGRect) -> Bool {
+  static func overlaps(_ first: CGRect, _ second: CGRect) -> Bool {
     let shared = first.intersection(second)
     return !shared.isNull && shared.width > minimumOverlap && shared.height > minimumOverlap
   }

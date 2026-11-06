@@ -10,4 +10,8 @@ enum MinimapLabel {
     let row = snapshot.columns[column].rows.first { $0.window == window }
     return row?.bundleIdentifier.map(appName) ?? "Column \(column + 1)"
   }
+
+  static func floatingText(for snapshot: MinimapSnapshot) -> String? {
+    snapshot.floatingCount > 0 ? "\(snapshot.floatingCount) floating" : nil
+  }
 }

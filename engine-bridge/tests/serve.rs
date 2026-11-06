@@ -105,11 +105,15 @@ fn answers_requests_by_id_and_streams_events_until_stdin_closes() {
     assert_eq!(answers[1]["layout"], Value::Null);
     assert_eq!(answers[2]["id"], 3);
     assert!(answers[2]["error"].is_string());
+    assert_eq!(answers[2]["unparsed"], true);
     assert_eq!(events[0]["event"], "display_changed");
     assert_eq!(events[0]["display_id"], 2);
     let sent = commands
         .recv_timeout(Duration::from_secs(5))
         .expect("the command reached the engine");
-    assert_eq!(sent, parse_command(&["window", "focus", "west"]).expect("a command"));
+    assert_eq!(
+        sent,
+        parse_command(&["window", "focus", "west"]).expect("a command")
+    );
     assert!(bridge.wait().expect("the bridge exits").success());
 }

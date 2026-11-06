@@ -18,9 +18,15 @@ struct ShortcutMenuItemsTests {
     sections.flatMap { $0.items.map(\.action) }
   }
 
-  @Test func builtInEngineShowsEveryAction() {
+  @Test func builtInEngineShowsEveryActionButPinning() {
     let sections = ShortcutMenuItems.sections(in: preferences(engine: .builtIn))
-    #expect(Set(actions(in: sections)) == Set(Action.allCases))
+    #expect(Set(actions(in: sections)) == Set(Action.allCases.filter { !$0.isPaneruOnly }))
+  }
+
+  @Test func paneruShowsPinning() {
+    let shown = actions(in: ShortcutMenuItems.sections(in: preferences(engine: .paneru)))
+    #expect(shown.contains(.pinWindow))
+    #expect(shown.contains(.togglePinnedWindows))
   }
 
   @Test func paneruHidesUnsupportedActions() {
@@ -29,6 +35,13 @@ struct ShortcutMenuItemsTests {
     #expect(!shown.contains(.sendToScratchpad))
     #expect(shown.contains(.moveToColumn(1)))
     #expect(shown.contains(.focusLeft))
+  }
+
+  @Test func bringingBackFloatingWindowsIsListedWithoutAShortcut() {
+    let sections = ShortcutMenuItems.sections(in: preferences(engine: .paneru))
+    let item = sections.flatMap(\.items).first { $0.action == .bringBackFloatingWindows }
+    #expect(item?.keys == ShortcutMenuItem.unsetKeys)
+    #expect(item?.title == "Bring back floating windows")
   }
 
   @Test func keysListEveryHotkey() {

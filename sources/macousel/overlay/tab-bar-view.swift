@@ -10,10 +10,12 @@ struct TabBarView: View {
           .font(.overlay(.regular))
           .lineLimit(1)
           .truncationMode(.middle)
-          .foregroundStyle(tab.isActive ? Color.white : Color.secondary)
+          .foregroundStyle(
+            tab.isActive ? Color(nsColor: .alternateSelectedControlTextColor) : Color.secondary)
           .padding(.horizontal, Metrics.Spacing.regular)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(tab.isActive ? Color.accentColor : .clear, in: Capsule())
+          .background(
+            tab.isActive ? Color(nsColor: .selectedContentBackgroundColor) : .clear, in: Capsule())
           .contentShape(Rectangle())
           .onTapGesture { content.onSelect(tab.id) }
           .accessibilityAddTraits(tab.isActive ? [.isButton, .isSelected] : .isButton)

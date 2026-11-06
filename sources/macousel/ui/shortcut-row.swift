@@ -39,7 +39,10 @@ struct ShortcutRow: View {
   private var isSupported: Bool { action.isSupported(by: engine) }
 
   private var caption: String? {
-    if !isSupported { return EngineFeature.unsupportedCaption }
+    if !isSupported {
+      return action.isPaneruOnly
+        ? EngineFeature.paneruOnlyCaption : EngineFeature.unsupportedCaption
+    }
     return hasUnavailableHotkey ? Self.unavailableCaption : nil
   }
 

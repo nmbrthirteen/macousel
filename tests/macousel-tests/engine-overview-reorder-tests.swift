@@ -25,7 +25,8 @@ struct EngineOverviewReorderTests {
     commands = fake
     self.strip = strip
     preferences = store
-    overview = EngineOverview(host: host, displays: displays, reorder: reorder)
+    overview = EngineOverview(
+      host: host, displays: displays, reorder: reorder, windows: FakeEngineWindowControl())
     minimap = EngineMinimap(host: host, store: store, displays: displays, reorder: reorder)
   }
 

@@ -6,9 +6,7 @@ use std::time::Duration;
 use paneru::types::argv::parse_command;
 use paneru::types::commands::Command;
 use paneru::types::state::{StateEvent, StateQueryKind};
-use paneru::types::wire::{
-    self, QueryPayload, RecvPort, Request, Response, SendPort, Sender, service_name,
-};
+use paneru::types::wire::{self, RecvPort, Request, SendPort, Sender, service_name};
 use serde_json::{Value, json};
 
 const RESUBSCRIBE_DELAY: Duration = Duration::from_millis(500);
@@ -17,19 +15,23 @@ fn connect() -> Result<Sender<Request>, String> {
     wire::connect(&service_name()).map_err(|error| error.to_string())
 }
 
-fn snapshot(mut ask: impl FnMut(&Request) -> Result<Response, String>) -> Result<Value, String> {
-    let layout = match ask(&Request::WindowSet)? {
-        Response::WindowSet(layout) => Some(layout),
-        _ => None,
-    };
-    match ask(&Request::Query(StateQueryKind::State))? {
-        Response::Query(QueryPayload::State(state)) => Ok(json!({
-            "state": state,
+/// Reads the engine's answers as plain values. The bridge links the published Paneru, whose
+/// types would drop the fields only the patched engine writes, such as `pinned`.
+fn snapshot(mut ask: impl FnMut(&Request) -> Result<Value, String>) -> Result<Value, String> {
+    let layout = ask(&Request::WindowSet)?
+        .get_mut("WindowSet")
+        .map(Value::take);
+    let mut reply = ask(&Request::Query(StateQueryKind::State))?;
+    if let Some(state) = reply.pointer_mut("/Query/State") {
+        return Ok(json!({
+            "state": state.take(),
             "layout": layout,
-        })),
-        Response::Error(message) => Err(message),
-        _ => Err("the engine sent an unexpected answer".to_string()),
+        }));
     }
+    Err(reply["Error"]
+        .as_str()
+        .unwrap_or("the engine sent an unexpected answer")
+        .to_string())
 }
 
 #[derive(Debug, PartialEq)]
@@ -144,9 +146,11 @@ fn serve() {
         let Some((id, ask)) = parse(&line) else {
             continue;
         };
+        // The published Paneru cannot parse a command only a patch adds, so Macousel sends
+        // the words it refused through the patched engine binary instead.
         let mut reply = match ask {
             Ok(ask) => answer(&mut link, ask),
-            Err(message) => json!({ "error": message }),
+            Err(message) => json!({ "error": message, "unparsed": true }),
         };
         reply["id"] = json!(id);
         emit(&reply);
@@ -158,8 +162,11 @@ fn main() -> ExitCode {
         serve();
         return ExitCode::SUCCESS;
     }
-    match snapshot(|request| connect()?.call_blocking(request).map_err(|error| error.to_string()))
-    {
+    match snapshot(|request| {
+        connect()?
+            .call_blocking(request)
+            .map_err(|error| error.to_string())
+    }) {
         Ok(document) => {
             println!("{document}");
             ExitCode::SUCCESS
@@ -211,6 +218,59 @@ mod tests {
     fn refuses_an_unknown_request() {
         let (_, ask) = parse(r#"{"id":8,"request":"dance"}"#).expect("an id");
         assert!(ask.is_err());
+    }
+
+    #[test]
+    fn reads_the_state_the_typed_answer_carries() {
+        use paneru::types::state::QueryState;
+        use paneru::types::wire::{Codec, MessagePack, QueryPayload, Response};
+
+        let state = QueryState {
+            version: 1,
+            timestamp: 3,
+            active: Default::default(),
+            virtual_workspaces: Vec::new(),
+        };
+        let bytes = MessagePack
+            .encode(&Response::Query(QueryPayload::State(Box::new(
+                state.clone(),
+            ))))
+            .expect("encodes");
+        let answer: Value = MessagePack.decode(&bytes).expect("decodes");
+        let document = snapshot(|request| match request {
+            Request::WindowSet => Ok(json!({ "Error": "no layout" })),
+            _ => Ok(answer.clone()),
+        })
+        .expect("a snapshot");
+
+        assert_eq!(
+            document["state"],
+            serde_json::to_value(state).expect("JSON")
+        );
+        assert_eq!(document["layout"], Value::Null);
+    }
+
+    #[test]
+    fn keeps_fields_the_published_types_do_not_know() {
+        let window = json!({ "window_id": 7, "pinned": true });
+        let document = snapshot(|request| match request {
+            Request::WindowSet => Ok(json!({ "WindowSet": { "floating": [window.clone()] } })),
+            _ => Ok(json!({ "Query": { "State": { "virtual_workspaces": [{ "windows": [window.clone()] }] } } })),
+        })
+        .expect("a snapshot");
+
+        assert_eq!(
+            document["state"]["virtual_workspaces"][0]["windows"][0]["pinned"],
+            true
+        );
+        assert_eq!(document["layout"]["floating"][0]["pinned"], true);
+    }
+
+    #[test]
+    fn passes_on_the_engine_refusal() {
+        let refusal = snapshot(|_| Ok(json!({ "Error": "not yet" })));
+
+        assert_eq!(refusal, Err("not yet".to_string()));
     }
 
     #[test]

@@ -25,7 +25,8 @@ struct EngineMinimapBuilder {
     }
     return MinimapSnapshot(
       columns: built, contentWidth: x, viewportOffset: edges[first].start,
-      viewportWidth: edges[last].end - edges[first].start, animationResponse: nil)
+      viewportWidth: edges[last].end - edges[first].start, animationResponse: nil,
+      floatingCount: snapshot.floatingWindows.count)
   }
 
   private func minimapColumn(

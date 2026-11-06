@@ -1,11 +1,13 @@
+import SwiftUI
+
 enum OverlayTextStyle {
   case small, regular, large
 
-  var size: Double {
+  var font: Font {
     switch self {
-    case .small: Metrics.Overlay.smallText
-    case .regular: Metrics.Overlay.regularText
-    case .large: Metrics.Overlay.largeText
+    case .small: .subheadline
+    case .regular: .body
+    case .large: .title3
     }
   }
 }

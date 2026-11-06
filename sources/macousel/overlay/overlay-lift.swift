@@ -9,7 +9,7 @@ struct OverlayLift: ViewModifier {
     content
       .scaleEffect(isLifted ? scale : 1)
       .shadow(
-        color: .black.opacity(isLifted ? Metrics.Overlay.liftShadowOpacity : 0),
+        color: Color(nsColor: .shadowColor).opacity(isLifted ? Metrics.Overlay.liftShadowOpacity : 0),
         radius: shadowRadius, y: Metrics.Spacing.compact)
   }
 }

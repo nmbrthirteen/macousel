@@ -9,7 +9,7 @@ extension OverviewModel {
       press = .edge(edge)
     } else if let divider = geometry.hitAreas.divider(at: point) {
       press = .divider(divider)
-    } else if let card = geometry.cards.first(where: { $0.rect.contains(point) }) {
+    } else if let card = geometry.everyCard.first(where: { $0.rect.contains(point) }) {
       press = .card(card.id)
     } else {
       press = .backdrop

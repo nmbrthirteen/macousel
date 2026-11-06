@@ -134,6 +134,8 @@ enum EngineDefaultGolden {
     window_manage = "alt + ctrl - t"
     window_nextdisplay = "alt + ctrl - n"
     window_nextdisplaysend = "alt + shift + ctrl - n"
+    window_pin = "alt + ctrl - p"
+    window_pinlayer = "alt + shift + ctrl - p"
     window_resize = "alt + ctrl - r"
     window_shrink = "alt + ctrl - minus"
     window_stack = "alt + ctrl - rightbracket"
@@ -144,6 +146,7 @@ enum EngineDefaultGolden {
     window_swap_south = ["alt + shift + ctrl - j", "alt + shift + ctrl - downarrow"]
     window_swap_west = ["alt + shift + ctrl - h", "alt + shift + ctrl - leftarrow"]
     window_tabbeddisplay = "alt + shift + ctrl - t"
+    window_togglefloatlayer = "alt + ctrl - grave"
     window_unstack = "alt + shift + ctrl - rightbracket"
     window_vertical_grow = "alt + shift + ctrl - equal"
     window_vertical_shrink = "alt + shift + ctrl - minus"

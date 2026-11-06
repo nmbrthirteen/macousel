@@ -137,6 +137,34 @@ struct EngineBridgeTests {
     #expect(lines(in: directory, "requests.log").last == "window")
   }
 
+  @Test func sendsWordsTheBridgeCannotParseThroughTheEngineBinary() async throws {
+    let directory = try TemporaryDirectory()
+    defer { directory.remove() }
+    let log = directory.url.appendingPathComponent("calls.log").path
+    let helper = try script(in: directory, named: "helper", body: "echo \"$@\" >> '\(log)'")
+    let body = """
+      while read -r line; do
+        \(Self.readID)
+        \(Self.readWord)
+        if [ "$word" = "window" ]; then
+          printf '{"id":%s,"error":"unknown words","unparsed":true}\\n' "$id"
+        else
+          printf '{"id":%s,"error":"the engine is busy"}\\n' "$id"
+        fi
+      done
+      """
+    let bridge = try script(in: directory, named: "bridge", body: body)
+    let connection = EngineBridgeConnection(service: "dev.macousel.app.engine", locate: { bridge })
+    let client = EngineClient(
+      service: "dev.macousel.app.engine", locate: { helper }, bridge: connection)
+
+    await client.send(["window", "pin"])
+    await client.send(["mouse", "nextdisplay"])
+    connection.close()
+
+    #expect(lines(in: directory, "calls.log") == ["send-cmd window pin"])
+  }
+
   @Test func spawnsHelpersWhenTheBridgeIsMissing() async throws {
     let directory = try TemporaryDirectory()
     defer { directory.remove() }

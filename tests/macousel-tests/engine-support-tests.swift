@@ -13,6 +13,7 @@ struct EngineSupportTests {
       case .handledByMacousel:
         #expect(
           action == .togglePaused || action == .toggleOverview || action.paneruSequence != nil
+            || action == .focusPrevious || action == .bringBackFloatingWindows
             || Action.places.contains { action == .moveToColumn($0) })
       case .builtInOnly: #expect(Self.builtInOnly.contains(action), "\(action)")
       }
@@ -25,14 +26,32 @@ struct EngineSupportTests {
     #expect(Set(declared) == Set(Self.builtInOnly))
   }
 
-  @Test func theBuiltInEngineSupportsEveryAction() {
-    for action in Action.allCases { #expect(action.isSupported(by: .builtIn)) }
+  @Test func theBuiltInEngineSupportsEveryActionButPinning() {
+    let paneruOnly: [Action] = [.pinWindow, .togglePinnedWindows]
+    for action in Action.allCases {
+      #expect(action.isSupported(by: .builtIn) == !paneruOnly.contains(action), "\(action)")
+      #expect(action.isPaneruOnly == paneruOnly.contains(action), "\(action)")
+    }
+  }
+
+  @Test func pinningMapsToThePatchedEngineCommands() {
+    #expect(Action.pinWindow.paneruSupport == .command(PaneruCommand("window", "pin")))
+    #expect(
+      Action.togglePinnedWindows.paneruSupport == .command(PaneruCommand("window", "pinlayer")))
   }
 
   @Test func paneruSupportsEveryActionExceptTheBuiltInOnlyOnes() {
     for action in Action.allCases {
       #expect(action.isSupported(by: .paneru) == !Self.builtInOnly.contains(action))
     }
+  }
+
+  @Test func switchingToFloatingWindowsTogglesTheEngineFloatingLayer() {
+    #expect(
+      Action.switchToFloatingWindows.paneruSupport
+        == .command(PaneruCommand("window", "togglefloatlayer")))
+    #expect(Action.focusPrevious.paneruSupport == .handledByMacousel)
+    #expect(Action.bringBackFloatingWindows.paneruSupport == .handledByMacousel)
   }
 
   @Test func theEngineDirectionsMapToItsOwnStackCommands() {
@@ -69,7 +88,8 @@ struct EngineSupportTests {
     for feature in EngineFeature.allCases {
       #expect(feature.isSupported(by: .builtIn) == (feature != .nativeTabGrouping))
       #expect(
-        feature.isSupported(by: .paneru) == (feature == .dragPreviews || feature == .nativeTabGrouping))
+        feature.isSupported(by: .paneru)
+          == [.dragPreviews, .nativeTabGrouping, .floatingWindowsOnTop].contains(feature))
     }
     #expect(EngineFeature.unsupportedCaption == "Built-in engine only.")
     #expect(EngineFeature.nativeTabGrouping.unavailableCaption == "Paneru engine only.")

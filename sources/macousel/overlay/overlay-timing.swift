@@ -16,7 +16,5 @@ enum OverlayTiming {
   static let overviewOpenResponse = 0.35
   static let overviewCloseResponse = 0.3
   static let overviewPreviewFade: TimeInterval = 0.2
-  static let overviewHoverScale = 1.02
-  static let overviewSelectedScale = 1.015
-  static let overviewHoverResponse = 0.2
+  static let overviewCaptureBudget = Duration.milliseconds(150)
 }

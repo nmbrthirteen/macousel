@@ -16,18 +16,21 @@ final class OverviewController {
   private let host: any OverlayHost
   private let titles: () -> [CGWindowID: String]
   private let springResponse: () -> Double?
+  private let floating: (CGRect) -> [(window: CGWindowID, frame: CGRect)]
   private let edits: OverviewEdits
   private var session: Session?
 
   init(
     state: TilingState, source: any WindowSource, host: any OverlayHost,
-    titles: @escaping () -> [CGWindowID: String], springResponse: @escaping () -> Double?
+    titles: @escaping () -> [CGWindowID: String], springResponse: @escaping () -> Double?,
+    floating: @escaping (CGRect) -> [(window: CGWindowID, frame: CGRect)]
   ) {
     self.state = state
     self.source = source
     self.host = host
     self.titles = titles
     self.springResponse = springResponse
+    self.floating = floating
     edits = OverviewEdits(state: state)
     host.onOverviewSelect = { [weak self] window in self?.choose(window) }
     host.onOverviewKey = { [weak self] key in self?.handle(key) }
@@ -166,7 +169,15 @@ final class OverviewController {
       columns: columns, stripHeight: display.visibleFrame.height - 2 * state.config.outerGap,
       selection: strip.focusedWindow, usableWidth: state.usableWidth(of: display),
       innerGap: state.config.innerGap, presetWidths: state.config.presetWidths,
-      springResponse: springResponse())
+      springResponse: springResponse(),
+      floating: floating(display.frame).map { floating in
+        let handle = source.window(floating.window)
+        let captured = names[floating.window] ?? ""
+        return OverviewSnapshot.Card(
+          window: WindowID(floating.window),
+          title: captured.isEmpty ? handle?.appName ?? "" : captured,
+          bundleIdentifier: handle?.bundleIdentifier, heightShare: 1, frame: floating.frame)
+      })
   }
 
   private func card(

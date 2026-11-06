@@ -12,19 +12,13 @@ struct PendingChangeView: View {
     let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
     switch surface {
     case .tint:
-      shape.fill(fill).overlay { border(in: shape) }
+      shape.fill(fill)
     case .glass:
-      Color.clear.overlaySurface(in: shape, tint: fill).overlay { border(in: shape) }
+      Color.clear.overlaySurface(in: shape, tint: fill)
     }
   }
 
   private var fill: Color {
     Color.accentColor.opacity(Metrics.Opacity.pendingFill)
-  }
-
-  private func border(in shape: RoundedRectangle) -> some View {
-    shape.strokeBorder(
-      Color.accentColor.opacity(Metrics.Opacity.pendingBorder),
-      lineWidth: Metrics.Overlay.pendingBorderWidth)
   }
 }

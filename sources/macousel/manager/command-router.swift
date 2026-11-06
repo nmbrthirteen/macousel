@@ -9,11 +9,13 @@ final class CommandRouter {
   private let reconciler: WindowReconciler
   private let scratchpad: Scratchpad
   private let overview: OverviewController
+  private let floating: FloatingWindowKeeper
   private let log = CommandLog()
 
   init(
     state: TilingState, source: any WindowSource, presenter: LayoutPresenter, focus: FocusDriver,
-    reconciler: WindowReconciler, scratchpad: Scratchpad, overview: OverviewController
+    reconciler: WindowReconciler, scratchpad: Scratchpad, overview: OverviewController,
+    floating: FloatingWindowKeeper
   ) {
     self.state = state
     self.source = source
@@ -22,7 +24,8 @@ final class CommandRouter {
     self.reconciler = reconciler
     self.scratchpad = scratchpad
     self.overview = overview
-    overview.onChoose = { [weak self] window in self?.reveal(window) }
+    self.floating = floating
+    overview.onChoose = { [weak self] window in self?.focusTiledOrFloating(window) }
     overview.onEdited = { [weak self] in
       self?.presenter.relayout()
       self?.reconciler.scheduleSessionSave()
@@ -49,6 +52,9 @@ final class CommandRouter {
     case .sendToNextDisplayWithoutFollowing: sendFocusedWindowToNextDisplay(following: false)
     case .focusNextDisplay: focusNextDisplay()
     case .toggleFloating: toggleFloatingOfFocusedWindow()
+    case .switchToFloatingWindows: switchToFloatingWindows()
+    case .bringBackFloatingWindows: bringBackFloatingWindows()
+    case .focusPrevious: focusPreviousWindow()
     case .toggleOverview: overview.toggle()
     case .sendToScratchpad: sendFocusedWindowToScratchpad()
     case .toggleScratchpad: scratchpad.toggle()
@@ -170,6 +176,45 @@ final class CommandRouter {
       guard let self else { return }
       presenter.overlays.refreshTitles(using: reconciler.probedTitles)
       presenter.relayout()
+    }
+  }
+
+  private func switchToFloatingWindows() {
+    let floatingWindows = floating.floatingWindows()
+    if let focused = source.focusedWindow(), floatingWindows.contains(focused.id) {
+      guard let key = state.focusedKey ?? state.pointerKey,
+        let window = state.workspaces[key]?.strip.focusedWindow
+      else { return }
+      present(key, activating: window)
+    } else if let front = floatingWindows.first {
+      source.window(front)?.focus()
+    }
+  }
+
+  private func bringBackFloatingWindows() {
+    guard let display = (state.focusedKey ?? state.pointerKey).flatMap(state.display(for:))
+    else { return }
+    let screens = state.displays.map(\.frame)
+    for (id, window) in source.windows
+    where !state.isTiled(WindowID(id)) && !scratchpad.isHidden(id) {
+      guard let frame = window.frame,
+        let target = FloatingRecovery.frame(
+          for: frame, displays: screens, into: display.visibleFrame)
+      else { continue }
+      window.setFrame(target)
+    }
+  }
+
+  private func focusPreviousWindow() {
+    guard let previous = focus.history.previous else { return }
+    focusTiledOrFloating(WindowID(previous))
+  }
+
+  private func focusTiledOrFloating(_ window: WindowID) {
+    if state.activeKey(containing: window) != nil {
+      reveal(window)
+    } else {
+      source.window(window.rawValue)?.focus()
     }
   }
 

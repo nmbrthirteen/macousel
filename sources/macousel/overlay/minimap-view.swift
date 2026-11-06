@@ -57,7 +57,11 @@ struct MinimapView: View {
         containerShape.fill(Color(nsColor: .windowBackgroundColor))
       }
     }
-    .overlay { containerShape.strokeBorder(borderColor, lineWidth: borderWidth) }
+    .overlay {
+      if contrast == .increased {
+        containerShape.strokeBorder(.primary, lineWidth: Metrics.Size.contrastStroke)
+      }
+    }
     .contentShape(Rectangle())
     .gesture(pointerGesture, isEnabled: model.isInteractive)
   }
@@ -79,21 +83,12 @@ struct MinimapView: View {
     .frame(width: geometry.containerWidth, height: Metrics.Minimap.height, alignment: .topLeading)
   }
 
-  private var borderColor: Color {
-    contrast == .increased
-      ? Color.primary.opacity(Metrics.Opacity.minimapContrastBorder)
-      : Color(nsColor: .separatorColor)
-  }
-
-  private var borderWidth: Double {
-    contrast == .increased ? Metrics.Size.contrastStroke : Metrics.Size.hairlineStroke
-  }
-
   // The ring is one view that moves between tiles, so focus changes read as motion.
   // Its animation keys on the focused window, so scrolling alone never makes it trail.
   private func focusRing(_ ring: MinimapGeometry.FocusRing) -> some View {
     RoundedRectangle(cornerRadius: ring.cornerRadius, style: .continuous)
-      .strokeBorder(Color.accentColor, lineWidth: Metrics.Minimap.focusRingWidth)
+      .strokeBorder(
+        Color(nsColor: .keyboardFocusIndicatorColor), lineWidth: Metrics.Minimap.focusRingWidth)
       .frame(width: ring.rect.width, height: ring.rect.height)
       .offset(x: ring.rect.minX, y: ring.rect.minY)
       .animation(focusAnimation, value: ring.cell)
@@ -115,11 +110,9 @@ struct MinimapView: View {
   private func lens(_ rect: CGRect, radius: Double) -> some View {
     let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
     return shape
-      .fill(Color.primary.opacity(Metrics.Opacity.minimapLens))
+      .fill(.quaternary)
       .overlay(
-        shape.strokeBorder(
-          Color.primary.opacity(Metrics.Opacity.minimapLensBorder),
-          lineWidth: Metrics.Size.hairlineStroke)
+        shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: Metrics.Size.hairlineStroke)
       )
       .frame(width: rect.width, height: rect.height)
       .offset(x: rect.minX, y: rect.minY)

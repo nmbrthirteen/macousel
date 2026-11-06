@@ -3,7 +3,7 @@ nonisolated enum Action: Hashable, Sendable {
   static let lastPlace = 9
 
   case focusLeft, focusRight, focusUp, focusDown
-  case focusFirst, focusLast
+  case focusFirst, focusLast, focusPrevious
   case focusColumn(Int)
   case moveLeft, moveRight, moveUp, moveDown
   case moveToColumn(Int)
@@ -19,7 +19,8 @@ nonisolated enum Action: Hashable, Sendable {
   case stackLeft, stackRight
   case popOutLeft, popOutRight
   case toggleTabbed
-  case toggleFloating
+  case toggleFloating, switchToFloatingWindows, bringBackFloatingWindows
+  case pinWindow, togglePinnedWindows
 
   case toggleOverview
   case sendToScratchpad, toggleScratchpad
@@ -27,7 +28,7 @@ nonisolated enum Action: Hashable, Sendable {
 
 nonisolated extension Action: CaseIterable {
   static let allCases: [Action] =
-    [.focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast]
+    [.focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast, .focusPrevious]
     + places.map { .focusColumn($0) }
     + [.moveLeft, .moveRight, .moveUp, .moveDown]
     + places.map { .moveToColumn($0) }
@@ -37,6 +38,7 @@ nonisolated extension Action: CaseIterable {
       .cycleWidth, .toggleFullWidth, .center, .wider, .narrower, .taller, .shorter,
       .equalizeHeights,
       .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating,
+      .switchToFloatingWindows, .bringBackFloatingWindows, .pinWindow, .togglePinnedWindows,
       .toggleOverview, .sendToScratchpad, .toggleScratchpad,
     ]
 }

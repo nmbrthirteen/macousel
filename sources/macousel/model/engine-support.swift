@@ -35,7 +35,11 @@ nonisolated extension Action {
     case .popOutRight: .command(PaneruCommand("window", "unstack"))
     case .toggleTabbed: .command(PaneruCommand("window", "tabbeddisplay"))
     case .toggleFloating: .command(PaneruCommand("window", "manage"))
-    case .togglePaused, .toggleOverview, .moveToColumn, .stackRight, .popOutLeft:
+    case .switchToFloatingWindows: .command(PaneruCommand("window", "togglefloatlayer"))
+    case .pinWindow: .command(PaneruCommand("window", "pin"))
+    case .togglePinnedWindows: .command(PaneruCommand("window", "pinlayer"))
+    case .togglePaused, .toggleOverview, .moveToColumn, .stackRight, .popOutLeft, .focusPrevious,
+      .bringBackFloatingWindows:
       .handledByMacousel
     case .sendToScratchpad, .toggleScratchpad: .builtInOnly
     }
@@ -43,9 +47,13 @@ nonisolated extension Action {
 
   func isSupported(by engine: WindowEngine) -> Bool {
     switch engine {
-    case .builtIn: true
+    case .builtIn: !isPaneruOnly
     case .paneru: paneruSupport != .builtInOnly
     }
+  }
+
+  var isPaneruOnly: Bool {
+    self == .pinWindow || self == .togglePinnedWindows
   }
 
   // The engine only stacks into the column on the left and pops out to the right, so the

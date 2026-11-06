@@ -18,6 +18,7 @@ nonisolated struct EngineWindow: Decodable, Equatable, Sendable {
   var title: String
   var focused: Bool
   var floating: Bool
+  var pinned: Bool
   var displayId: UInt32?
   var frame: Frame?
   var visible: Bool
@@ -30,6 +31,7 @@ nonisolated struct EngineWindow: Decodable, Equatable, Sendable {
     title = try values.decodeIfPresent(String.self, forKey: .title) ?? ""
     focused = try values.decodeIfPresent(Bool.self, forKey: .focused) ?? false
     floating = try values.decodeIfPresent(Bool.self, forKey: .floating) ?? false
+    pinned = try values.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
     displayId = try values.decodeIfPresent(UInt32.self, forKey: .displayId)
     frame = try values.decodeIfPresent(Frame.self, forKey: .frame)
     visible = try values.decodeIfPresent(Bool.self, forKey: .visible) ?? true
@@ -37,8 +39,8 @@ nonisolated struct EngineWindow: Decodable, Equatable, Sendable {
 
   init(
     windowId: Int32, bundleId: String = "", appName: String = "", title: String = "",
-    focused: Bool = false, floating: Bool = false, displayId: UInt32? = nil, frame: Frame? = nil,
-    visible: Bool = true
+    focused: Bool = false, floating: Bool = false, pinned: Bool = false, displayId: UInt32? = nil,
+    frame: Frame? = nil, visible: Bool = true
   ) {
     self.windowId = windowId
     self.bundleId = bundleId
@@ -46,12 +48,13 @@ nonisolated struct EngineWindow: Decodable, Equatable, Sendable {
     self.title = title
     self.focused = focused
     self.floating = floating
+    self.pinned = pinned
     self.displayId = displayId
     self.frame = frame
     self.visible = visible
   }
 
   private enum CodingKeys: String, CodingKey {
-    case windowId, bundleId, appName, title, focused, floating, displayId, frame, visible
+    case windowId, bundleId, appName, title, focused, floating, pinned, displayId, frame, visible
   }
 }
