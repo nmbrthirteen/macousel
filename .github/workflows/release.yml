@@ -23,6 +23,18 @@ jobs:
         run: |
           rustup toolchain install 1.95.0 --profile minimal
           rustup default 1.95.0
+      - name: Read the engine version
+        id: engine
+        run: echo "version=$(tr -d '[:space:]' < support/engine-version)" >> "$GITHUB_OUTPUT"
+      # The engine job on main saves this cache, and a tag can read caches from the default
+      # branch. Restoring it skips compiling Paneru, which is most of this job.
+      - name: Restore the engine
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: |
+            build/engine-${{ steps.engine.outputs.version }}
+            ~/.cargo/registry
+          key: engine-${{ runner.os }}-${{ steps.engine.outputs.version }}-${{ hashFiles('engine-bridge/Cargo.toml', 'engine-bridge/Cargo.lock', 'engine-bridge/src/**', 'support/engine-patches/**') }}
       - name: Build the app
         run: VERSION="${GITHUB_REF_NAME#v}" scripts/bundle.sh
       - name: Archive the app
