@@ -22,7 +22,10 @@ final class EngineSupervisor {
     var writeConfig: () throws -> Void
     var now: () -> ContinuousClock.Instant
     var sleep: (Duration) async throws -> Void
+    var isScreenLocked: () -> Bool = { false }
   }
+
+  static let lockedScreenRecheck = Duration.seconds(1)
 
   private(set) var state = EngineRunState.stopped {
     didSet { if state != oldValue { onStateChange?(state) } }
@@ -78,6 +81,12 @@ final class EngineSupervisor {
     guard cleared else {
       state = .failed(.orphanRunning)
       return
+    }
+    // A locked screen hides every window and Space from the engine. Starting now would adopt
+    // none of them, and the ones nobody touches after unlock would stay unmanaged.
+    while dependencies.isScreenLocked() {
+      try? await dependencies.sleep(Self.lockedScreenRecheck)
+      guard current == generation else { return }
     }
     launch(generation: current)
   }

@@ -28,6 +28,8 @@ final class EngineHarness {
     standalone = FakeEngineCommands(log: log)
   }
 
+  var isScreenLocked = false
+
   var configURL: URL { URL(fileURLWithPath: "/tmp/engine-harness/paneru.toml") }
 
   func makeSync(store: PreferencesStore) -> EngineConfigSync {
@@ -50,7 +52,12 @@ final class EngineHarness {
           try sync.writeCurrent()
         },
         now: { [self] in now },
-        sleep: { [self] duration in sleeps.append(duration) }))
+        sleep: { [self] duration in
+          sleeps.append(duration)
+          // A real sleep suspends, which lets a waiting loop see state the test changes.
+          await Task.yield()
+        },
+        isScreenLocked: { [self] in isScreenLocked }))
   }
 
   func makeEngine(
