@@ -2,10 +2,10 @@ import Foundation
 
 struct ShortcutsFilter: Equatable {
   struct Entry: Equatable, Identifiable {
-    let section: ShortcutSection
+    let group: Action.Group
     let actions: [Action]
 
-    var id: ShortcutSection { section }
+    var id: Action.Group { group }
   }
 
   var query = ""
@@ -13,9 +13,9 @@ struct ShortcutsFilter: Equatable {
   var isFiltering: Bool { !needle.isEmpty }
 
   var entries: [Entry] {
-    ShortcutSection.allCases.compactMap { section in
-      let found = section.actions.filter { isMatch($0) }
-      return found.isEmpty ? nil : Entry(section: section, actions: found)
+    Action.Group.allCases.compactMap { group in
+      let found = group.actions.filter { isMatch($0) }
+      return found.isEmpty ? nil : Entry(group: group, actions: found)
     }
   }
 

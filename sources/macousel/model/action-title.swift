@@ -16,6 +16,8 @@ nonisolated extension Action {
     case .moveToFirst: "Move to first column"
     case .moveToLast: "Move to last column"
     case .sendToNextDisplay: "Send to next display"
+    case .sendToNextDisplayWithoutFollowing: "Send to next display, stay here"
+    case .focusNextDisplay: "Focus next display"
     case .togglePaused: "Pause or resume tiling"
     case .cycleWidth: "Cycle width"
     case .toggleFullWidth: "Full width"

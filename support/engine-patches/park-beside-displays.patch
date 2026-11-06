@@ -1,8 +1,8 @@
 diff --git a/src/ecs/layout.rs b/src/ecs/layout.rs
-index 0fb8f1e..e87ac12 100644
+index 0fb8f1e..d7bf0ef 100644
 --- a/src/ecs/layout.rs
 +++ b/src/ecs/layout.rs
-@@ -37,6 +37,77 @@ pub struct LayoutEventsPlugin;
+@@ -37,6 +37,105 @@ pub struct LayoutEventsPlugin;
  /// frame has left the display entirely to whichever display it landed on.
  pub(crate) const PARKED_STRIP_SLIVER: i32 = 10;
  
@@ -77,10 +77,38 @@ index 0fb8f1e..e87ac12 100644
 +    Some((hidden, park))
 +}
 +
++/// Where a window that starts on screen but would be mostly past an edge shared
++/// with another display slides to, so the strip keeps showing what comes next
++/// instead of an empty edge. It tucks under its neighbour just far enough for
++/// macOS to keep it on this display.
++pub(crate) fn peek_for(
++    frame: IRect,
++    viewport: IRect,
++    display: IRect,
++    h_pad: i32,
++    adjacency: Adjacency,
++) -> Option<i32> {
++    let half = frame.width() / 2;
++    let middle = frame.min.x + half;
++    if adjacency.right
++        && frame.min.x < viewport.max.x - h_pad
++        && middle > display.max.x - ADOPTION_MARGIN
++    {
++        return Some(display.max.x - ADOPTION_MARGIN - half);
++    }
++    if adjacency.left
++        && frame.max.x > viewport.min.x + h_pad
++        && middle < display.min.x + ADOPTION_MARGIN
++    {
++        return Some(display.min.x + ADOPTION_MARGIN - half);
++    }
++    None
++}
++
  /// A strip, its entity, origin, display, whether it's the active one, and the
  /// offset it is animating toward if a move is already in flight.
  /// Shared by [`reshuffle_layout_strip`] and [`ensure_visible_in_strip`].
-@@ -109,6 +180,7 @@ type RepositionedWindows<'w, 's> = Populated<
+@@ -109,6 +208,7 @@ type RepositionedWindows<'w, 's> = Populated<
          &'static LayoutPosition,
          &'static mut Position,
          &'static mut Bounds,
@@ -88,7 +116,7 @@ index 0fb8f1e..e87ac12 100644
      ),
      (Changed<LayoutPosition>, With<Window>, Without<LayoutStrip>),
  >;
-@@ -1581,7 +1653,9 @@ fn position_layout_windows(
+@@ -1581,7 +1681,9 @@ fn position_layout_windows(
          );
      }
  
@@ -99,7 +127,7 @@ index 0fb8f1e..e87ac12 100644
          let Some(context) = strip_contexts.get(&entity) else {
              return;
          };
-@@ -1589,6 +1663,10 @@ fn position_layout_windows(
+@@ -1589,6 +1691,10 @@ fn position_layout_windows(
              return;
          };
          let viewport = display.actual_display_bounds(dock, &config);
@@ -110,7 +138,7 @@ index 0fb8f1e..e87ac12 100644
          // Gets 80% of the display height as threshold.
          let Ok(vertical_move_threshold) = u32::try_from(viewport.height() * 8 / 10) else {
              continue;
-@@ -1603,22 +1681,38 @@ fn position_layout_windows(
+@@ -1603,22 +1709,45 @@ fn position_layout_windows(
          frame.min += context.strip_position;
          frame.max += context.strip_position;
  
@@ -132,7 +160,14 @@ index 0fb8f1e..e87ac12 100644
 +        // visible from the real display edge. The h_pad accounts for the gap
 +        // that reposition() adds, which can leave a window just inside the
 +        // viewport edge while its CG frame is fully past it.
-+        let parked = park_for(frame, viewport, display.bounds(), h_pad, adjacency);
++        let peek = peek_for(frame, viewport, display.bounds(), h_pad, adjacency);
++        if let Some(x) = peek {
++            frame.min.x = x;
++        }
++        let parked = peek
++            .is_none()
++            .then(|| park_for(frame, viewport, display.bounds(), h_pad, adjacency))
++            .flatten();
 +        let offscreen = parked.is_some();
 +        let across = parked.is_some_and(|(hidden, park)| park != hidden);
 +        match parked.map(|(_, park)| park) {
@@ -163,7 +198,7 @@ index 0fb8f1e..e87ac12 100644
  
          // During swipe, keep full height. The vertical sliver inset only
          // applies to horizontally off-screen windows, so they expose just
-@@ -1629,7 +1723,7 @@ fn position_layout_windows(
+@@ -1629,7 +1758,7 @@ fn position_layout_windows(
              // The height reduction corrupts their proportions: when the
              // column scrolls back on-screen, binpack_heights makes the
              // last window absorb all remaining space.
@@ -172,7 +207,7 @@ index 0fb8f1e..e87ac12 100644
                  let inset =
                      round_px(f64::from(viewport.height()) * (1.0 - config.sliver_height()) / 2.0);
                  frame.min.y += inset;
-@@ -1679,8 +1773,13 @@ fn position_layout_windows(
+@@ -1679,8 +1808,13 @@ fn position_layout_windows(
              // `parking` nor the distance threshold recognizes as
              // restore-driven, since its last position can land close enough
              // to its target. See `SnapStripMarker`.
@@ -186,7 +221,7 @@ index 0fb8f1e..e87ac12 100644
                  || offscreen_move && !config.virtual_workspace_animations()
              {
                  position.0 = frame.min;
-@@ -1699,6 +1798,98 @@ mod tests {
+@@ -1699,6 +1833,140 @@ mod tests {
      use super::*;
      use bevy::prelude::*;
  
@@ -265,6 +300,48 @@ index 0fb8f1e..e87ac12 100644
 +        assert_eq!(
 +            park_for(gone_right, RIGHT_DISPLAY, RIGHT_DISPLAY, 0, beside_left),
 +            Some((Park::Right, Park::Right))
++        );
++    }
++
++    #[test]
++    fn the_next_column_peeks_in_at_a_shared_edge_instead_of_leaving_it_empty() {
++        let beside_right = Adjacency {
++            left: false,
++            right: true,
++        };
++        let mostly_past = IRect::new(1290, 30, 2570, 1080);
++        let fully_past = IRect::new(2000, 30, 3280, 1080);
++        let mostly_in = IRect::new(600, 30, 1880, 1080);
++
++        assert_eq!(
++            peek_for(mostly_past, LEFT_DISPLAY, LEFT_DISPLAY, 0, beside_right),
++            Some(1920 - ADOPTION_MARGIN - 640)
++        );
++        assert_eq!(
++            peek_for(fully_past, LEFT_DISPLAY, LEFT_DISPLAY, 0, beside_right),
++            None
++        );
++        assert_eq!(
++            peek_for(mostly_in, LEFT_DISPLAY, LEFT_DISPLAY, 0, beside_right),
++            None
++        );
++        assert_eq!(
++            peek_for(mostly_past, LEFT_DISPLAY, LEFT_DISPLAY, 0, Adjacency::default()),
++            None
++        );
++    }
++
++    #[test]
++    fn a_peek_on_the_left_mirrors_the_right() {
++        let beside_left = Adjacency {
++            left: true,
++            right: false,
++        };
++        let mostly_past = IRect::new(1300, 30, 2500, 1080);
++
++        assert_eq!(
++            peek_for(mostly_past, RIGHT_DISPLAY, RIGHT_DISPLAY, 0, beside_left),
++            Some(1920 + ADOPTION_MARGIN - 600)
 +        );
 +    }
 +

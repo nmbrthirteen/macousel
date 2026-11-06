@@ -28,6 +28,16 @@ final class EngineReorder {
     }
   }
 
+  func moveFocused(toPlace place: Int) async -> EngineReorderOutcome {
+    guard !isRunning else { return .busy }
+    guard let snapshot = await commands.fetchSnapshot() else { return .unavailable }
+    guard let window = snapshot.focusedWindowID,
+      case .drop(let target)? = EngineKeyMove(
+        key: .moveWindowToPlace(place), window: window, columns: snapshot.tiledColumns)
+    else { return .nothingToDo(snapshot) }
+    return await move(window, to: target)
+  }
+
   func focus(_ window: WindowID) async {
     guard !isRunning else { return }
     isRunning = true

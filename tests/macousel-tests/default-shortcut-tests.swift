@@ -48,6 +48,22 @@ struct DefaultShortcutTests {
         == [Hotkey(keyCode: UInt16(kVK_ANSI_S), modifiers: base.union(.shift))])
   }
 
+  @Test func displayActionsUseControlOptionDAndControlOptionShiftN() {
+    let base: Hotkey.Modifiers = [.control, .option]
+    #expect(
+      Action.defaultShortcuts[.focusNextDisplay]
+        == [Hotkey(keyCode: UInt16(kVK_ANSI_D), modifiers: base)])
+    #expect(
+      Action.defaultShortcuts[.sendToNextDisplayWithoutFollowing]
+        == [Hotkey(keyCode: UInt16(kVK_ANSI_N), modifiers: base.union(.shift))])
+  }
+
+  @Test func keycapsSplitTheModifiersFromTheKey() {
+    let hotkey = Hotkey(keyCode: UInt16(kVK_LeftArrow), modifiers: [.control, .option, .shift])
+    #expect(hotkey.keycaps == ["⌃", "⌥", "⇧", "←"])
+    #expect(hotkey.keycaps.joined() == hotkey.displayString)
+  }
+
   @Test func everyActionHasADefaultAndNoTwoActionsShareOne() {
     let keys = Action.allCases.flatMap { Action.defaultShortcuts[$0] ?? [] }
     #expect(Action.allCases.allSatisfy { Action.defaultShortcuts[$0]?.isEmpty == false })

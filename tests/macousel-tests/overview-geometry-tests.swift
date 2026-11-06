@@ -56,12 +56,45 @@ struct OverviewGeometryTests {
     #expect(bounds.width < size.width - 2 * Metrics.Overview.edgeMargin)
   }
 
-  @Test func scaleNeverExceedsHalf() throws {
-    let geometry = OverviewGeometry(snapshot: snapshot(widths: [200]), size: size)
+  @Test func scaleNeverExceedsTheMaximum() throws {
+    let geometry = OverviewGeometry(
+      snapshot: snapshot(widths: [200]), size: CGSize(width: 1000, height: 2000))
     let only = try #require(geometry.cards.first)
     #expect(geometry.scale == Metrics.Overview.maximumScale)
-    #expect(only.rect.width == 100)
-    #expect(only.rect.height == 384)
+    #expect(abs(only.rect.width - 200 * Metrics.Overview.maximumScale) < 0.001)
+    #expect(abs(only.rect.height - 768 * Metrics.Overview.maximumScale) < 0.001)
+  }
+
+  @Test func tallStripIsScaledDownToFitInsideTheVerticalMargins() {
+    let short = CGSize(width: 3000, height: 600)
+    let geometry = OverviewGeometry(snapshot: snapshot(widths: [300, 300]), size: short)
+    let bounds = geometry.cards.map(\.rect).reduce(CGRect.null) { $0.union($1) }
+    #expect(geometry.scale < Metrics.Overview.maximumScale)
+    #expect(abs(bounds.minY - Metrics.Overview.verticalMargin) < 0.001)
+    #expect(abs(bounds.maxY - (short.height - Metrics.Overview.verticalMargin)) < 0.001)
+  }
+
+  @Test func singleCardsKeepTheWindowAspectRatio() {
+    let geometry = OverviewGeometry(snapshot: snapshot(widths: [400, 900, 1200]), size: size)
+    for (card, width) in zip(geometry.cards, [400.0, 900, 1200]) {
+      #expect(abs(card.rect.width / card.rect.height - width / 768) < 0.001)
+    }
+  }
+
+  @Test func stackedWindowsAreRowsInTheirColumn() {
+    let geometry = OverviewGeometry(
+      snapshot: snapshot(widths: [400, 500], stacks: [1: [1, 1, 1]]), size: size)
+    let stacked = geometry.cards.filter { $0.column == 1 }
+    #expect(stacked.map(\.row) == [0, 1, 2])
+    #expect(Set(stacked.map(\.rect.minX)).count == 1)
+    #expect(zip(stacked, stacked.dropFirst()).allSatisfy { $0.rect.maxY < $1.rect.minY })
+  }
+
+  @Test func cornerRadiusIsTheWindowRadiusScaledDown() {
+    let geometry = OverviewGeometry(snapshot: snapshot(widths: [400, 400]), size: size)
+    let scaled = Metrics.Radius.window * geometry.scale
+    #expect(geometry.cornerRadius == max(scaled, Metrics.Radius.concentricFloor))
+    #expect(geometry.cornerRadius < Metrics.Radius.window)
   }
 
   @Test func stackedCardsShareTheColumnHeightByTheirShares() throws {

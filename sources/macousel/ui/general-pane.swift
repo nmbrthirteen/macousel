@@ -14,16 +14,16 @@ struct GeneralPane: View {
         AccessibilityStatusRow(
           status: accessibility,
           grant: .init(
-            title: "Open System Settings", perform: AccessibilityPermission.openSystemSettings))
+            title: "Open System Settings\u{2026}", perform: AccessibilityGuide.shared.begin))
       }
 
       SettingsGroup(title: "Engine") {
-        CaptionedRow(caption: store.preferences.engine.summary) {
-          Picker("Engine", selection: $store.preferences.engine) {
-            ForEach(WindowEngine.allCases, id: \.self) { engine in
-              Text(engine.title).tag(engine)
-            }
+        Picker(selection: $store.preferences.engine) {
+          ForEach(WindowEngine.allCases, id: \.self) { engine in
+            Text(engine.title).tag(engine)
           }
+        } label: {
+          RowLabel(title: "Engine", detail: store.preferences.engine.summary)
         }
         if let notice = manager.notice {
           ErrorText(notice)
@@ -36,6 +36,10 @@ struct GeneralPane: View {
           ErrorText(message)
         }
         ToggleRow(title: "Restore layout on launch", isOn: $store.preferences.restoresSession)
+      }
+
+      SettingsGroup(title: "Appearance") {
+        ToggleRow(title: "Show in Dock", isOn: $store.preferences.showsInDock)
       }
 
       SettingsGroup(title: "Updates") {

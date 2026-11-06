@@ -8,6 +8,7 @@ enum EngineChangedGolden {
     preset_column_widths = [0.3, 0.45, 0.6, 1.0]
     animation_speed = 8.0
     auto_center = true
+    disable_native_tabs = true
 
     [padding]
     top = 15
@@ -50,6 +51,11 @@ enum EngineChangedGolden {
     horizontal_padding = 7
     vertical_padding = 7
 
+    [windows.macousel]
+    bundle_id = "dev.macousel.app"
+    title = ".*"
+    floating = true
+
     [windows.app_com_apple_calculator]
     bundle_id = "com.apple.Calculator"
     title = ".*"
@@ -76,6 +82,7 @@ enum EngineChangedGolden {
     floating = true
 
     [bindings]
+    mouse_nextdisplay = "alt + ctrl - d"
     window_center = "alt + ctrl - c"
     window_equalize = "alt + ctrl - 0"
     window_focus_1 = "alt + ctrl - 1"
@@ -95,9 +102,10 @@ enum EngineChangedGolden {
     window_fullwidth = "alt + ctrl - f"
     window_grow = "alt + ctrl - equal"
     window_nextdisplay = "alt + ctrl - n"
+    window_nextdisplaysend = "alt + shift + ctrl - n"
     window_resize = "alt + ctrl - r"
     window_shrink = "alt + ctrl - minus"
-    window_stack = ["alt + ctrl - rightbracket", "alt + ctrl - leftbracket"]
+    window_stack = "alt + ctrl - rightbracket"
     window_swap_east = ["alt + shift + ctrl - l", "alt + shift + ctrl - rightarrow"]
     window_swap_first = "alt + shift + cmd + ctrl - leftarrow"
     window_swap_last = "alt + shift + cmd + ctrl - rightarrow"
@@ -105,7 +113,7 @@ enum EngineChangedGolden {
     window_swap_south = ["alt + shift + ctrl - j", "alt + shift + ctrl - downarrow"]
     window_swap_west = ["alt + shift + ctrl - h", "alt + shift + ctrl - leftarrow"]
     window_tabbeddisplay = "alt + shift + ctrl - t"
-    window_unstack = ["alt + shift + ctrl - leftbracket", "alt + shift + ctrl - rightbracket"]
+    window_unstack = "alt + shift + ctrl - rightbracket"
     window_vertical_grow = "alt + shift + ctrl - equal"
     window_vertical_shrink = "alt + shift + ctrl - minus"
 

@@ -1,6 +1,13 @@
 import CoreGraphics
+import StripCore
 
 struct MinimapGeometry {
+  struct FocusRing: Equatable {
+    let cell: WindowID
+    let rect: CGRect
+    let cornerRadius: Double
+  }
+
   let containerWidth: Double
   let cells: [MinimapCell]
   let lens: CGRect
@@ -8,11 +15,7 @@ struct MinimapGeometry {
 
   init(snapshot: MinimapSnapshot) {
     let padding = Metrics.Minimap.horizontalPadding
-    containerWidth = min(
-      max(
-        snapshot.contentWidth * Metrics.Minimap.stripScale + 2 * padding,
-        Metrics.Minimap.minimumWidth),
-      Metrics.Minimap.maximumWidth)
+    containerWidth = Self.containerWidth(for: snapshot)
     let start = min(0, snapshot.viewportOffset)
     let end = max(snapshot.contentWidth, snapshot.viewportOffset + snapshot.viewportWidth)
     guard end > start else {
@@ -25,7 +28,8 @@ struct MinimapGeometry {
     let scale = (containerWidth - 2 * padding) / (end - start)
     cells = snapshot.columns.enumerated().flatMap { index, column in
       Self.cells(
-        of: column, index: index, start: start, scale: scale, containerSize: containerSize)
+        of: column, index: index, start: start, scale: scale, containerSize: containerSize,
+        isOnScreen: Self.isOnScreen(column, in: snapshot))
     }
     let outset = Metrics.Minimap.lensOutset
     let lensLeft = padding + (snapshot.viewportOffset - start) * scale - outset
@@ -36,8 +40,29 @@ struct MinimapGeometry {
     lensRadius = MinimapConcentricRadius.radius(of: lens, in: containerSize)
   }
 
+  static func containerWidth(for snapshot: MinimapSnapshot) -> Double {
+    min(
+      max(
+        snapshot.contentWidth * Metrics.Minimap.stripScale
+          + 2 * Metrics.Minimap.horizontalPadding,
+        Metrics.Minimap.minimumWidth),
+      Metrics.Minimap.maximumWidth)
+  }
+
   var bounds: CGRect {
     CGRect(x: 0, y: 0, width: containerWidth, height: Metrics.Minimap.height)
+  }
+
+  var panelBounds: CGRect {
+    CGRect(x: 0, y: 0, width: containerWidth, height: Metrics.Minimap.panelHeight)
+  }
+
+  var focusRing: FocusRing? {
+    guard let cell = cells.first(where: \.isFocused) else { return nil }
+    let outset = Metrics.Minimap.focusRingOutset
+    return FocusRing(
+      cell: cell.id, rect: cell.rect.insetBy(dx: -outset, dy: -outset),
+      cornerRadius: cell.cornerRadius + outset)
   }
 
   func cell(at point: CGPoint) -> MinimapCell? {
@@ -48,9 +73,20 @@ struct MinimapGeometry {
     Metrics.Minimap.height - 2 * Metrics.Minimap.verticalPadding
   }
 
+  // A column counts as on screen when at least half of it, or half of the viewport when
+  // the column is wider than the screen, shows. Slivers peeking at the edges stay dimmed.
+  private static func isOnScreen(_ column: MinimapSnapshot.Column, in snapshot: MinimapSnapshot)
+    -> Bool
+  {
+    let viewportEnd = snapshot.viewportOffset + snapshot.viewportWidth
+    let overlap =
+      min(column.x + column.width, viewportEnd) - max(column.x, snapshot.viewportOffset)
+    return overlap >= min(column.width, snapshot.viewportWidth) / 2
+  }
+
   private static func cells(
     of column: MinimapSnapshot.Column, index: Int, start: Double, scale: Double,
-    containerSize: CGSize
+    containerSize: CGSize, isOnScreen: Bool
   ) -> [MinimapCell] {
     let gap = Metrics.Minimap.columnGap
     let rawLeft = Metrics.Minimap.horizontalPadding + (column.x - start) * scale + gap / 2
@@ -75,7 +111,8 @@ struct MinimapGeometry {
       return MinimapCell(
         id: identities[row], window: entry.window, column: index, row: firstRow + row,
         rect: CGRect(x: left, y: top, width: width, height: height),
-        isFocused: column.isFocused,
+        isFocused: column.isFocused && entry.window == active.window,
+        isOnScreen: isOnScreen,
         isLeadRow: row == 0,
         dotCount: column.isTabbed ? min(column.rows.count, Metrics.Minimap.tabDotLimit) : 0,
         bundleIdentifier: entry.bundleIdentifier, containerSize: containerSize,

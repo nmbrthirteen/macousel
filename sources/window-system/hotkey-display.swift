@@ -3,12 +3,16 @@ import Carbon.HIToolbox
 
 extension Hotkey {
   public var displayString: String {
-    var result = ""
-    if modifiers.contains(.control) { result += "⌃" }
-    if modifiers.contains(.option) { result += "⌥" }
-    if modifiers.contains(.shift) { result += "⇧" }
-    if modifiers.contains(.command) { result += "⌘" }
-    return result + (Self.namedKeys[Int(keyCode)] ?? Self.layoutGlyph(for: keyCode))
+    keycaps.joined()
+  }
+
+  public var keycaps: [String] {
+    var caps: [String] = []
+    if modifiers.contains(.control) { caps.append("⌃") }
+    if modifiers.contains(.option) { caps.append("⌥") }
+    if modifiers.contains(.shift) { caps.append("⇧") }
+    if modifiers.contains(.command) { caps.append("⌘") }
+    return caps + [Self.namedKeys[Int(keyCode)] ?? Self.layoutGlyph(for: keyCode)]
   }
 
   public init?(event: NSEvent) {

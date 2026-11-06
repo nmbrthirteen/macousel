@@ -8,7 +8,7 @@ nonisolated enum Action: Hashable, Sendable {
   case moveLeft, moveRight, moveUp, moveDown
   case moveToColumn(Int)
   case moveToFirst, moveToLast
-  case sendToNextDisplay
+  case sendToNextDisplay, sendToNextDisplayWithoutFollowing, focusNextDisplay
   case togglePaused
 
   case cycleWidth, toggleFullWidth, center
@@ -32,7 +32,8 @@ nonisolated extension Action: CaseIterable {
     + [.moveLeft, .moveRight, .moveUp, .moveDown]
     + places.map { .moveToColumn($0) }
     + [
-      .moveToFirst, .moveToLast, .sendToNextDisplay, .togglePaused,
+      .moveToFirst, .moveToLast, .sendToNextDisplay, .sendToNextDisplayWithoutFollowing,
+      .focusNextDisplay, .togglePaused,
       .cycleWidth, .toggleFullWidth, .center, .wider, .narrower, .taller, .shorter,
       .equalizeHeights,
       .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating,

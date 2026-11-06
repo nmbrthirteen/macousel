@@ -7,44 +7,46 @@ struct PointerPane: View {
     !store.preferences.scrollGestureEnabled && !store.preferences.swipeGestureEnabled
   }
 
+  private var engine: WindowEngine { store.preferences.engine }
+
   var body: some View {
     SettingsForm {
-      PointerPreview(preferences: store.preferences)
-
       SettingsGroup(title: "Pointer") {
         ToggleRow(
           title: "Activate the display under the pointer",
           isOn: $store.preferences.displayFollowsPointer,
-          caption: "Shortcuts act on the display your pointer is on.")
-          .engineGated(.displayFollowsPointer, for: store.preferences.engine)
+          detail: "Shortcuts act on the display your pointer is on.",
+          unavailable: EngineFeature.displayFollowsPointer.unavailableCaption(for: engine))
         ToggleRow(title: "Focus follows mouse", isOn: $store.preferences.focusFollowsMouse)
         ToggleRow(title: "Mouse follows focus", isOn: $store.preferences.mouseFollowsFocus)
-        if !EngineFeature.dragPreviews.isSupported(by: store.preferences.engine) {
-          CaptionedRow(caption: EngineFeature.unsupportedCaption) {
-            Text("Drag a window to reorder or stack it")
-              .foregroundStyle(.secondary)
+        if let caption = EngineFeature.dragPreviews.unavailableCaption(for: engine) {
+          LabeledContent {
+            EmptyView()
+          } label: {
+            RowLabel(title: "Drag a window to reorder or stack it", detail: caption)
           }
+          .disabled(true)
         }
       }
 
       SettingsGroup(title: "Gestures") {
+        PointerPreview(preferences: store.preferences)
         ToggleRow(
           title: "Scroll gesture", isOn: $store.preferences.scrollGestureEnabled,
-          caption: "Hold ⌃⌥ and scroll with two fingers to move the strip.")
+          detail: "Hold ⌃⌥ and scroll with two fingers to move the strip.")
         ToggleRow(
           title: "Trackpad swipe", isOn: $store.preferences.swipeGestureEnabled,
-          caption: "macOS also uses this swipe for Spaces. Change that in System Settings > Trackpad.")
+          detail: "macOS also uses this swipe for Spaces. Change that in System Settings > Trackpad.")
         SwipeFingersPicker(
           selection: $store.preferences.swipeFingers,
           reversesDirection: store.preferences.reversesSwipeDirection)
           .disabled(!store.preferences.swipeGestureEnabled)
-        if store.preferences.engine == .paneru {
+        if engine == .paneru {
           Picker("Swipe moves", selection: $store.preferences.swipeStep) {
             ForEach(SwipeStep.allCases, id: \.self) { step in
               Text(step.title).tag(step)
             }
           }
-          .pickerStyle(.segmented)
           .disabled(!store.preferences.swipeGestureEnabled)
         }
         LabelledSliderRow(
@@ -53,7 +55,7 @@ struct PointerPane: View {
           .disabled(!store.preferences.swipeGestureEnabled)
         ToggleRow(
           title: "Reverse direction", isOn: $store.preferences.reversesSwipeDirection,
-          caption: "Applies to the trackpad swipe and the scroll gesture.")
+          detail: "Applies to the trackpad swipe and the scroll gesture.")
           .disabled(gesturesAreOff)
       }
     }

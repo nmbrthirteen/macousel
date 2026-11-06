@@ -3,6 +3,7 @@ import CoreGraphics
 enum PreviewMetrics {
   static let sectionHeight = 150.0
   static let swipeSectionHeight = 196.0
+  static let minimapCardHeight = 96.0
   static let screenSize = CGSize(width: 1280, height: 800)
   static let horizontalInset = 12.0
   static let verticalInset = 10.0
@@ -95,6 +96,5 @@ enum PreviewMetrics {
     static let horizontalInset = 16.0
     static let verticalInset = 10.0
     static let offOpacity = 0.5
-    static let labelFontSize = 10.0
   }
 }

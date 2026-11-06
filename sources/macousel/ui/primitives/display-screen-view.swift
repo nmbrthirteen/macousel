@@ -29,7 +29,7 @@ struct DisplayScreenView: View {
         .frame(width: item.contentRect.width, height: item.contentRect.height)
         .offset(x: item.contentRect.minX - item.screenRect.minX, y: item.contentRect.minY - item.screenRect.minY)
       Text(item.name)
-        .font(.system(size: PreviewMetrics.Displays.labelFontSize))
+        .font(.footnote)
         .foregroundStyle(.secondary)
         .lineLimit(1)
         .frame(width: item.labelRect.width, height: item.labelRect.height)

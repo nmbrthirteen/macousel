@@ -62,11 +62,11 @@ struct ActionRawValueTests {
     #expect(Action.moveToLast.commandName == "move-to-last")
   }
 
-  @Test func overviewAndScratchpadActionsHaveTheirOwnGroupListedLast() {
+  @Test func overviewScratchpadAndPauseActionsFallInOtherListedLast() {
     let actions: [Action] = [.toggleOverview, .sendToScratchpad, .toggleScratchpad]
-    #expect(actions.allSatisfy { $0.group == .overview })
-    #expect(Action.Group.overview.title == "Overview and scratchpad")
-    #expect(Action.Group.allCases.last == .overview)
+    #expect((actions + [.togglePaused]).allSatisfy { $0.group == .other })
+    #expect(Action.Group.other.title == "Other")
+    #expect(Action.Group.allCases.map(\.title) == ["Navigate", "Size", "Stacks", "Other"])
     #expect(actions.map(\.title) == [
       "Show or hide overview", "Send window to scratchpad", "Show or hide scratchpad",
     ])
@@ -77,6 +77,18 @@ struct ActionRawValueTests {
     #expect(Action.focusColumn(5).group == .navigate)
     #expect(Action.moveToColumn(5).group == .navigate)
     #expect(Action.moveToFirst.group == .navigate)
+  }
+
+  @Test func displayActionsAreNavigationWithStableNames() {
+    #expect(Action.focusNextDisplay.group == .navigate)
+    #expect(Action.sendToNextDisplayWithoutFollowing.group == .navigate)
+    #expect(Action.focusNextDisplay.commandName == "focus-next-display")
+    #expect(
+      Action.sendToNextDisplayWithoutFollowing.commandName
+        == "send-to-next-display-without-following")
+    #expect(Action(commandName: "focus-next-display") == .focusNextDisplay)
+    #expect(Action.focusNextDisplay.title == "Focus next display")
+    #expect(Action(rawValue: "sendToNextDisplayWithoutFollowing") == .sendToNextDisplayWithoutFollowing)
   }
 
   @Test func oldSavedPreferencesWithFocusColumnShortcutsStillDecode() throws {

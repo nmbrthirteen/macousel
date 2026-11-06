@@ -3,7 +3,7 @@ import SwiftUI
 
 struct WhatsNewView: View {
   private static let iconSide = 64.0
-  private static let bulletWidth = 12.0
+  private static let symbolWidth = 20.0
 
   let notes: ReleaseNotes
   let onDone: () -> Void
@@ -16,15 +16,11 @@ struct WhatsNewView: View {
           .resizable()
           .frame(width: Self.iconSide, height: Self.iconSide)
           .accessibilityHidden(true)
-        VStack(alignment: .leading, spacing: Metrics.Spacing.hairline) {
-          Text("What's new")
-            .font(.title.weight(.semibold))
-          Text("Macousel \(notes.version)")
-            .foregroundStyle(.secondary)
-        }
+        Text("Macousel \(notes.version)")
+          .font(.title.weight(.semibold))
       }
       ScrollView {
-        VStack(alignment: .leading, spacing: Metrics.Spacing.regular) {
+        VStack(alignment: .leading, spacing: Metrics.Spacing.comfortable) {
           ForEach(notes.blocks.indices, id: \.self) { index in
             block(notes.blocks[index])
           }
@@ -41,13 +37,13 @@ struct WhatsNewView: View {
       HStack {
         Spacer()
         Button("Continue", action: onDone)
-          .buttonStyle(ContinueButtonStyle())
+          .buttonStyle(.borderedProminent)
           .keyboardShortcut(.defaultAction)
       }
     }
     .padding(OnboardingMetrics.contentInset)
-    .padding(.top, Metrics.Spacing.roomy)
     .frame(width: WhatsNewMetrics.width, height: WhatsNewMetrics.height)
+    .onExitCommand(perform: onDone)
     .pollsAccessibility(accessibility)
   }
 
@@ -58,10 +54,13 @@ struct WhatsNewView: View {
       Text(Self.inline(text))
         .fixedSize(horizontal: false, vertical: true)
     case .bullet(let text):
-      HStack(alignment: .firstTextBaseline, spacing: Metrics.Spacing.regular) {
-        Text("•").frame(width: Self.bulletWidth)
+      Label {
         Text(Self.inline(text))
           .fixedSize(horizontal: false, vertical: true)
+      } icon: {
+        Image(systemName: "checkmark.circle.fill")
+          .foregroundStyle(.tint)
+          .frame(width: Self.symbolWidth)
       }
     }
   }
@@ -75,5 +74,5 @@ struct WhatsNewView: View {
 
 enum WhatsNewMetrics {
   static let width = 460.0
-  static let height = 460.0
+  static let height = 420.0
 }

@@ -16,7 +16,7 @@ struct MotionPreview: View {
   }
 
   var body: some View {
-    PreviewSection(description: PreviewDescription.motion(preferences)) {
+    PreviewCard(description: PreviewDescription.motion(preferences)) {
       VStack(spacing: PreviewMetrics.captionSpacing) {
         StripPreview(
           scenario: PreviewScenarios.motion(focusTrail: loop.trail).withLeadingColumns(

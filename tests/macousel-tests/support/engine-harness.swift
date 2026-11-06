@@ -77,7 +77,7 @@ final class EngineHarness {
         commands: commands, events: events,
         world: world,
         minimap: EngineMinimap(host: overlays, store: store, displays: displays, reorder: reorder),
-        overview: overview, drag: drag,
+        overview: overview, reorder: reorder, drag: drag,
         swipe: EngineSwipe(
           gestures: gestures, store: store, commands: commands, position: { world.position },
           isSuppressed: { overview.isOpen }),

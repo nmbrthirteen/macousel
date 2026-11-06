@@ -5,11 +5,14 @@ struct UpdateSection: View {
 
   var body: some View {
     SettingsGroup(title: "Updates") {
-      status
-      Button("Check for updates") {
-        Task(priority: .utility) { await updater.check() }
+      LabeledContent {
+        Button("Check for updates") {
+          Task(priority: .utility) { await updater.check() }
+        }
+        .disabled(updater.state.isBusy)
+      } label: {
+        status
       }
-      .disabled(updater.state.isBusy)
       if offersInstall {
         installRow
       }
@@ -26,19 +29,21 @@ struct UpdateSection: View {
   }
 
   private var installRow: some View {
-    VStack(alignment: .leading, spacing: Metrics.Spacing.tight) {
+    LabeledContent {
       HStack(spacing: Metrics.Spacing.comfortable) {
+        if case .available(let release) = updater.state, let notes = release.notesPageURL {
+          Link("Release notes", destination: notes)
+        }
         Button("Install and relaunch") {
           Task { await updater.install() }
         }
         .disabled(updater.state.isBusy)
-        if case .available(let release) = updater.state, let notes = release.notesPageURL {
-          Link("Release notes", destination: notes)
-        }
       }
-      CaptionText(
-        "macOS asks for Accessibility access again after an update. Each release has a new signature."
-      )
+    } label: {
+      RowLabel(
+        title: "Update",
+        detail:
+          "macOS asks for Accessibility access again after an update. Each release has a new signature.")
     }
   }
 

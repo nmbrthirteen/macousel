@@ -26,18 +26,17 @@ struct AppIdentity: Identifiable {
     let iconSide: Double
   }
 
-  private static var cache: [CacheKey: AppIdentity] = [:]
+  private static let cacheLimit = 64
+  private static var cache = LRUCache<CacheKey, AppIdentity>(limit: cacheLimit)
 
   // Rows rebuild on every settings change, and each lookup asks Launch Services and
   // resizes an icon.
   static func cached(bundleIdentifier: String, iconSide: Double = Metrics.Size.appIcon)
     -> AppIdentity
   {
-    let key = CacheKey(bundleIdentifier: bundleIdentifier, iconSide: iconSide)
-    if let hit = cache[key] { return hit }
-    let identity = AppIdentity(bundleIdentifier: bundleIdentifier, iconSide: iconSide)
-    cache[key] = identity
-    return identity
+    cache.value(for: CacheKey(bundleIdentifier: bundleIdentifier, iconSide: iconSide)) {
+      AppIdentity(bundleIdentifier: bundleIdentifier, iconSide: iconSide)
+    }
   }
 
   init?(running application: NSRunningApplication) {

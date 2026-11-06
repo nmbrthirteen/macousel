@@ -12,6 +12,7 @@ struct EngineConfigOptions {
       lines.append("animation_speed = \(TomlNumber.decimal(speed))")
     }
     lines.append("auto_center = \(preferences.layout.centerMode != .never)")
+    lines.append("disable_native_tabs = \(!preferences.groupsNativeTabs)")
     return lines
   }
 }

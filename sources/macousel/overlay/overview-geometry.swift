@@ -18,6 +18,8 @@ struct OverviewGeometry {
   let stripBounds: CGRect
   let hitAreas: OverviewHitAreas
 
+  var cornerRadius: Double { OverlayRadius.overviewCard(scale: scale) }
+
   var dropLayout: StripLayout {
     StripLayout(
       placements: cards.map {
@@ -38,7 +40,10 @@ struct OverviewGeometry {
     }
     let gaps = Metrics.Overview.columnGap * Double(columns.count - 1)
     let available = max(size.width - 2 * Metrics.Overview.edgeMargin - gaps, 0)
-    let scale = min(Metrics.Overview.maximumScale, available / stripWidth)
+    let availableHeight = max(size.height - 2 * Metrics.Overview.verticalMargin, 0)
+    let tallest =
+      snapshot.stripHeight > 0 ? availableHeight / snapshot.stripHeight : Double.infinity
+    let scale = min(Metrics.Overview.maximumScale, available / stripWidth, tallest)
     let height = snapshot.stripHeight * scale
     let top = (size.height - height) / 2
     var x = (size.width - stripWidth * scale - gaps) / 2

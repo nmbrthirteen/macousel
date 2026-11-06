@@ -7,7 +7,6 @@ struct ShortcutAddButton: View {
   var body: some View {
     if recording.isRecording {
       Button(ShortcutRecording.prompt, action: recording.toggle)
-        .controlSize(.small)
     } else {
       Button(label, systemImage: "plus.circle", action: recording.toggle)
         .labelStyle(.iconOnly)

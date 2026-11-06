@@ -5,7 +5,9 @@ extension Preferences {
     case scrollGestureEnabled, swipeGestureEnabled, swipeFingers, swipeSensitivity, swipeStep
     case reversesSwipeDirection
     case displayFollowsPointer, focusFollowsMouse, mouseFollowsFocus, keepsFloatingWindowsOnTop
+    case groupsNativeTabs
     case appRules, appShortcuts, disabledDisplays, hasCompletedOnboarding, checksForUpdates
+    case showsInDock
   }
 
   func encode(to encoder: Encoder) throws {
@@ -42,6 +44,7 @@ extension Preferences {
     try values.encode(focusFollowsMouse, forKey: .focusFollowsMouse)
     try values.encode(mouseFollowsFocus, forKey: .mouseFollowsFocus)
     try values.encode(keepsFloatingWindowsOnTop, forKey: .keepsFloatingWindowsOnTop)
+    try values.encode(groupsNativeTabs, forKey: .groupsNativeTabs)
     try values.encode(appRules, forKey: .appRules)
     try values.encode(appShortcuts, forKey: .appShortcuts)
     if sortingUnorderedValues {
@@ -50,6 +53,7 @@ extension Preferences {
       try values.encode(disabledDisplays, forKey: .disabledDisplays)
     }
     try values.encode(checksForUpdates, forKey: .checksForUpdates)
+    try values.encode(showsInDock, forKey: .showsInDock)
     if includingOnboarding {
       try values.encode(hasCompletedOnboarding, forKey: .hasCompletedOnboarding)
     }

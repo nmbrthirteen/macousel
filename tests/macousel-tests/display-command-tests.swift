@@ -42,6 +42,50 @@ struct DisplayCommandTests {
     #expect(fixture.frames(of: left + right) == leftExpected.frames)
   }
 
+  @Test func sendWithoutFollowingKeepsFocusOnTheSourceDisplay() throws {
+    let (fixture, left, right) = try launchedPair()
+
+    fixture.manager.perform(.sendToNextDisplayWithoutFollowing)
+
+    let leftExpected = ExpectedStrip(columns: [2], fraction: 0.25, on: .leftOfPair, among: pair)
+    let rightExpected = ExpectedStrip(columns: [3, 1], fraction: 0.25, on: .rightOfPair, among: pair)
+    #expect(fixture.frames(of: [left[1]]) == leftExpected.frames)
+    #expect(fixture.frames(of: [right[0], left[0]]) == rightExpected.frames)
+    #expect(left[0].focusCount == 0)
+    #expect(left[1].focusCount == 1)
+  }
+
+  @Test func focusNextDisplayActivatesTheWindowOnTheOtherStrip() throws {
+    let (fixture, left, right) = try launchedPair()
+
+    fixture.manager.perform(.focusNextDisplay)
+
+    #expect(right[0].focusCount == 1)
+    #expect(left.allSatisfy { $0.focusCount == 0 })
+  }
+
+  @Test func focusNextDisplayWrapsAroundFromTheLastDisplay() throws {
+    let (fixture, left, right) = try launchedPair()
+    fixture.source.focus(right[0])
+
+    fixture.manager.perform(.focusNextDisplay)
+
+    #expect(left[0].focusCount == 1)
+  }
+
+  @Test func displayFocusActionsDoNothingOnASingleDisplay() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(2)
+    fixture.launch()
+    let before = fixture.frames(of: row)
+
+    fixture.manager.perform(.focusNextDisplay)
+    fixture.manager.perform(.sendToNextDisplayWithoutFollowing)
+
+    #expect(fixture.frames(of: row) == before)
+    #expect(row.allSatisfy { $0.focusCount == 0 })
+  }
+
   @Test func sendToNextDisplayDoesNothingOnASingleDisplay() throws {
     let fixture = try ControllerFixture()
     let row = fixture.openRow(2)

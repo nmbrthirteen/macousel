@@ -4,7 +4,6 @@ struct SceneMenuBar: View {
   private typealias Scene = OnboardingSceneMetrics
   private static let statusSymbols = ["wifi", "battery.100percent", "magnifyingglass", "switch.2"]
   private static let clock = "Tue 9:41"
-  private static let fontSize = 11.0
   private static let highlightInset = 3.0
   private static let highlightRadius = 5.0
 
@@ -18,7 +17,8 @@ struct SceneMenuBar: View {
         .frame(width: Scene.appItemWidth, height: Scene.menuBarHeight)
         .background {
           RoundedRectangle(cornerRadius: Self.highlightRadius, style: .continuous)
-            .fill(.white.opacity(0.25 * highlight))
+            .fill(.tertiary)
+            .opacity(highlight)
             .padding(.vertical, Self.highlightInset)
         }
       ForEach(Self.statusSymbols, id: \.self) {
@@ -26,11 +26,10 @@ struct SceneMenuBar: View {
       }
       Text(Self.clock).frame(width: Scene.clockWidth, alignment: .trailing)
     }
-    .font(.system(size: Self.fontSize, weight: .medium))
+    .font(.subheadline.weight(.medium))
     .foregroundStyle(.white)
     .padding(.trailing, Scene.menuBarInset)
     .frame(height: Scene.menuBarHeight)
-    .background(.black.opacity(0.08))
   }
 
   @ViewBuilder

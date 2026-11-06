@@ -15,33 +15,36 @@ struct ShortcutRow: View {
   }
 
   var body: some View {
-    CaptionedRow {
-      LabeledContent(action.title) {
-        HStack(spacing: Metrics.Spacing.compact) {
-          ForEach(hotkeys, id: \.self) { hotkey in
-            RemovableChip(
-              title: hotkey.displayString, removeLabel: "Remove \(hotkey.displayString) from \(action.title)"
-            ) { remove(hotkey) }
-          }
-          ShortcutAddButton(recording: recording, label: "Add shortcut for \(action.title)")
+    LabeledContent {
+      HStack(spacing: Metrics.Spacing.comfortable) {
+        ForEach(hotkeys, id: \.self) { hotkey in
+          KeycapChip(
+            hotkey: hotkey, removeLabel: "Remove \(hotkey.displayString) from \(action.title)"
+          ) { remove(hotkey) }
         }
+        ShortcutAddButton(recording: recording, label: "Add shortcut for \(action.title)")
       }
-      .modifier(EngineGated(isSupported: action.isSupported(by: engine)))
-      if let message = recording.message {
-        ErrorText(message)
-      }
-      if hasUnavailableHotkey {
-        CaptionText(Self.unavailableCaption)
-      }
+    } label: {
+      RowLabel(title: action.title, detail: caption)
     }
+    .disabled(!isSupported)
     .onDisappear(perform: recording.stop)
+    if let message = recording.message {
+      ErrorText(message)
+    }
   }
 
   private var engine: WindowEngine { store.preferences.engine }
 
+  private var isSupported: Bool { action.isSupported(by: engine) }
+
+  private var caption: String? {
+    if !isSupported { return EngineFeature.unsupportedCaption }
+    return hasUnavailableHotkey ? Self.unavailableCaption : nil
+  }
+
   private var hasUnavailableHotkey: Bool {
-    engine == .paneru && action.isSupported(by: engine)
-      && action.paneruSupport != .handledByMacousel
+    engine == .paneru && action.paneruSupport != .handledByMacousel
       && hotkeys.contains { !PaneruChord.isAvailable($0) }
   }
 

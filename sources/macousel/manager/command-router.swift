@@ -45,7 +45,9 @@ final class CommandRouter {
       overview.close()
     }
     switch action {
-    case .sendToNextDisplay: sendFocusedWindowToNextDisplay()
+    case .sendToNextDisplay: sendFocusedWindowToNextDisplay(following: true)
+    case .sendToNextDisplayWithoutFollowing: sendFocusedWindowToNextDisplay(following: false)
+    case .focusNextDisplay: focusNextDisplay()
     case .toggleFloating: toggleFloatingOfFocusedWindow()
     case .toggleOverview: overview.toggle()
     case .sendToScratchpad: sendFocusedWindowToScratchpad()
@@ -103,19 +105,33 @@ final class CommandRouter {
     present(key, activating: target)
   }
 
-  private func sendFocusedWindowToNextDisplay() {
+  private func nextDisplayKey(after key: Workspace.Key) -> Workspace.Key? {
     let ordered = state.tiledDisplays
-    guard ordered.count > 1, let key = state.focusedKey,
-      let window = state.workspaces[key]?.strip.focusedWindow,
-      let index = ordered.firstIndex(where: { $0.uuid == key.displayUUID }),
-      let destination = state.activeKey(for: ordered[(index + 1) % ordered.count])
+    guard ordered.count > 1, let index = ordered.firstIndex(where: { $0.uuid == key.displayUUID })
+    else { return nil }
+    return state.activeKey(for: ordered[(index + 1) % ordered.count])
+  }
+
+  private func focusNextDisplay() {
+    guard let key = state.focusedKey ?? state.pointerKey, let destination = nextDisplayKey(after: key)
+    else { return }
+    present(destination, activating: state.workspaces[destination]?.strip.focusedWindow)
+  }
+
+  private func sendFocusedWindowToNextDisplay(following: Bool) {
+    guard let key = state.focusedKey, let window = state.workspaces[key]?.strip.focusedWindow,
+      let destination = nextDisplayKey(after: key)
     else { return }
 
     state.workspaces[key]?.strip.remove(window)
     state.workspaces[destination]?.strip.insert(window, config: state.config)
     state.scrollToFocus(key)
     state.scrollToFocus(destination)
-    present(destination, activating: window)
+    if following {
+      present(destination, activating: window)
+    } else {
+      present(key, activating: state.workspaces[key]?.strip.focusedWindow)
+    }
   }
 
   private func sendFocusedWindowToScratchpad() {

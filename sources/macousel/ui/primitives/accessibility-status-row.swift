@@ -6,27 +6,28 @@ struct AccessibilityStatusRow: View {
   let grant: StatusRow.ActionButton
 
   var body: some View {
-    VStack(alignment: .leading, spacing: Metrics.Spacing.comfortable) {
-      StatusRow(
-        isPassing: status.isGranted,
-        title: status.isGranted ? "Accessibility access granted" : "Accessibility access needed",
-        detail: "macOS only lets an app move other apps' windows through the Accessibility API.",
-        action: status.isGranted ? nil : grant
-      )
-      if !status.isGranted {
-        CaptionText(
-          "Already on in System Settings? macOS ties the permission to this exact build, so each update needs it again."
-        )
+    StatusRow(
+      isPassing: status.isGranted,
+      title: status.isGranted ? "Accessibility access granted" : "Accessibility access needed",
+      detail: "macOS only lets an app move other apps' windows through the Accessibility API.",
+      action: status.isGranted ? nil : grant
+    )
+    .pollsAccessibility(status)
+    if !status.isGranted {
+      LabeledContent {
         Button("Reset and ask again", action: resetAndAsk)
+      } label: {
+        RowLabel(
+          title: "Already on in System Settings?",
+          detail: "macOS ties the permission to this exact build, so each update needs it again.")
       }
     }
-    .pollsAccessibility(status)
   }
 
   private func resetAndAsk() {
     Task {
       await AccessibilityPermission.resetGrant()
-      AccessibilityPermission.requestWithPrompt()
+      AccessibilityGuide.shared.begin()
     }
   }
 }

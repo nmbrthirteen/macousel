@@ -26,15 +26,25 @@ struct SettingsShortcutsFilterTests {
     #expect(filter.isFiltering)
   }
 
-  @Test func matchingActionsStayGroupedUnderTheirSections() {
+  @Test func matchingActionsStayGroupedUnderTheirGroups() {
     let filter = ShortcutsFilter(query: "overview")
-    #expect(filter.entries.map(\.section) == [.overviewAndTiling])
+    #expect(filter.entries.map(\.group) == [.other])
     #expect(titles(filter) == ["Show or hide overview"])
   }
 
-  @Test func sectionsWithoutMatchesAreDropped() {
+  @Test func groupsWithoutMatchesAreDropped() {
     let filter = ShortcutsFilter(query: "column 3")
-    #expect(filter.entries.map(\.section) == [.jumpToColumn, .moveToColumn])
+    #expect(filter.entries.map(\.group) == [.navigate])
+  }
+
+  @Test func theCheatSheetGroupsAreNavigateSizeStacksAndOther() {
+    #expect(ShortcutsFilter().entries.map(\.group.title) == ["Navigate", "Size", "Stacks", "Other"])
+  }
+
+  @Test func everyActionBelongsToExactlyOneGroup() {
+    let covered = Action.Group.allCases.flatMap(\.actions)
+    #expect(covered.count == Action.allCases.count)
+    #expect(Set(covered) == Set(Action.allCases))
   }
 
   @Test func unmatchedQueryLeavesNoEntries() {

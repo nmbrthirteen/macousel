@@ -29,7 +29,8 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 - Stack several windows in one column and resize the rows.
 - Turn a stack into a tabbed column. Paneru shows one window at a time and has no tab bar.
 - Cycle a column through preset widths, or nudge it wider and narrower.
-- Float a window to take it out of the strip.
+- Float a window to take it out of the strip. Quick Look floats by default, and Paneru never tiles dialogs and sheets.
+- Windows that an app merges into native tabs, like Finder or Terminal tabs, share one column. Settings > Layout has a switch for it. This is Paneru only.
 
 **Input**
 
@@ -42,7 +43,7 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 **The rest**
 
 - A minimap of the strip that appears when focus moves, and a column count in the menu bar.
-- An overview that shows every window in the strip, stacks included. Pick one to focus it, or drag a card to reorder columns or stack it onto another window. Shift plus an arrow key or a number moves the selected window.
+- An overview that shows every window in the strip, stacks included, with a picture of each window when Screen Recording is allowed. Pick one to focus it, or drag a card to reorder columns or stack it onto another window. Shift plus an arrow key or a number moves the selected window.
 - Drag a cell in the minimap to reorder and stack the same way.
 - Drag a real window by its title bar. A preview shows where it will land, between two columns, at either end of the strip, or on the top or bottom half of another window. Release and Paneru moves the window there.
 - A focus border and dimming for inactive windows.
@@ -62,7 +63,6 @@ With "Center the focused column" on, the strip centers on the dropped window aft
 Paneru does not do these. The built-in engine does, and Macousel greys out the matching settings while Paneru is selected.
 
 - A tab bar for tabbed columns.
-- Move a window straight to column 1 to 9.
 - Tiling off for one display, and the display under the pointer becoming the active one.
 - The scratchpad.
 - Floating windows that return to the front when you focus a tiled window.
@@ -74,7 +74,8 @@ Switch engines in Settings > General. Macousel stops one and starts the other wi
 ## Requirements
 
 - macOS 14 or later.
-- Accessibility permission. macOS only lets an app move other apps' windows through the Accessibility API. It is the only permission Macousel asks for, and Paneru runs under it as a child of the app.
+- Accessibility permission. macOS only lets an app move other apps' windows through the Accessibility API. It is the only permission Macousel needs, and Paneru runs under it as a child of the app.
+- Screen Recording permission, optional. The overview uses it to show a picture of each window. Without it the overview shows app icons and a button that asks for it. Macousel never asks on its own.
 - No other copy of Paneru running. Two window managers would both move your windows, so Macousel shows a message and does not start its own.
 
 ## Install
@@ -152,7 +153,7 @@ CODESIGN_IDENTITY="My Certificate" scripts/bundle.sh
 
 ## Default shortcuts
 
-Most of them use Control-Option, including the column numbers. Plain Option plus a digit would block characters on layouts such as German, where Option-5 to Option-9 type brackets and braces. Rebind any of them in Settings > Shortcuts. A shortcut you already changed keeps its binding.
+Most of them use Control-Option, including the column numbers. Plain Option plus a digit would block characters on layouts such as German, where Option-5 to Option-9 type brackets and braces. Rebind any of them in Settings > Shortcuts, which groups them as Navigate, Size, Stacks, and Other and draws each key as a keycap. A shortcut you already changed keeps its binding.
 
 Paneru handles the keys itself through an event tap. Macousel registers only the pause and overview keys and your app shortcuts. A key that Paneru has no name for stays in Settings but is not sent to Paneru, and its row says so.
 
@@ -168,15 +169,17 @@ Two columns of two stacked windows make a 2 by 2 grid. I build one by stacking e
 | Cycle width, full width, center | ⌃⌥ R, F, C |
 | Wider, narrower | ⌃⌥ = and - |
 | Taller, shorter, equalize | ⌃⌥⇧ = and -, ⌃⌥ 0 |
-| Stack with the column on the left | ⌃⌥ ] or [ |
-| Pop out to its own column on the right | ⌃⌥⇧ ] or [ |
+| Stack with the column on the left, or on the right | ⌃⌥ ] and [ |
+| Pop out to its own column on the right, or on the left | ⌃⌥⇧ ] and [ |
 | Tabbed column | ⌃⌥⇧ T |
 | Float | ⌃⌥ T |
 | Send to the next display | ⌃⌥ N |
+| Send to the next display and stay here | ⌃⌥⇧ N |
+| Focus the next display | ⌃⌥ D |
 | Overview | ⌃⌥ O |
 | Pause tiling | ⌃⌥ Q |
 
-Paneru only stacks a window onto the column on its left, so both stack shortcuts do the same thing. Both pop-out shortcuts do too. Move to column 1 to 9 (⌃⌥⇧ 1 to 9) and the scratchpad shortcuts need the built-in engine.
+Paneru only stacks onto the column on the left and pops out to the right. For the other two directions Macousel adds a swap: past the right neighbour before stacking, and back to the left after popping out. The scratchpad shortcuts need the built-in engine. With Paneru, Macousel registers the move to column 1 to 9 keys (⌃⌥⇧ 1 to 9) itself and replays the move step by step, so they take a moment.
 
 ## What Macousel stores and sends
 

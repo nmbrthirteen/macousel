@@ -21,7 +21,7 @@ final class PaneruInputBindings {
       return
     }
     let bindings = store.preferences.hotkeyBindings(
-      including: { $0 == .togglePaused || ($0 == .toggleOverview && isRunning) },
+      including: { $0 == .togglePaused || ($0.paneruSupport == .handledByMacousel && isRunning) },
       perform: perform, jump: isRunning ? jump : nil)
     let failures = shortcuts.setBindings(bindings)
     if failures > 0 {

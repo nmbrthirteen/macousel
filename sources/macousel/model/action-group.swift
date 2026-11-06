@@ -1,14 +1,18 @@
 nonisolated extension Action {
   enum Group: String, CaseIterable, Sendable {
-    case navigate, size, stacks, overview
+    case navigate, size, stacks, other
 
     var title: String {
       switch self {
       case .navigate: "Navigate"
       case .size: "Size"
       case .stacks: "Stacks"
-      case .overview: "Overview and scratchpad"
+      case .other: "Other"
       }
+    }
+
+    var actions: [Action] {
+      Action.allCases.filter { $0.group == self }
     }
   }
 
@@ -16,15 +20,15 @@ nonisolated extension Action {
     switch self {
     case .focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast, .focusColumn,
       .moveLeft, .moveRight, .moveUp, .moveDown, .moveToColumn, .moveToFirst, .moveToLast,
-      .sendToNextDisplay, .togglePaused:
+      .sendToNextDisplay, .sendToNextDisplayWithoutFollowing, .focusNextDisplay:
       .navigate
     case .cycleWidth, .toggleFullWidth, .center, .wider, .narrower, .taller, .shorter,
       .equalizeHeights:
       .size
     case .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating:
       .stacks
-    case .toggleOverview, .sendToScratchpad, .toggleScratchpad:
-      .overview
+    case .toggleOverview, .sendToScratchpad, .toggleScratchpad, .togglePaused:
+      .other
     }
   }
 }

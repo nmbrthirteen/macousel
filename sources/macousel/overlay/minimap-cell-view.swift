@@ -16,30 +16,22 @@ struct MinimapCellView: View {
       if isPlaceholder {
         PendingChangeView(radius: cell.cornerRadius)
       } else {
-        shape.fill(
-          cell.isFocused ? Color.accentColor : Color.primary.opacity(Metrics.Opacity.minimapColumn))
+        shape.fill(Color.primary.opacity(Metrics.Opacity.minimapColumn))
         content
         ForEach(Array(cell.tabDots.enumerated()), id: \.offset) { _, dot in
           Circle()
-            .fill(tabDotColor)
+            .fill(Color.primary.opacity(Metrics.Opacity.minimapTabDot))
             .frame(width: dot.width, height: dot.height)
             .position(relative(CGPoint(x: dot.midX, y: dot.midY)))
         }
       }
     }
     .frame(width: cell.rect.width, height: cell.rect.height)
+    .opacity(cell.isOnScreen || isLifted ? 1 : Metrics.Opacity.minimapOffscreen)
     .overlayLift(
       isLifted, scale: OverlayTiming.minimapLiftScale,
       shadowRadius: Metrics.Minimap.liftShadowRadius)
     .offset(x: cell.rect.minX + liftOffset, y: cell.rect.minY)
-  }
-
-  private var tabDotColor: Color {
-    cell.isFocused ? .white : Color.primary.opacity(Metrics.Opacity.minimapTabDot)
-  }
-
-  private var numberColor: Color {
-    cell.isFocused ? .white : Color.primary.opacity(Metrics.Opacity.minimapNumber)
   }
 
   @ViewBuilder
@@ -54,7 +46,7 @@ struct MinimapCellView: View {
     if let number = cell.content.number {
       Text("\(number.value)")
         .font(.overlay(.small, weight: .semibold))
-        .foregroundStyle(numberColor)
+        .foregroundStyle(Color.primary.opacity(Metrics.Opacity.minimapNumber))
         .position(relative(number.center))
     }
   }

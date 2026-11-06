@@ -18,6 +18,10 @@ final class LaunchAtLogin {
         try SMAppService.mainApp.unregister()
       }
       errorMessage = nil
+      if enabled, SMAppService.mainApp.status == .requiresApproval {
+        errorMessage = "Allow Macousel in System Settings > General > Login Items."
+        SMAppService.openSystemSettingsLoginItems()
+      }
     } catch {
       let verb = enabled ? "enable" : "disable"
       errorMessage =

@@ -50,7 +50,10 @@ struct EngineSwitchTests {
     #expect(fixture.manager.selected == .paneru)
     let paused = Set(Action.defaultShortcuts[.togglePaused] ?? [])
     let overview = Set(Action.defaultShortcuts[.toggleOverview] ?? [])
-    #expect(fixture.shortcuts.boundHotkeys == paused.union(overview))
+    let columnMoves = Set(Action.places.flatMap { Action.defaultShortcuts[.moveToColumn($0)] ?? [] })
+      .union(Action.defaultShortcuts[.stackRight] ?? [])
+      .union(Action.defaultShortcuts[.popOutLeft] ?? [])
+    #expect(fixture.shortcuts.boundHotkeys == paused.union(overview).union(columnMoves))
   }
 
   @Test func switchingBackStopsTheHelperAndTilesAgain() async throws {

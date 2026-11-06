@@ -4,6 +4,7 @@ struct OnboardingHero: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.controlActiveState) private var activeState
   @State private var start = Date.now
+  @State private var isWindowVisible = true
   let timeline: SceneTimeline
   let description: String
 
@@ -12,21 +13,18 @@ struct OnboardingHero: View {
     self.description = description
   }
 
+  private var isPaused: Bool {
+    reduceMotion || activeState != .key || !isWindowVisible
+  }
+
   var body: some View {
-    // Redraws every frame, so it stops while the window is in the background.
-    TimelineView(.animation(paused: reduceMotion || activeState == .inactive)) { context in
+    // Redraws every frame, so it stops unless the window is key and on screen.
+    TimelineView(.animation(paused: isPaused)) { context in
       SceneDesktop(
         pose: reduceMotion
           ? timeline.restingPose : timeline.pose(at: context.date.timeIntervalSince(start)))
     }
-    .mask {
-      LinearGradient(
-        stops: [
-          .init(color: .black, location: OnboardingMetrics.heroFadeStart),
-          .init(color: .clear, location: 1),
-        ],
-        startPoint: .top, endPoint: .bottom)
-    }
+    .readsWindowVisibility($isWindowVisible)
     .accessibilityElement()
     .accessibilityLabel(description)
   }

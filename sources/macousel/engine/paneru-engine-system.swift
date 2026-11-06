@@ -16,8 +16,9 @@ extension PaneruEngine {
     let locator = EngineHelperLocator.system(bundle: bundle)
     let locate: () -> URL? = { locator.helper }
     let service = EngineService.privateName(bundleIdentifier: bundle.bundleIdentifier)
+    let bridge = EngineBridgeConnection(service: service, locate: { locator.bridge })
     let commands = EngineClient(
-      service: service, locate: locate, locateBridge: { locator.bridge })
+      service: service, locate: locate, locateBridge: { locator.bridge }, bridge: bridge)
     let sync = EngineConfigSync(
       store: store, writer: EngineConfigWriter(opener: SystemConfigFileOpener()), url: paths.config)
     let supervisor = EngineSupervisor(
@@ -34,13 +35,13 @@ extension PaneruEngine {
         isTrusted: { environment.isAccessibilityGranted }, writeConfig: { try sync.writeCurrent() },
         now: { ContinuousClock.now }, sleep: { try await Task.sleep(for: $0) }))
     let displays: () -> [Display] = { environment.displays }
-    let reorder = EngineReorder(commands: commands, sleep: { try await Task.sleep(for: $0) })
     let world = EngineWorld(commands: commands, sleep: { try await Task.sleep(for: $0) })
+    let reorder = EngineReorder(commands: commands, sleep: { try await world.awaitEvent(upTo: $0) })
     let overview = EngineOverview(host: overlays, displays: displays, reorder: reorder)
     let drag = EngineDrag(
       pointer: pointer, clock: clock, host: overlays, world: world, displays: displays,
       reorder: reorder,
-      settler: EngineSettler(commands: commands, sleep: { try await Task.sleep(for: $0) }),
+      settler: EngineSettler(commands: commands, sleep: { try await world.awaitEvent(upTo: $0) }),
       centering: EngineCentering(
         commands: commands, pointer: pointer, displays: displays,
         isEnabled: { store.preferences.layout.centerMode != .never },
@@ -49,10 +50,10 @@ extension PaneruEngine {
     return PaneruEngine(
       PaneruEngineParts(
         store: store, environment: environment, supervisor: supervisor, sync: sync,
-        commands: commands, events: EngineSubscriber(service: service, locate: locate),
-        world: world,
+        commands: commands,
+        events: EngineSubscriber(service: service, bridge: bridge, locate: locate), world: world,
         minimap: EngineMinimap(host: overlays, store: store, displays: displays, reorder: reorder),
-        overview: overview, drag: drag,
+        overview: overview, reorder: reorder, drag: drag,
         swipe: EngineSwipe(
           gestures: gestures, store: store, commands: commands, position: { world.position },
           isSuppressed: { overview.isOpen }),

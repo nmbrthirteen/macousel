@@ -4,18 +4,31 @@ struct MinimapView: View {
   let model: MinimapModel
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+  @Environment(\.colorSchemeContrast) private var contrast
 
   private var appearance: Animation {
     .easeOut(duration: OverlayTiming.minimapAppear)
   }
 
   private var disappearance: Animation {
-    .easeOut(duration: OverlayTiming.slowFade)
+    .easeOut(duration: OverlayTiming.minimapDisappear)
   }
 
   private var transition: AnyTransition {
     reduceMotion
-      ? .opacity : .opacity.combined(with: .scale(scale: OverlayTiming.hiddenScale))
+      ? .opacity : .opacity.combined(with: .scale(scale: OverlayTiming.minimapHiddenScale))
+  }
+
+  private var focusAnimation: Animation? {
+    reduceMotion
+      ? nil
+      : .spring(
+        response: OverlayTiming.minimapFocusResponse,
+        dampingFraction: OverlayTiming.criticalDamping)
+  }
+
+  private var containerShape: RoundedRectangle {
+    RoundedRectangle(cornerRadius: OverlayRadius.minimapContainer, style: .continuous)
   }
 
   var body: some View {
@@ -31,25 +44,59 @@ struct MinimapView: View {
 
   private var container: some View {
     let geometry = MinimapGeometry(snapshot: model.arrangement)
-    return ZStack(alignment: .topLeading) {
+    return VStack(spacing: 0) {
+      strip(geometry)
+      MinimapLabelView(model: model)
+        .frame(height: Metrics.Minimap.labelLineHeight)
+        .padding(.horizontal, Metrics.Minimap.horizontalPadding)
+    }
+    .frame(
+      width: geometry.containerWidth, height: Metrics.Minimap.panelHeight, alignment: .top)
+    .background {
+      if reduceTransparency {
+        containerShape.fill(Color(nsColor: .windowBackgroundColor))
+      }
+    }
+    .overlay { containerShape.strokeBorder(borderColor, lineWidth: borderWidth) }
+    .contentShape(Rectangle())
+    .gesture(pointerGesture, isEnabled: model.isInteractive)
+  }
+
+  private func strip(_ geometry: MinimapGeometry) -> some View {
+    ZStack(alignment: .topLeading) {
       lens(geometry.lens, radius: geometry.lensRadius)
       ForEach(geometry.cells) { cell in
         MinimapCellView(
           cell: cell, icons: model.icons, isPlaceholder: model.lift?.cell == cell.id)
+      }
+      if let ring = geometry.focusRing, model.lift?.cell != ring.cell {
+        focusRing(ring)
       }
       if let lift = model.lift, let cell = liftedCell(lift) {
         MinimapCellView(cell: cell, icons: model.icons, isLifted: true, liftOffset: lift.offset)
       }
     }
     .frame(width: geometry.containerWidth, height: Metrics.Minimap.height, alignment: .topLeading)
-    .background {
-      if reduceTransparency {
-        RoundedRectangle(cornerRadius: OverlayRadius.minimapContainer, style: .continuous)
-          .fill(Color(nsColor: .windowBackgroundColor))
-      }
-    }
-    .contentShape(Rectangle())
-    .gesture(pointerGesture, isEnabled: model.isInteractive)
+  }
+
+  private var borderColor: Color {
+    contrast == .increased
+      ? Color.primary.opacity(Metrics.Opacity.minimapContrastBorder)
+      : Color(nsColor: .separatorColor)
+  }
+
+  private var borderWidth: Double {
+    contrast == .increased ? Metrics.Size.contrastStroke : Metrics.Size.hairlineStroke
+  }
+
+  // The ring is one view that moves between tiles, so focus changes read as motion.
+  // Its animation keys on the focused window, so scrolling alone never makes it trail.
+  private func focusRing(_ ring: MinimapGeometry.FocusRing) -> some View {
+    RoundedRectangle(cornerRadius: ring.cornerRadius, style: .continuous)
+      .strokeBorder(Color.accentColor, lineWidth: Metrics.Minimap.focusRingWidth)
+      .frame(width: ring.rect.width, height: ring.rect.height)
+      .offset(x: ring.rect.minX, y: ring.rect.minY)
+      .animation(focusAnimation, value: ring.cell)
   }
 
   private func liftedCell(_ lift: MinimapModel.Lift) -> MinimapCell? {

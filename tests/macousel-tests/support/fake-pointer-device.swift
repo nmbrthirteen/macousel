@@ -13,6 +13,7 @@ final class FakePointerDevice: PointerDevice {
   var isObservingPrimaryButton: Bool { buttonHandler != nil }
   private(set) var warps: [CGPoint] = []
   private(set) var serverBoundsReadCount = 0
+  private(set) var windowLookupCount = 0
   private var serverBoundsOverrides: [CGWindowID: CGRect] = [:]
   private var movementHandler: ((CGPoint) -> Void)?
   private var buttonHandler: ((PrimaryButtonEvent) -> Void)?
@@ -24,7 +25,8 @@ final class FakePointerDevice: PointerDevice {
   }
 
   func windowID(at point: CGPoint) -> CGWindowID? {
-    windowAtPoint(point)
+    windowLookupCount += 1
+    return windowAtPoint(point)
   }
 
   func serverBounds(of window: CGWindowID) -> CGRect? {

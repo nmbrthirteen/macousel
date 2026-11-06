@@ -182,9 +182,9 @@ final class LayoutPresenter {
   private func settledPlacements(
     ofSlowWindowsIn layout: StripLayout, key: Workspace.Key, on display: Display
   ) -> [WindowID: Placement] {
-    let slow = layout.placements.map(\.window).filter { window in
+    let slow = Set(layout.placements.map(\.window).filter { window in
       source.window(window.rawValue).map { placer.isSlowApp(of: $0) } ?? false
-    }
+    })
     guard !slow.isEmpty, let target = state.targetLayout(for: key) else { return [:] }
     var settled: [WindowID: Placement] = [:]
     for placement in target.placements where slow.contains(placement.window) {

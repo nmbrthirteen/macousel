@@ -32,6 +32,7 @@ final class FakeOverlayHost: OverlayHost {
   var onOverviewRowHeight: ((WindowID, Double, VerticalNeighbor) -> Void)?
   var onMinimapShown: ((MinimapSnapshot, MinimapUpdate) -> Void)?
   private(set) var overview: Overview?
+  private(set) var lastOverview: Overview?
   private(set) var dropPreview: CGRect?
   private(set) var dropPreviewHistory: [CGRect?] = []
   private(set) var focusBorder: FocusBorder?
@@ -84,6 +85,7 @@ final class FakeOverlayHost: OverlayHost {
 
   func showOverview(_ snapshot: OverviewSnapshot, on displayFrame: CGRect) {
     overview = Overview(snapshot: snapshot, displayFrame: displayFrame)
+    lastOverview = overview
   }
 
   func hideOverview() {

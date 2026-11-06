@@ -2,12 +2,16 @@ import CoreGraphics
 import StripCore
 
 final class SystemOverlayHost: OverlayHost {
+  private static let idleRelease = Duration.seconds(30)
+
   private var focusBorder: FocusBorderOverlay?
   private var dim: DimOverlay?
   private var minimap: MinimapOverlay?
   private var tabBars: TabBarOverlay?
   private var overview: OverviewOverlay?
   private var dropPreview: DropPreviewOverlay?
+  private var overviewRelease: Task<Void, Never>?
+  private var dropPreviewRelease: Task<Void, Never>?
 
   var onTabSelected: ((WindowID) -> Void)?
   var onMinimapSelect: ((WindowID) -> Void)?
@@ -56,6 +60,7 @@ final class SystemOverlayHost: OverlayHost {
   }
 
   func showDropPreview(at frame: CGRect) {
+    dropPreviewRelease?.cancel()
     let overlay = dropPreview ?? DropPreviewOverlay()
     dropPreview = overlay
     overlay.show(at: frame)
@@ -63,9 +68,12 @@ final class SystemOverlayHost: OverlayHost {
 
   func hideDropPreview() {
     dropPreview?.hide()
+    dropPreviewRelease?.cancel()
+    dropPreviewRelease = Self.releaseWhenIdle { [weak self] in self?.dropPreview = nil }
   }
 
   func showOverview(_ snapshot: OverviewSnapshot, on displayFrame: CGRect) {
+    overviewRelease?.cancel()
     let overlay = overview ?? makeOverview()
     overview = overlay
     overlay.show(snapshot, on: displayFrame)
@@ -73,6 +81,18 @@ final class SystemOverlayHost: OverlayHost {
 
   func hideOverview() {
     overview?.hide()
+    overviewRelease?.cancel()
+    overviewRelease = Self.releaseWhenIdle { [weak self] in self?.overview = nil }
+  }
+
+  // A hidden panel still holds its hosting view and model, so a long-idle one is dropped and
+  // rebuilt on the next use.
+  private static func releaseWhenIdle(_ release: @escaping @MainActor () -> Void) -> Task<Void, Never> {
+    Task {
+      try? await Task.sleep(for: idleRelease)
+      guard !Task.isCancelled else { return }
+      release()
+    }
   }
 
   private func makeMinimap() -> MinimapOverlay {
@@ -83,7 +103,7 @@ final class SystemOverlayHost: OverlayHost {
   }
 
   private func makeOverview() -> OverviewOverlay {
-    let overlay = OverviewOverlay()
+    let overlay = OverviewOverlay(capture: SystemWindowCapture())
     overlay.onSelect = { [weak self] window in self?.onOverviewSelect?(window) }
     overlay.onKey = { [weak self] key in self?.onOverviewKey?(key) }
     overlay.onDismiss = { [weak self] in self?.onOverviewDismiss?() }

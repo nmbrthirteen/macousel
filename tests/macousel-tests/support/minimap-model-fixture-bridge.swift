@@ -6,7 +6,7 @@ final class MinimapModelFixtureBridge {
 
   init(_ fixture: ControllerFixture) {
     let clock = fixture.clock
-    let model = MinimapModel { clock.schedule(after: $0, $1) }
+    let model = MinimapModel(now: { clock.now }, schedule: { clock.schedule(after: $0, $1) })
     let host = fixture.overlays
     model.onSelect = { host.clickMinimap($0) }
     model.onMove = { host.dropFromMinimap($0, as: $1) }

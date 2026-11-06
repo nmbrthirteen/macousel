@@ -10,6 +10,7 @@ struct PaneruEngineParts {
   var world: EngineWorld
   var minimap: EngineMinimap
   var overview: EngineOverview
+  var reorder: EngineReorder
   var drag: EngineDrag
   var swipe: EngineSwipe
   var bindings: PaneruInputBindings

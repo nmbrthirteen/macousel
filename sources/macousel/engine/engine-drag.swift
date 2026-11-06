@@ -4,6 +4,7 @@ import WindowSystem
 
 final class EngineDrag {
   static let longPress = Duration.milliseconds(4500)
+  static let pressMargin: CGFloat = 24
 
   private struct Press {
     var window: WindowID
@@ -89,7 +90,7 @@ final class EngineDrag {
       log.ignoredPress(reason: reason)
       return
     }
-    guard !isSuppressed(), let window = pointer.windowID(at: point),
+    guard !isSuppressed(), mayHitTiledWindow(point), let window = pointer.windowID(at: point),
       let tracked = trackedPress(of: window, at: point),
       let baseline = pointer.serverBounds(of: window) ?? tracked.columns.frame(of: tracked.window)
     else { return }
@@ -97,6 +98,17 @@ final class EngineDrag {
     press = tracked
     phase = .candidate(DragCandidate(window: window, requested: baseline, baseline: baseline))
     poller.start { [weak self] in self?.polled() ?? false }
+  }
+
+  // Most presses land on menus, the Dock, or floating windows. Only one over a tiled frame
+  // needs the window server's full on-screen list. The margin covers a snapshot that lags a
+  // scroll by a frame or two.
+  private func mayHitTiledWindow(_ point: CGPoint) -> Bool {
+    guard let columns = world.snapshot?.tiledColumns else { return false }
+    return columns.columns.lazy.flatMap(\.windows).contains { window in
+      window.frame?.rect.insetBy(dx: -Self.pressMargin, dy: -Self.pressMargin).contains(point)
+        == true
+    }
   }
 
   private var busyReason: String? {

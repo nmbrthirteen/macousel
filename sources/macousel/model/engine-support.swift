@@ -21,6 +21,8 @@ nonisolated extension Action {
     case .moveToFirst: .command(PaneruCommand("window", "swap", "first"))
     case .moveToLast: .command(PaneruCommand("window", "swap", "last"))
     case .sendToNextDisplay: .command(PaneruCommand("window", "nextdisplay"))
+    case .sendToNextDisplayWithoutFollowing: .command(PaneruCommand("window", "nextdisplaysend"))
+    case .focusNextDisplay: .command(PaneruCommand("mouse", "nextdisplay"))
     case .cycleWidth: .command(PaneruCommand("window", "resize"))
     case .toggleFullWidth: .command(PaneruCommand("window", "fullwidth"))
     case .center: .command(PaneruCommand("window", "center"))
@@ -29,12 +31,13 @@ nonisolated extension Action {
     case .taller: .command(PaneruCommand("window", "vertical", "grow"))
     case .shorter: .command(PaneruCommand("window", "vertical", "shrink"))
     case .equalizeHeights: .command(PaneruCommand("window", "equalize"))
-    case .stackLeft, .stackRight: .command(PaneruCommand("window", "stack"))
-    case .popOutLeft, .popOutRight: .command(PaneruCommand("window", "unstack"))
+    case .stackLeft: .command(PaneruCommand("window", "stack"))
+    case .popOutRight: .command(PaneruCommand("window", "unstack"))
     case .toggleTabbed: .command(PaneruCommand("window", "tabbeddisplay"))
     case .toggleFloating: .command(PaneruCommand("window", "manage"))
-    case .togglePaused, .toggleOverview: .handledByMacousel
-    case .moveToColumn, .sendToScratchpad, .toggleScratchpad: .builtInOnly
+    case .togglePaused, .toggleOverview, .moveToColumn, .stackRight, .popOutLeft:
+      .handledByMacousel
+    case .sendToScratchpad, .toggleScratchpad: .builtInOnly
     }
   }
 
@@ -42,6 +45,16 @@ nonisolated extension Action {
     switch engine {
     case .builtIn: true
     case .paneru: paneruSupport != .builtInOnly
+    }
+  }
+
+  // The engine only stacks into the column on the left and pops out to the right, so the
+  // other two directions add a swap: past the neighbour before stacking, back after popping.
+  var paneruSequence: [PaneruCommand]? {
+    switch self {
+    case .stackRight: [PaneruCommand("window", "swap", "east"), PaneruCommand("window", "stack")]
+    case .popOutLeft: [PaneruCommand("window", "unstack"), PaneruCommand("window", "swap", "west")]
+    default: nil
     }
   }
 

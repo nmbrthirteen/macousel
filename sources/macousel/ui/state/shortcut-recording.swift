@@ -43,6 +43,10 @@ final class ShortcutRecording {
   }
 
   func record(_ hotkey: Hotkey) {
+    if let reserved = Self.reservedMessage(for: hotkey) {
+      message = reserved
+      return
+    }
     if let owner = store.preferences.owner(of: hotkey) {
       message = conflictMessage(for: hotkey, owner: owner)
       return
@@ -50,6 +54,18 @@ final class ShortcutRecording {
     store.preferences.assign(hotkey, to: target)
     message = nil
     stop()
+  }
+
+  private static let reservedKeyCodes: Set<Int> = [
+    kVK_ANSI_Q, kVK_ANSI_W, kVK_ANSI_C, kVK_ANSI_V, kVK_ANSI_X, kVK_ANSI_Z, kVK_ANSI_A,
+    kVK_ANSI_S, kVK_ANSI_H, kVK_ANSI_M, kVK_Tab, kVK_Space, kVK_ANSI_Grave, kVK_ANSI_Comma,
+  ]
+
+  static func reservedMessage(for hotkey: Hotkey) -> String? {
+    guard hotkey.modifiers == [.command], reservedKeyCodes.contains(Int(hotkey.keyCode)) else {
+      return nil
+    }
+    return "\(hotkey.displayString) is a system shortcut. Add ⌃ or ⌥."
   }
 
   private func handle(_ event: NSEvent) {

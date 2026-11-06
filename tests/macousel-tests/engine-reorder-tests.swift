@@ -103,6 +103,46 @@ struct EngineReorderTests {
       commands.sent == [["window", "swap", "last"], ["window", "swap", "first"]])
   }
 
+  @Test func movesTheFocusedWindowToAColumnNumber() async {
+    strip.columns = [[1], [2], [3], [4]]
+    strip.focused = 4
+
+    let outcome = await reorder.moveFocused(toPlace: 2)
+
+    #expect(strip.columns == [[1], [4], [2], [3]])
+    #expect(strip.errors.isEmpty)
+    if case .completed = outcome {} else { Issue.record("\(outcome)") }
+  }
+
+  @Test func movesTheFocusedWindowToTheEndForColumnNine() async {
+    strip.columns = [[1], [2], [3], [4]]
+    strip.focused = 1
+
+    _ = await reorder.moveFocused(toPlace: 9)
+
+    #expect(strip.columns == [[2], [3], [4], [1]])
+  }
+
+  @Test func leavesAWindowAlreadyInItsColumnNumberAlone() async {
+    strip.columns = [[1], [2], [3], [4]]
+    strip.focused = 3
+
+    let outcome = await reorder.moveFocused(toPlace: 3)
+
+    #expect(commands.sent.isEmpty)
+    #expect(outcome == .nothingToDo(strip.snapshot))
+  }
+
+  @Test func ignoresAColumnNumberBeyondTheStrip() async {
+    strip.columns = [[1], [2]]
+    strip.focused = 1
+
+    let outcome = await reorder.moveFocused(toPlace: 5)
+
+    #expect(commands.sent.isEmpty)
+    #expect(outcome == .nothingToDo(strip.snapshot))
+  }
+
   @Test func skipsFocusingWhenTheWindowIsAlreadyFocused() async {
     strip.focused = 2
 

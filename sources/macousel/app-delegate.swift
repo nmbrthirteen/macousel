@@ -11,6 +11,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   let onboarding: OnboardingWindowController
   let updater: Updater
   let diagnostics: DiagnosticsAction
+  let settings: SettingsWindowController
+  private var menuBar: MenuBarController?
+  private let dockPolicy: DockPolicy
   private let whatsNew = WhatsNewWindowController()
   private let terminationSignals = TerminationSignals()
   private var isDuplicate = false
@@ -19,11 +22,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = PreferencesStore()
     self.store = store
     manager = WindowManager(store: store)
-    onboarding = OnboardingWindowController(store: store)
+    let onboarding = OnboardingWindowController(store: store)
+    self.onboarding = onboarding
     updater = Updater(
       feed: GitHubReleaseFeed(), installer: UpdateInstaller.running(),
       currentVersion: BundleInfo(bundle: .main).version, store: store)
     diagnostics = DiagnosticsAction(store: store, engineReport: { [manager] in await manager.engineReport() })
+    let dockPolicy = DockPolicy(store: store)
+    self.dockPolicy = dockPolicy
+    settings = SettingsWindowController(onVisibilityChange: { dockPolicy.hasOpenWindow = $0 })
     super.init()
   }
 
@@ -37,7 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
     terminationSignals.install()
+    dockPolicy.start()
     if #unavailable(macOS 15) { closeSettingsWindow() }
+    menuBar = MenuBarController(
+      manager: manager, updater: updater, store: store, diagnostics: diagnostics,
+      showSettings: { [settings] in settings.show(section: $0) }, showWelcome: onboarding.show)
     manager.start()
     let pendingNotes = PendingReleaseNotes(defaults: .standard)
       .take(for: BundleInfo(bundle: .main).version)
@@ -49,9 +60,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func closeSettingsWindow() {
     for window in NSApp.windows
-    where window.identifier?.rawValue.hasPrefix(SettingsWindow.id) == true {
+    where window.identifier?.rawValue.hasPrefix(SettingsWindowController.windowID) == true {
       window.close()
     }
+  }
+
+  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    guard !isDuplicate else { return false }
+    settings.show()
+    return false
+  }
+
+  // Closing Settings leaves the menu bar item, so the app keeps running.
+  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    false
   }
 
   func applicationWillTerminate(_ notification: Notification) {

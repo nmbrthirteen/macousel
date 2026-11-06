@@ -47,9 +47,13 @@ nonisolated enum EngineEvent: Decodable, Equatable, Sendable {
 
   private static let logger = Logger(subsystem: Log.subsystem, category: "engine")
 
-  static func decode(line: String) -> EngineEvent? {
+  private static let decoder: JSONDecoder = {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return decoder
+  }()
+
+  static func decode(line: String) -> EngineEvent? {
     do {
       return try decoder.decode(EngineEvent.self, from: Data(line.utf8))
     } catch {

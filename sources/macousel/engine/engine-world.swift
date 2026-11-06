@@ -4,6 +4,8 @@ import Observation
 final class EngineWorld {
   static let connectAttempts = 20
   static let connectInterval = Duration.milliseconds(500)
+  static let retryDelay = Duration.milliseconds(100)
+  static let maximumRetries = 3
 
   private(set) var snapshot: EngineSnapshot?
   @ObservationIgnored var onFocusMoved: ((EngineSnapshot) -> Void)?
@@ -15,6 +17,9 @@ final class EngineWorld {
   @ObservationIgnored private var refreshing: Task<Void, Never>?
   // A fetch that started before clear() must not adopt its result afterwards.
   @ObservationIgnored private var generation = 0
+  @ObservationIgnored private var failures = 0
+  @ObservationIgnored private var nextWaiter = 0
+  @ObservationIgnored private var waiters: [Int: CheckedContinuation<Void, Never>] = [:]
 
   init(commands: any EngineCommanding, sleep: @escaping (Duration) async throws -> Void) {
     self.commands = commands
@@ -45,10 +50,14 @@ final class EngineWorld {
     refreshing?.cancel()
     refreshing = nil
     needsAnother = false
+    failures = 0
     snapshot = nil
   }
 
   func handle(_ event: EngineEvent) {
+    let woken = waiters
+    waiters = [:]
+    woken.values.forEach { $0.resume() }
     // A title change carries everything it changes, so it skips the refetch.
     if case .windowTitleChanged(let id, let title) = event {
       guard var updated = snapshot else { return }
@@ -57,6 +66,20 @@ final class EngineWorld {
       return
     }
     refresh()
+  }
+
+  // Pollers waiting for the engine to settle wake as soon as it reports a change.
+  func awaitEvent(upTo limit: Duration) async throws {
+    nextWaiter += 1
+    let id = nextWaiter
+    await withCheckedContinuation { continuation in
+      waiters[id] = continuation
+      Task {
+        try? await sleep(limit)
+        waiters.removeValue(forKey: id)?.resume()
+      }
+    }
+    try Task.checkCancellation()
   }
 
   func refresh() {
@@ -68,7 +91,17 @@ final class EngineWorld {
     refreshing = Task {
       repeat {
         needsAnother = false
-        if let fetched = await commands.fetchSnapshot(), current == generation { adopt(fetched) }
+        let fetched = await commands.fetchSnapshot()
+        guard current == generation else { break }
+        if let fetched {
+          failures = 0
+          adopt(fetched)
+        } else if failures < Self.maximumRetries {
+          // The snapshot is stale until a fetch lands, so try once more shortly.
+          failures += 1
+          try? await sleep(Self.retryDelay)
+          needsAnother = true
+        }
       } while needsAnother && current == generation
       if current == generation { refreshing = nil }
     }

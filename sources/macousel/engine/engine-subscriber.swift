@@ -11,12 +11,17 @@ final class EngineSubscriber: EngineEventSource {
   private let locate: () -> URL?
   private let service: String
   private let retryDelay: Duration
+  private let bridge: EngineBridgeConnection?
   private var task: Task<Void, Never>?
   private var process: Process?
 
-  init(service: String, retryDelay: Duration = .seconds(1), locate: @escaping () -> URL?) {
+  init(
+    service: String, retryDelay: Duration = .seconds(1), bridge: EngineBridgeConnection? = nil,
+    locate: @escaping () -> URL?
+  ) {
     self.service = service
     self.retryDelay = retryDelay
+    self.bridge = bridge
     self.locate = locate
   }
 
@@ -30,6 +35,7 @@ final class EngineSubscriber: EngineEventSource {
     task = nil
     process?.terminate()
     process = nil
+    bridge?.close()
   }
 
   private func keepSubscribed() async {
@@ -40,6 +46,18 @@ final class EngineSubscriber: EngineEventSource {
   }
 
   private func subscribeOnce() async {
+    guard let signals = bridge?.signals() else {
+      await spawnSubscriber()
+      return
+    }
+    var connected = false
+    for await signal in signals {
+      announce(&connected)
+      if case .event(let line) = signal { deliver(line) }
+    }
+  }
+
+  private func spawnSubscriber() async {
     guard let helper = locate() else { return }
     let child = Process()
     let output = Pipe()
@@ -56,13 +74,25 @@ final class EngineSubscriber: EngineEventSource {
       return
     }
     process = child
-    onConnect?()
+    var connected = false
     do {
       for try await line in output.fileHandleForReading.bytes.lines {
-        if let event = EngineEvent.decode(line: line) { onEvent?(event) }
+        announce(&connected)
+        deliver(line)
       }
     } catch {
       Self.logger.error("The engine event stream failed: \(error, privacy: .public)")
     }
+  }
+
+  // Reconnecting refreshes the world, so wait for proof the engine answers.
+  private func announce(_ connected: inout Bool) {
+    guard !connected else { return }
+    connected = true
+    onConnect?()
+  }
+
+  private func deliver(_ line: String) {
+    if let event = EngineEvent.decode(line: line) { onEvent?(event) }
   }
 }

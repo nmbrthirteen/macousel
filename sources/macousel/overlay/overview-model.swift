@@ -19,6 +19,10 @@ final class OverviewModel {
   private(set) var lift: Lift?
   private(set) var resizeLabel: ResizeLabel?
   private(set) var activeDivider: WindowID?
+  private(set) var isExpanded = false
+  private(set) var hovered: WindowID?
+  private(set) var displayFrame = CGRect.zero
+  let previews: OverviewPreviews
   @ObservationIgnored var interaction = OverviewInteraction.idle
   @ObservationIgnored var onSelect: (WindowID) -> Void = { _ in }
   @ObservationIgnored var onDismiss: () -> Void = {}
@@ -26,6 +30,10 @@ final class OverviewModel {
   @ObservationIgnored var onColumnWidth: (WindowID, Double) -> Void = { _, _ in }
   @ObservationIgnored var onRowHeight: (WindowID, Double, VerticalNeighbor) -> Void = { _, _, _ in }
   @ObservationIgnored private let icons = AppIconCache(iconSide: Metrics.Overview.iconSide)
+
+  init(previews: OverviewPreviews) {
+    self.previews = previews
+  }
 
   func icon(for bundleIdentifier: String?) -> NSImage? {
     bundleIdentifier.map(icons.icon(for:))
@@ -36,6 +44,38 @@ final class OverviewModel {
     self.snapshot = snapshot
     guard case .idle = interaction else { return }
     animated { arrangement = snapshot }
+  }
+
+  func prepare(_ snapshot: OverviewSnapshot, on displayFrame: CGRect) {
+    interaction = .idle
+    unanimated {
+      self.snapshot = snapshot
+      arrangement = snapshot
+      self.displayFrame = displayFrame
+      isExpanded = false
+      hovered = nil
+      lift = nil
+      resizeLabel = nil
+      activeDivider = nil
+    }
+  }
+
+  func expand() {
+    withAnimation(flight(response: OverlayTiming.overviewOpenResponse)) { isExpanded = true }
+  }
+
+  func collapse(completion: @escaping () -> Void) {
+    withAnimation(
+      flight(response: OverlayTiming.overviewCloseResponse), completionCriteria: .logicallyComplete,
+      { isExpanded = false }, completion: completion)
+  }
+
+  func hover(_ window: WindowID, isInside: Bool) {
+    if isInside {
+      hovered = window
+    } else if hovered == window {
+      hovered = nil
+    }
   }
 
   func setArrangement(
@@ -59,18 +99,22 @@ final class OverviewModel {
     }
   }
 
-  private var animates: Bool {
+  var animates: Bool {
     snapshot.springResponse != nil && !OverlayPanel.reducesMotion
   }
 
+  private func flight(response: Double) -> Animation {
+    animates
+      ? .spring(response: response, dampingFraction: OverlayTiming.criticalDamping)
+      : .easeOut(duration: OverlayTiming.fade)
+  }
+
   private func animated(_ change: () -> Void) {
-    guard let response = snapshot.springResponse, animates else {
+    guard animates else {
       unanimated(change)
       return
     }
-    withAnimation(.spring(response: response, dampingFraction: OverlayTiming.springDamping)) {
-      change()
-    }
+    withAnimation(flight(response: OverlayTiming.overviewOpenResponse), change)
   }
 
   private func unanimated(_ change: () -> Void) {

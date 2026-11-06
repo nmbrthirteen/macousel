@@ -11,6 +11,7 @@ final class PaneruEngine: ManagementEngine {
 
   @ObservationIgnored private let parts: PaneruEngineParts
   @ObservationIgnored private let accessibility: AccessibilityMonitor
+  @ObservationIgnored private var appliedInputs: InputSettings?
 
   init(_ parts: PaneruEngineParts) {
     self.parts = parts
@@ -68,6 +69,7 @@ final class PaneruEngine: ManagementEngine {
       }
     }
     if !parts.store.preferences.showsMinimap { parts.minimap.hide() }
+    guard currentInputs != appliedInputs else { return }
     parts.swipe.configure(isRunning: status == .running)
     applyBindings()
   }
@@ -77,6 +79,17 @@ final class PaneruEngine: ManagementEngine {
     case (.togglePaused, .running): pause()
     case (.togglePaused, .paused): begin()
     case (.toggleOverview, .running): parts.overview.toggle(with: parts.world.snapshot)
+    case (.moveToColumn(let place), .running):
+      parts.overview.close()
+      Task { _ = await parts.reorder.moveFocused(toPlace: place) }
+    case (.popOutLeft, .running) where !isFocusedWindowStacked:
+      Self.logger.info("Dropped \(action.commandName, privacy: .public): not in a stack")
+    case (_, .running) where action.paneruSequence != nil:
+      parts.overview.close()
+      let sequence = action.paneruSequence ?? []
+      Task {
+        for command in sequence { await parts.commands.send(command.words) }
+      }
     default: Self.logger.info("Dropped \(action.commandName, privacy: .public): paused")
     }
   }
@@ -142,10 +155,23 @@ final class PaneruEngine: ManagementEngine {
     }
   }
 
+  private var currentInputs: InputSettings {
+    parts.store.preferences.inputSettings(
+      isRecordingShortcut: parts.store.isRecordingShortcut, isActive: status == .running)
+  }
+
   private func applyBindings() {
+    appliedInputs = currentInputs
     parts.bindings.apply(
       isRunning: status == .running, perform: { [weak self] action in self?.perform(action) },
       jump: { [weak self] bundle in self?.parts.appShortcuts.jump(to: bundle) })
+  }
+
+  private var isFocusedWindowStacked: Bool {
+    guard let snapshot = parts.world.snapshot, let focused = snapshot.focusedWindowID else {
+      return false
+    }
+    return (snapshot.tiledColumns.column(of: focused)?.windows.count ?? 0) > 1
   }
 
   private func send(_ command: PaneruCommand) {

@@ -56,7 +56,7 @@ struct EngineSupervisorTests {
     #expect(harness.launcher.launches.isEmpty)
     #expect(
       EngineFailure.standaloneRunning.message
-        == "Paneru is already running on this Mac. Quit it, since two window managers would both move your windows."
+        == "Paneru is already running on this Mac. Quit it, since two window managers would both move your windows. Then choose Resume tiling."
     )
   }
 
@@ -67,7 +67,10 @@ struct EngineSupervisorTests {
     engine.start()
 
     #expect(await harness.eventually { engine.state.failure == .notBundled })
-    #expect(EngineFailure.notBundled.message == "The engine is not bundled in this build.")
+    #expect(
+      EngineFailure.notBundled.message
+        == "This build has no engine. Reinstall Macousel or switch to the built-in engine in Settings > General."
+    )
   }
 
   @Test func restartsAfterACrashWithGrowingBackoff() async throws {

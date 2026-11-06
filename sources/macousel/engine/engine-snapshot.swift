@@ -10,9 +10,15 @@ nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
   var virtualWorkspaces: [EngineWorkspace]
   var layout: EngineLayout?
 
-  private struct Bridged: Decodable {
+  struct Bridged: Decodable {
     var state: EngineSnapshot
     var layout: EngineLayout?
+
+    var snapshot: EngineSnapshot {
+      var snapshot = state
+      snapshot.layout = layout
+      return snapshot
+    }
 
     init(from decoder: Decoder) throws {
       let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -43,23 +49,19 @@ nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
   }
 
   static func decode(bridged text: String) -> EngineSnapshot? {
-    let bridged: Bridged
     do {
-      bridged = try decoder.decode(Bridged.self, from: Data(text.utf8))
+      return try decoder.decode(Bridged.self, from: Data(text.utf8)).snapshot
     } catch {
       logger.error("Could not read the bridged engine state: \(error, privacy: .public)")
       return nil
     }
-    var snapshot = bridged.state
-    snapshot.layout = bridged.layout
-    return snapshot
   }
 
-  private static var decoder: JSONDecoder {
+  private static let decoder: JSONDecoder = {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     return decoder
-  }
+  }()
 
   var visibleWindows: [EngineWindow] {
     let activeWorkspaces = virtualWorkspaces.filter(\.active)

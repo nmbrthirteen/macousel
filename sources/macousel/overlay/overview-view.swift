@@ -4,21 +4,34 @@ struct OverviewView: View {
   let model: OverviewModel
 
   var body: some View {
+    ZStack(alignment: .bottom) {
+      strip
+      if model.previews.needsPermission {
+        OverviewPermissionNotice {
+          model.previews.requestPermission()
+          model.onDismiss()
+        }
+        .opacity(model.isExpanded ? 1 : 0)
+      }
+    }
+  }
+
+  private var strip: some View {
     GeometryReader { proxy in
       let geometry = OverviewGeometry(snapshot: model.arrangement, size: proxy.size)
       ZStack(alignment: .topLeading) {
         backdrop
         if let lift = model.lift, let slot = geometry.cards.first(where: { $0.id == lift.window }) {
-          OverviewPlaceholderView(rect: slot.rect)
+          OverviewPlaceholderView(rect: slot.rect, radius: geometry.cornerRadius)
         }
         ZStack(alignment: .topLeading) {
           ForEach(geometry.cards) { card in
-            cardView(card)
+            cardView(card, radius: geometry.cornerRadius)
           }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .glassContainer(spacing: 0)
-        if model.lift == nil {
+        if model.lift == nil, model.isExpanded {
           OverviewHandlesView(
             areas: geometry.hitAreas, activeColumnWindow: model.resizeLabel?.window,
             activeDivider: model.activeDivider)
@@ -35,16 +48,29 @@ struct OverviewView: View {
     }
   }
 
-  private func cardView(_ card: OverviewGeometry.Card) -> some View {
+  private func cardView(_ card: OverviewGeometry.Card, radius: Double) -> some View {
     let isLifted = model.lift?.window == card.id
+    let isHovered = model.hovered == card.id && model.isExpanded && model.lift == nil
     let rect = isLifted ? model.lift?.rect ?? card.rect : card.rect
+    let flight = model.isExpanded ? OverviewFlight.Transform.identity : collapsedFlight(of: card)
     return OverviewCardView(
-      card: card, icon: model.icon(for: card.content.bundleIdentifier), isLifted: isLifted
+      card: card, icon: model.icon(for: card.content.bundleIdentifier), previews: model.previews,
+      radius: radius, isLifted: isLifted, isHovered: isHovered
     )
     .frame(width: rect.width, height: rect.height)
+    .onHover { model.hover(card.id, isInside: $0) }
+    .scaleEffect(flight.scale)
+    .offset(flight.offset)
+    .opacity(model.isExpanded || (model.animates && card.content.frame != nil) ? 1 : 0)
     .offset(x: rect.minX, y: rect.minY)
-    .zIndex(isLifted ? 1 : 0)
+    .zIndex(isLifted ? 2 : isHovered ? 1 : 0)
     .accessibilityAction { model.onSelect(card.id) }
+  }
+
+  private func collapsedFlight(of card: OverviewGeometry.Card) -> OverviewFlight.Transform {
+    guard model.animates, let frame = card.content.frame else { return .identity }
+    return OverviewFlight.transform(
+      from: card.rect, to: OverviewFlight.source(of: frame, on: model.displayFrame))
   }
 
   @ViewBuilder
@@ -64,9 +90,8 @@ struct OverviewView: View {
   }
 
   private var backdrop: some View {
-    Rectangle()
-      .fill(Color.black.opacity(Metrics.Opacity.overviewBackdrop))
-      .background(.ultraThinMaterial)
+    Color.clear
+      .contentShape(Rectangle())
       .accessibilityLabel("Close overview")
       .accessibilityAddTraits(.isButton)
       .accessibilityAction { model.onDismiss() }

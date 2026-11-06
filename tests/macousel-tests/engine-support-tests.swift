@@ -4,14 +4,16 @@ import Testing
 
 @MainActor
 struct EngineSupportTests {
-  private static let builtInOnly: [Action] =
-    Action.places.map { Action.moveToColumn($0) } + [.sendToScratchpad, .toggleScratchpad]
+  private static let builtInOnly: [Action] = [.sendToScratchpad, .toggleScratchpad]
 
   @Test func everyActionIsMappedHandledOrBuiltInOnly() {
     for action in Action.allCases {
       switch action.paneruSupport {
       case .command(let command): #expect(!command.words.isEmpty, "\(action)")
-      case .handledByMacousel: #expect(action == .togglePaused || action == .toggleOverview)
+      case .handledByMacousel:
+        #expect(
+          action == .togglePaused || action == .toggleOverview || action.paneruSequence != nil
+            || Action.places.contains { action == .moveToColumn($0) })
       case .builtInOnly: #expect(Self.builtInOnly.contains(action), "\(action)")
       }
     }
@@ -33,11 +35,23 @@ struct EngineSupportTests {
     }
   }
 
-  @Test func mapsBothStackActionsAndBothPopOutActionsToOneCommand() {
-    #expect(Action.stackLeft.paneruSupport == Action.stackRight.paneruSupport)
+  @Test func theEngineDirectionsMapToItsOwnStackCommands() {
     #expect(Action.stackLeft.paneruSupport == .command(PaneruCommand("window", "stack")))
-    #expect(Action.popOutLeft.paneruSupport == Action.popOutRight.paneruSupport)
-    #expect(Action.popOutLeft.paneruSupport == .command(PaneruCommand("window", "unstack")))
+    #expect(Action.popOutRight.paneruSupport == .command(PaneruCommand("window", "unstack")))
+  }
+
+  @Test func theOtherDirectionsAddASwapAroundTheEngineCommand() {
+    #expect(Action.stackRight.paneruSupport == .handledByMacousel)
+    #expect(
+      Action.stackRight.paneruSequence == [
+        PaneruCommand("window", "swap", "east"), PaneruCommand("window", "stack"),
+      ])
+    #expect(Action.popOutLeft.paneruSupport == .handledByMacousel)
+    #expect(
+      Action.popOutLeft.paneruSequence == [
+        PaneruCommand("window", "unstack"), PaneruCommand("window", "swap", "west"),
+      ])
+    #expect(Action.stackLeft.paneruSequence == nil)
   }
 
   @Test func mapsTheLastColumnPlaceToFocusLast() {
@@ -53,10 +67,20 @@ struct EngineSupportTests {
 
   @Test func featureTableDisablesBuiltInOnlyControlsUnderPaneru() {
     for feature in EngineFeature.allCases {
-      #expect(feature.isSupported(by: .builtIn))
-      #expect(feature.isSupported(by: .paneru) == (feature == .dragPreviews))
+      #expect(feature.isSupported(by: .builtIn) == (feature != .nativeTabGrouping))
+      #expect(
+        feature.isSupported(by: .paneru) == (feature == .dragPreviews || feature == .nativeTabGrouping))
     }
     #expect(EngineFeature.unsupportedCaption == "Built-in engine only.")
+    #expect(EngineFeature.nativeTabGrouping.unavailableCaption == "Paneru engine only.")
+    #expect(EngineFeature.dragPreviews.unavailableCaption == "Built-in engine only.")
+  }
+
+  @Test func displayActionsMapToPaneruCommands() {
+    #expect(Action.focusNextDisplay.paneruSupport == .command(PaneruCommand("mouse", "nextdisplay")))
+    #expect(
+      Action.sendToNextDisplayWithoutFollowing.paneruSupport
+        == .command(PaneruCommand("window", "nextdisplaysend")))
   }
 
   @Test func shortcutRowsCarryTheUnavailableCaption() {

@@ -15,6 +15,14 @@ struct AccessibilityGrantHistory {
     defaults.set(build, forKey: Self.grantedBuildKey)
   }
 
+  // True when another build held the grant, so System Settings likely shows Macousel as on
+  // while macOS does not trust this one.
+  func wasGrantedToAnotherBuild(isGranted: Bool) -> Bool {
+    guard !isGranted, let build, let granted = defaults.string(forKey: Self.grantedBuildKey)
+    else { return false }
+    return granted != build
+  }
+
   func takeStaleGrantReset(isGranted: Bool) -> Bool {
     guard !isGranted, let build,
       let granted = defaults.string(forKey: Self.grantedBuildKey), granted != build,

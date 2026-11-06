@@ -32,6 +32,22 @@ struct EngineDragTests {
     #expect(fixture.host.dropPreviewHistory.isEmpty)
   }
 
+  @Test func aPressOutsideEveryTiledWindowSkipsTheWindowServer() async {
+    await fixture.start()
+
+    fixture.pointer.pressPrimary(at: CGPoint(x: 9000, y: 9000))
+
+    #expect(fixture.pointer.windowLookupCount == 0)
+  }
+
+  @Test func aPressOnATiledWindowLooksItUp() async {
+    await fixture.start()
+
+    fixture.press()
+
+    #expect(fixture.pointer.windowLookupCount == 1)
+  }
+
   @Test func aPressBeforeAnySnapshotIsIgnored() {
     fixture.drag.start()
 

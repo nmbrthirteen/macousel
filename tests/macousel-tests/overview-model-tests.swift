@@ -20,7 +20,7 @@ struct OverviewModelTests {
     _ columns: [[UInt32]], tabbed: Set<Int> = []
   ) -> (OverviewModel, OverviewGeometry, Calls) {
     let snapshot = OverviewSnapshots.make(columns: columns, tabbed: tabbed)
-    let model = OverviewModel()
+    let model = OverviewModel(previews: OverviewPreviews(capture: FakeWindowCapture()))
     let calls = Calls()
     model.onSelect = { calls.selected.append($0) }
     model.onDismiss = { calls.dismissed += 1 }
@@ -168,7 +168,7 @@ struct OverviewModelTests {
       snapshot: OverviewSnapshots.make(columns: [[1, 2], [3]]), size: size)
     let edge = try #require(reference.hitAreas.edges.first)
     let divider = try #require(reference.hitAreas.dividers.first)
-    let model = OverviewModel()
+    let model = OverviewModel(previews: OverviewPreviews(capture: FakeWindowCapture()))
     let calls = Calls()
     model.onColumnWidth = { calls.widths.append(($0, $1)) }
     model.onRowHeight = { calls.heights.append(($0, $1, $2)) }
