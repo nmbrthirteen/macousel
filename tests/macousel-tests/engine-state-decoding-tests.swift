@@ -33,6 +33,18 @@ struct EngineStateDecodingTests {
     #expect(snapshot.virtualWorkspaces[0].windows[0].frame == nil)
   }
 
+  @Test func readsWhetherAWindowIsPinned() throws {
+    let text = """
+      {"version":1,"timestamp":1,"active":{},"virtual_workspaces":[{"number":1,\
+      "native_workspace_id":4,"active":true,"windows":[{"window_id":9,"floating":true,\
+      "pinned":true},{"window_id":10,"floating":true}]}]}
+      """
+
+    let windows = try #require(EngineSnapshot.decode(text)).virtualWorkspaces[0].windows
+
+    #expect(windows.map(\.pinned) == [true, false])
+  }
+
   @Test func rejectsTextThatIsNotAStateDocument() {
     #expect(EngineSnapshot.decode("not json") == nil)
     #expect(EngineSnapshot.decode("") == nil)

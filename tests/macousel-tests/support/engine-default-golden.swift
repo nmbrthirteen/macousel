@@ -134,6 +134,8 @@ enum EngineDefaultGolden {
     window_manage = "alt + ctrl - t"
     window_nextdisplay = "alt + ctrl - n"
     window_nextdisplaysend = "alt + shift + ctrl - n"
+    window_pin = "alt + ctrl - p"
+    window_pinlayer = "alt + shift + ctrl - p"
     window_resize = "alt + ctrl - r"
     window_shrink = "alt + ctrl - minus"
     window_stack = "alt + ctrl - rightbracket"

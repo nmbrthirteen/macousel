@@ -18,8 +18,8 @@ struct ActionCommandTests {
     #expect(Set(Action.allCases.map(\.commandName)).count == Action.allCases.count)
   }
 
-  @Test func thereAreFiftyFourActions() {
-    #expect(Action.allCases.count == 54)
+  @Test func thereAreFiftySixActions() {
+    #expect(Action.allCases.count == 56)
   }
 
   @Test func floatingAndPreviousWindowCommandNames() {
@@ -38,6 +38,11 @@ struct ActionCommandTests {
     #expect(Action.toggleOverview.commandName == "toggle-overview")
     #expect(Action.sendToScratchpad.commandName == "send-to-scratchpad")
     #expect(Action.toggleScratchpad.commandName == "toggle-scratchpad")
+  }
+
+  @Test func pinningCommandNames() {
+    #expect(Action.pinWindow.commandName == "pin-window")
+    #expect(Action.togglePinnedWindows.commandName == "toggle-pinned-windows")
   }
 
   @Test func unknownCommandNameIsRejected() {

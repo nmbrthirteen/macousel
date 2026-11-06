@@ -26,8 +26,18 @@ struct EngineSupportTests {
     #expect(Set(declared) == Set(Self.builtInOnly))
   }
 
-  @Test func theBuiltInEngineSupportsEveryAction() {
-    for action in Action.allCases { #expect(action.isSupported(by: .builtIn)) }
+  @Test func theBuiltInEngineSupportsEveryActionButPinning() {
+    let paneruOnly: [Action] = [.pinWindow, .togglePinnedWindows]
+    for action in Action.allCases {
+      #expect(action.isSupported(by: .builtIn) == !paneruOnly.contains(action), "\(action)")
+      #expect(action.isPaneruOnly == paneruOnly.contains(action), "\(action)")
+    }
+  }
+
+  @Test func pinningMapsToThePatchedEngineCommands() {
+    #expect(Action.pinWindow.paneruSupport == .command(PaneruCommand("window", "pin")))
+    #expect(
+      Action.togglePinnedWindows.paneruSupport == .command(PaneruCommand("window", "pinlayer")))
   }
 
   @Test func paneruSupportsEveryActionExceptTheBuiltInOnlyOnes() {

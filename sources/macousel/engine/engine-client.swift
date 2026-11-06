@@ -38,6 +38,10 @@ final class EngineClient: EngineCommanding {
 
   private func deliver(_ words: [String]) async {
     switch await bridge?.ask(.command(words)) ?? .unavailable {
+    // The bridge links the published Paneru, which cannot parse a command only a patch adds.
+    // The patched engine binary can.
+    case .answered(let answer) where answer.unparsed:
+      break
     case .answered(let answer):
       if let error = answer.error {
         Self.logger.error(

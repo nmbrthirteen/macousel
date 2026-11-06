@@ -48,6 +48,16 @@ struct DefaultShortcutTests {
         == [Hotkey(keyCode: UInt16(kVK_ANSI_S), modifiers: base.union(.shift))])
   }
 
+  @Test func pinningUsesControlOptionPAndControlOptionShiftP() {
+    let base: Hotkey.Modifiers = [.control, .option]
+    #expect(
+      Action.defaultShortcuts[.pinWindow]
+        == [Hotkey(keyCode: UInt16(kVK_ANSI_P), modifiers: base)])
+    #expect(
+      Action.defaultShortcuts[.togglePinnedWindows]
+        == [Hotkey(keyCode: UInt16(kVK_ANSI_P), modifiers: base.union(.shift))])
+  }
+
   @Test func displayActionsUseControlOptionDAndControlOptionShiftN() {
     let base: Hotkey.Modifiers = [.control, .option]
     #expect(

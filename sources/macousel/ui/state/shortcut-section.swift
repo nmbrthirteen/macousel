@@ -15,7 +15,7 @@ enum ShortcutSection: CaseIterable {
       .equalizeHeights:
       self = .size
     case .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating,
-      .switchToFloatingWindows, .bringBackFloatingWindows:
+      .switchToFloatingWindows, .bringBackFloatingWindows, .pinWindow, .togglePinnedWindows:
       self = .stacks
     case .toggleOverview, .sendToScratchpad, .toggleScratchpad, .togglePaused:
       self = .overviewAndTiling

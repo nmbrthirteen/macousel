@@ -20,6 +20,7 @@ nonisolated enum Action: Hashable, Sendable {
   case popOutLeft, popOutRight
   case toggleTabbed
   case toggleFloating, switchToFloatingWindows, bringBackFloatingWindows
+  case pinWindow, togglePinnedWindows
 
   case toggleOverview
   case sendToScratchpad, toggleScratchpad
@@ -37,7 +38,7 @@ nonisolated extension Action: CaseIterable {
       .cycleWidth, .toggleFullWidth, .center, .wider, .narrower, .taller, .shorter,
       .equalizeHeights,
       .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating,
-      .switchToFloatingWindows, .bringBackFloatingWindows,
+      .switchToFloatingWindows, .bringBackFloatingWindows, .pinWindow, .togglePinnedWindows,
       .toggleOverview, .sendToScratchpad, .toggleScratchpad,
     ]
 }

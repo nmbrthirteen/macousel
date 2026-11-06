@@ -41,7 +41,7 @@ extension Strip {
     case .center: centering(viewportWidth: viewportWidth, config: config)
     case .togglePaused, .toggleFloating, .sendToNextDisplay, .sendToNextDisplayWithoutFollowing,
       .focusNextDisplay, .toggleOverview, .sendToScratchpad, .toggleScratchpad, .focusPrevious,
-      .switchToFloatingWindows, .bringBackFloatingWindows:
+      .switchToFloatingWindows, .bringBackFloatingWindows, .pinWindow, .togglePinnedWindows:
       .ignored
     }
   }

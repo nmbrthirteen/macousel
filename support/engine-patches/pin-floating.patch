@@ -1,0 +1,1103 @@
+diff --git a/src/commands/query.rs b/src/commands/query.rs
+--- a/src/commands/query.rs
++++ b/src/commands/query.rs
+@@ -482,6 +482,7 @@ mod tests {
+                 title: title.to_string(),
+                 focused: active.focused_window_id == Some(window_id),
+                 floating: false,
++                pinned: false,
+                 display_id: Some(1),
+                 frame: Some(Frame {
+                     x: 0,
+diff --git a/src/commands.rs b/src/commands.rs
+--- a/src/commands.rs
++++ b/src/commands.rs
+@@ -17,13 +17,15 @@ use crate::config::snippet::{RuleSubject, SnippetDialect, window_rule_snippet};
+ use crate::ecs::display::FloatingLayer;
+ use crate::ecs::focus::FocusHistory;
+ use crate::ecs::layout::{
+-    Column, LayoutStrip, MIN_WINDOW_HEIGHT, StackItem, clamp_origin_to_viewport, strip_signature,
++    Column, LayoutStrip, MIN_WINDOW_HEIGHT, PARKED_STRIP_SLIVER, StackItem,
++    clamp_origin_to_viewport, strip_signature,
+ };
+ use crate::ecs::params::{ActiveDisplay, ActiveDisplayMut, Windows};
++use crate::ecs::workspace::{park_float, unpark_float};
+ use crate::ecs::{
+     ActiveDisplayMarker, ActiveWorkspaceMarker, Bounds, DockPosition, FocusedMarker,
+-    FullWidthMarker, ManualStripOffset, NativeFullscreenMarker, RaiseWindow, SelectedVirtualMarker,
+-    SendMessageTrigger, SpawnCommandsExt, Timeout, Unmanaged,
++    FullWidthMarker, ManualStripOffset, NativeFullscreenMarker, ParkedFor, Pinned, RaiseWindow,
++    SelectedVirtualMarker, SendMessageTrigger, SpawnCommandsExt, Timeout, Unmanaged,
+ };
+ use crate::events::Event;
+ use crate::manager::{Application, Display, Origin, Size, Window, WindowManager, origin_from};
+@@ -100,7 +102,15 @@ pub fn register_commands(app: &mut bevy::app::App) {
+     // A default dialect so the mock harness has one; the real app overwrites it
+     // once it knows whether a Lua script took over the configuration.
+     app.init_resource::<SnippetDialect>();
+-    app.add_systems(PreUpdate, (copy_window_rule, toggle_tabbed_display_handler));
++    app.add_systems(
++        PreUpdate,
++        (
++            copy_window_rule,
++            toggle_tabbed_display_handler,
++            pin_window,
++            toggle_pin_layer,
++        ),
++    );
+ }
+ 
+ pub fn filter_window_operations<'a, F: Fn(&Operation) -> bool>(
+@@ -222,7 +232,10 @@ fn visible_floating_entities(
+                 return None;
+             }
+             let frame = windows.frame(entity)?;
+-            (!display_bounds.intersect(frame).is_empty()).then_some(entity)
++            // A parked floating window keeps no more than a sliver on its display.
++            let overlap = display_bounds.intersect(frame);
++            (overlap.width() > PARKED_STRIP_SLIVER && overlap.height() > PARKED_STRIP_SLIVER)
++                .then_some(entity)
+         })
+         .collect()
+ }
+@@ -1050,6 +1063,102 @@ fn manage_window(
+     }
+ }
+ 
++/// Pins the focused window, floating it first when it is tiled, or unpins a
++/// pinned one, which stays floating.
++fn pin_window(mut messages: MessageReader<Event>, windows: Windows, mut commands: Commands) {
++    if filter_window_operations(&mut messages, |op| matches!(op, Operation::Pin))
++        .next()
++        .is_none()
++    {
++        return;
++    }
++
++    let Some((_, entity, unmanaged)) = windows
++        .focused()
++        .and_then(|(_, entity)| windows.get_managed(entity))
++    else {
++        return;
++    };
++    let pinned = windows.pinned(entity);
++    let pinnable = matches!(unmanaged, None | Some(Unmanaged::Floating));
++    let Ok(mut entity_commands) = commands.get_entity(entity) else {
++        return;
++    };
++    if pinned {
++        entity_commands.try_remove::<Pinned>();
++    } else if pinnable {
++        entity_commands.try_insert((Unmanaged::Floating, Pinned));
++    }
++}
++
++/// Parks every pinned window at the corner of the display it is on, or brings
++/// them all back when they are parked.
++fn toggle_pin_layer(
++    mut messages: MessageReader<Event>,
++    windows: Windows,
++    displays: Query<&Display>,
++    active_display: ActiveDisplay,
++    mut commands: Commands,
++) {
++    if filter_window_operations(&mut messages, |op| matches!(op, Operation::PinLayer))
++        .next()
++        .is_none()
++    {
++        return;
++    }
++
++    if windows
++        .parked_iter()
++        .any(|(_, parked)| parked.parked_for == ParkedFor::PinLayer)
++    {
++        for (entity, parked) in windows.parked_iter() {
++            if parked.parked_for == ParkedFor::PinLayer {
++                unpark_float(entity, parked, &mut commands);
++            }
++        }
++        return;
++    }
++
++    let pinned = windows
++        .iter()
++        .map(|(_, entity)| entity)
++        .filter(|entity| {
++            windows.pinned(*entity)
++                && windows.parked(*entity).is_none()
++                && windows
++                    .get_managed(*entity)
++                    .is_some_and(|(_, _, unmanaged)| matches!(unmanaged, Some(Unmanaged::Floating)))
++        })
++        .collect::<Vec<_>>();
++    for &entity in &pinned {
++        let Some(frame) = windows.frame(entity) else {
++            continue;
++        };
++        let bounds = displays
++            .iter()
++            .map(Display::bounds)
++            .map(|bounds| {
++                let overlap = bounds.intersect(frame);
++                let area = i64::from(overlap.width().max(0)) * i64::from(overlap.height().max(0));
++                (bounds, area)
++            })
++            .filter(|(_, area)| *area > 0)
++            .max_by_key(|(_, area)| *area)
++            .map_or_else(|| active_display.bounds(), |(bounds, _)| bounds);
++        park_float(entity, ParkedFor::PinLayer, bounds, &windows, &mut commands);
++    }
++
++    // Keyboard focus must not stay on a window that just left the screen.
++    if windows
++        .focused()
++        .is_some_and(|(_, entity)| pinned.contains(&entity))
++    {
++        commands.trigger(SendMessageTrigger(Event::Command {
++            command: Command::Window(Operation::FocusManaged),
++        }));
++    }
++}
++
+ /// Copies a `[windows]` configuration rule for the focused window to the
+ /// clipboard, so the user can paste a working starting point instead of
+ /// guessing the app's bundle id and transcribing the title into a regex.
+diff --git a/src/ecs/params.rs b/src/ecs/params.rs
+--- a/src/ecs/params.rs
++++ b/src/ecs/params.rs
+@@ -16,8 +16,8 @@ use crate::{
+     config::Config,
+     ecs::{
+         ActiveWorkspaceMarker, Bounds, DockPosition, FlashMessage, FocusedMarker, FullWidthMarker,
+-        Initializing, LayoutPosition, NativeFullscreenMarker, Position, RepositionMarker,
+-        ResizeMarker, Scrolling, Unmanaged, WidthRatio, layout::LayoutStrip,
++        Initializing, LayoutPosition, NativeFullscreenMarker, ParkedFloat, Pinned, Position,
++        RepositionMarker, ResizeMarker, Scrolling, Unmanaged, WidthRatio, layout::LayoutStrip,
+     },
+     manager::{Application, Display, Origin, Size, Window},
+     platform::{ProcessSerialNumber, WinID},
+@@ -269,6 +269,8 @@ pub struct Windows<'w, 's> {
+         With<FullWidthMarker>,
+     >,
+     positions: WindowPlacements<'w, 's>,
++    pinned: Query<'w, 's, (), (With<Pinned>, With<Window>)>,
++    parked: Query<'w, 's, (Entity, &'static ParkedFloat), With<Window>>,
+ }
+ 
+ impl Windows<'_, '_> {
+@@ -325,6 +327,18 @@ impl Windows<'_, '_> {
+             })
+     }
+ 
++    pub fn pinned(&self, entity: Entity) -> bool {
++        self.pinned.contains(entity)
++    }
++
++    pub fn parked(&self, entity: Entity) -> Option<&ParkedFloat> {
++        self.parked.get(entity).ok().map(|(_, parked)| parked)
++    }
++
++    pub fn parked_iter(&self) -> impl Iterator<Item = (Entity, &ParkedFloat)> {
++        self.parked.iter()
++    }
++
+     pub fn full_width(&self, entity: Entity) -> Option<&FullWidthMarker> {
+         self.previous_size
+             .get(entity)
+diff --git a/src/ecs/state.rs b/src/ecs/state.rs
+--- a/src/ecs/state.rs
++++ b/src/ecs/state.rs
+@@ -18,7 +18,9 @@ use tracing::{debug, error, info, warn};
+ use crate::config::Config;
+ use crate::ecs::layout::{Column, LayoutStrip, StackItem};
+ use crate::ecs::params::Windows;
+-use crate::ecs::{ActiveDisplayMarker, ActiveWorkspaceMarker, SelectedVirtualMarker, Unmanaged};
++use crate::ecs::{
++    ActiveDisplayMarker, ActiveWorkspaceMarker, ParkedFor, SelectedVirtualMarker, Unmanaged,
++};
+ use crate::manager::{Application, Display, WindowManager};
+ use crate::platform::{Pid, ProcessSerialNumber, WinID, WorkspaceId};
+ use crate::types::windowset::WindowSet;
+@@ -538,14 +540,8 @@ impl QueryStateParams<'_, '_> {
+ 
+             // Floating windows the strip never knew about.
+             floating.extend(
+-                floating_entities
++                row_floats(strip, floating_entities, &self.windows)
+                     .into_iter()
+-                    .filter_map(|window_id| {
+-                        let (_, entity) = self.windows.find(window_id)?;
+-                        let (_, _, unmanaged) = self.windows.get_managed(entity)?;
+-                        (matches!(unmanaged, Some(Unmanaged::Floating)) && !strip.contains(entity))
+-                            .then_some(entity)
+-                    })
+                     .filter_map(|entity| self.window_record(entity, focused_entity, sliver_width)),
+             );
+ 
+@@ -602,7 +598,8 @@ impl QueryStateParams<'_, '_> {
+         let frame = self.windows.frame(entity);
+         // Minimized and hidden windows are never on screen, whatever their last
+         // known frame says.
+-        let hidden = matches!(unmanaged, Some(Unmanaged::Minimized | Unmanaged::Hidden));
++        let hidden = matches!(unmanaged, Some(Unmanaged::Minimized | Unmanaged::Hidden))
++            || self.windows.parked(entity).is_some();
+         let visible = frame
+             .and_then(|frame| window_visibility(frame, &self.displays, sliver_width))
+             .is_some_and(|(_, visible)| visible && !hidden);
+@@ -619,6 +616,7 @@ impl QueryStateParams<'_, '_> {
+                 height: frame.height(),
+             }),
+             floating: matches!(unmanaged, Some(Unmanaged::Floating)),
++            pinned: self.windows.pinned(entity),
+             managed: unmanaged.is_none(),
+             visible,
+             focused: focused == Some(entity),
+@@ -626,6 +624,37 @@ impl QueryStateParams<'_, '_> {
+     }
+ }
+ 
++/// The floating windows of `strip`'s row that the strip itself does not hold:
++/// the ones the window server `listed` for its space, less any parked for
++/// another row, and the ones parked for this row.
++fn row_floats(strip: &LayoutStrip, listed: Vec<WinID>, windows: &Windows) -> Vec<Entity> {
++    let row = ParkedFor::Row {
++        workspace_id: strip.id(),
++        virtual_index: strip.virtual_index,
++    };
++    let parked_for_a_row = |entity| {
++        windows
++            .parked(entity)
++            .is_some_and(|parked| matches!(parked.parked_for, ParkedFor::Row { .. }))
++    };
++    listed
++        .into_iter()
++        .filter_map(|window_id| {
++            let (_, entity) = windows.find(window_id)?;
++            let (_, _, unmanaged) = windows.get_managed(entity)?;
++            (matches!(unmanaged, Some(Unmanaged::Floating))
++                && !strip.contains(entity)
++                && !parked_for_a_row(entity))
++            .then_some(entity)
++        })
++        .chain(
++            windows
++                .parked_iter()
++                .filter_map(|(entity, parked)| (parked.parked_for == row).then_some(entity)),
++        )
++        .collect()
++}
++
+ /// How a layout column arranges its windows, in the vocabulary a script sees.
+ fn column_kind(column: &Column) -> crate::types::windowset::ColumnKind {
+     use crate::types::windowset::ColumnKind;
+@@ -690,7 +719,7 @@ impl QueryState for PaneruQueryState {
+         };
+ 
+         for (child, strip, active_workspace, selected_workspace) in workspaces {
+-            let floating = if active_workspace
++            let listed = if active_workspace
+                 || selected_workspace && active_workspace_id != Some(strip.id())
+             {
+                 window_manager
+@@ -698,14 +727,8 @@ impl QueryState for PaneruQueryState {
+                     .unwrap_or_default()
+             } else {
+                 Vec::new()
+-            }
+-            .into_iter()
+-            .filter_map(|window_id| {
+-                let (_, entity) = windows.find(window_id)?;
+-                let (_, _, unmanaged) = windows.get_managed(entity)?;
+-                (matches!(unmanaged, Some(Unmanaged::Floating)) && !strip.contains(entity))
+-                    .then_some(entity)
+-            });
++            };
++            let floating = row_floats(strip, listed, windows);
+             let row_windows = strip
+                 .all_windows()
+                 .into_iter()
+@@ -721,7 +744,8 @@ impl QueryState for PaneruQueryState {
+                     // Minimized and hidden windows are never on screen, whatever
+                     // their last known frame says.
+                     let hidden =
+-                        matches!(unmanaged, Some(Unmanaged::Minimized | Unmanaged::Hidden));
++                        matches!(unmanaged, Some(Unmanaged::Minimized | Unmanaged::Hidden))
++                            || windows.parked(entity).is_some();
+                     let visibility = frame
+                         .and_then(|frame| window_visibility(frame, displays, sliver_width))
+                         .map(|(display_id, visible)| (display_id, visible && !hidden));
+@@ -732,6 +756,7 @@ impl QueryState for PaneruQueryState {
+                         title,
+                         focused: focused_entity == Some(entity),
+                         floating: matches!(unmanaged, Some(Unmanaged::Floating)),
++                        pinned: windows.pinned(entity),
+                         display_id: visibility.map(|(display_id, _)| display_id),
+                         frame: frame.map(|frame| Frame {
+                             x: frame.min.x,
+diff --git a/src/ecs/workspace.rs b/src/ecs/workspace.rs
+--- a/src/ecs/workspace.rs
++++ b/src/ecs/workspace.rs
+@@ -3,7 +3,7 @@ use bevy::ecs::change_detection::{DetectChanges as _, DetectChangesMut, Ref};
+ use bevy::ecs::component::Component;
+ use bevy::ecs::entity::Entity;
+ use bevy::ecs::hierarchy::ChildOf;
+-use bevy::ecs::lifecycle::Add;
++use bevy::ecs::lifecycle::{Add, Remove};
+ use bevy::ecs::message::MessageReader;
+ use bevy::ecs::observer::On;
+ use bevy::ecs::query::{Added, Has, With, Without};
+@@ -11,8 +11,9 @@ use bevy::ecs::schedule::IntoScheduleConfigs as _;
+ use bevy::ecs::schedule::common_conditions::{not, resource_exists};
+ use bevy::ecs::system::{Commands, Local, ParamSet, Populated, Query, Res, ResMut, Single};
+ use bevy::ecs::world::World;
++use bevy::math::IRect;
+ use bevy::time::common_conditions::on_timer;
+-use std::collections::HashSet;
++use std::collections::{HashMap, HashSet};
+ use std::time::Duration;
+ use tracing::{Level, debug, error, instrument, warn};
+ 
+@@ -26,8 +27,9 @@ use crate::ecs::layout::{LayoutStrip, PARKED_STRIP_SLIVER, origin_exposing};
+ use crate::ecs::params::{ActiveDisplay, WindowCtx, Windows};
+ use crate::ecs::{
+     ActiveWorkspaceMarker, DockPosition, FocusedMarker, Initializing, ManualStripOffset,
+-    NativeFullscreenMarker, Position, RaiseWindow, RepositionMarker, Scrolling,
+-    SelectedVirtualMarker, SendMessageTrigger, SpawnCommandsExt, Timeout, Unmanaged,
++    NativeFullscreenMarker, ParkedFloat, ParkedFor, Pinned, Position, RaiseWindow,
++    RepositionMarker, Scrolling, SelectedVirtualMarker, SendMessageTrigger, SpawnCommandsExt,
++    Timeout, Unmanaged,
+ };
+ use crate::errors::Result;
+ use crate::events::{DestroySource, Event};
+@@ -106,13 +108,17 @@ impl Plugin for WorkspaceEventsPlugin {
+                 prune_vanished_workspaces,
+                 workspace_created_handler,
+                 show_active_workspace,
++                park_floats_with_their_row.after(show_active_workspace),
++                unpark_focused_float,
+                 handle_virtual_window_moves,
+                 detect_moved_windows.run_if(not(resource_exists::<Initializing>)),
+             ),
+         );
+         app.add_systems(PostUpdate, workspace_destroyed_handler);
+         app.add_observer(cleanup_active_workspace_marker)
+-            .add_observer(cleanup_selected_space_marker);
++            .add_observer(cleanup_selected_space_marker)
++            .add_observer(unpark_floats_of_removed_row)
++            .add_observer(forget_pin_of_tiled_window);
+     }
+ }
+ 
+@@ -1256,7 +1262,15 @@ pub(crate) fn show_active_workspace(
+             .focused()
+             .map(|(_, entity)| entity)
+             .filter(|entity| strip.contains(*entity));
+-        let keeps_focus = focused.is_some();
++        let row = ParkedFor::Row {
++            workspace_id: strip.id(),
++            virtual_index: strip.virtual_index,
++        };
++        let keeps_focus = focused.is_some()
++            || windows
++                .focused()
++                .and_then(|(_, entity)| windows.parked(entity))
++                .is_some_and(|parked| parked.parked_for == row);
+ 
+         // Only a focus that arrived with this activation gets the strip moved
+         // for it. A window that held focus all along - switching back from an
+@@ -1328,6 +1342,184 @@ pub(crate) fn show_active_workspace(
+     }
+ }
+ 
++/// Parks a floating window in the bottom-right corner of `display_bounds`, where
++/// a hidden virtual workspace parks its strip, and remembers where it was.
++pub(crate) fn park_float(
++    entity: Entity,
++    parked_for: ParkedFor,
++    display_bounds: IRect,
++    windows: &Windows,
++    commands: &mut Commands,
++) {
++    let Some(frame) = windows.moving_frame(entity) else {
++        return;
++    };
++    if let Ok(mut entity_commands) = commands.get_entity(entity) {
++        entity_commands.try_insert(ParkedFloat {
++            origin: frame.min,
++            parked_for,
++        });
++    }
++    commands.reposition_entity(entity, display_bounds.max - PARKED_STRIP_SLIVER);
++}
++
++/// Brings a parked floating window back to where it was parked from.
++pub(crate) fn unpark_float(entity: Entity, parked: &ParkedFloat, commands: &mut Commands) {
++    if let Ok(mut entity_commands) = commands.get_entity(entity) {
++        entity_commands.try_remove::<ParkedFloat>();
++    }
++    commands.reposition_entity(entity, parked.origin);
++}
++
++/// Floating windows belong to the virtual workspace they were showing on. A
++/// switch parks the ones of the row being left and brings back the ones of the
++/// row being shown. Pinned windows are left where they are, which is what keeps
++/// them on screen across the switch.
++#[allow(clippy::too_many_arguments)]
++#[instrument(level = Level::DEBUG, skip_all)]
++fn park_floats_with_their_row(
++    activated: Single<(&LayoutStrip, &ChildOf), Added<ActiveWorkspaceMarker>>,
++    strips: Query<&LayoutStrip>,
++    displays: Query<&Display>,
++    windows: Windows,
++    window_manager: Res<WindowManager>,
++    config: Res<Config>,
++    mut shown_rows: Local<HashMap<WorkspaceId, u32>>,
++    mut commands: Commands,
++) {
++    let (strip, child) = *activated;
++    let workspace_id = strip.id();
++    let shown = ParkedFor::Row {
++        workspace_id,
++        virtual_index: strip.virtual_index,
++    };
++    for (entity, parked) in windows.parked_iter() {
++        if parked.parked_for == shown {
++            unpark_float(entity, parked, &mut commands);
++        }
++    }
++
++    let Some(left_index) = shown_rows
++        .insert(workspace_id, strip.virtual_index)
++        .filter(|left_index| *left_index != strip.virtual_index)
++    else {
++        return;
++    };
++    // `reap_empty_virtual_workspaces` despawns a row left without tiled
++    // windows on the same switch, so its floating windows come along instead
++    // of waiting for a row that is gone.
++    let Some(left_strip) = strips
++        .iter()
++        .find(|left| left.id() == workspace_id && left.virtual_index == left_index)
++    else {
++        return;
++    };
++    if config.reap_empty_workspaces() && left_index > 0 && left_strip.len() == 0 {
++        return;
++    }
++    let Ok(display) = displays.get(child.parent()) else {
++        return;
++    };
++
++    let bounds = display.bounds();
++    let on_space = window_manager
++        .windows_in_workspace(workspace_id)
++        .unwrap_or_default();
++    let left = ParkedFor::Row {
++        workspace_id,
++        virtual_index: left_index,
++    };
++    for (window, entity) in windows.iter() {
++        let floating = windows
++            .get_managed(entity)
++            .is_some_and(|(_, _, unmanaged)| matches!(unmanaged, Some(Unmanaged::Floating)));
++        let on_display = windows
++            .frame(entity)
++            .is_some_and(|frame| !frame.intersect(bounds).is_empty());
++        if floating
++            && on_display
++            && on_space.contains(&window.id())
++            && !windows.pinned(entity)
++            && windows.parked(entity).is_none()
++        {
++            park_float(entity, left, bounds, &windows, &mut commands);
++        }
++    }
++}
++
++/// A parked floating window can still take focus, from Cmd-Tab or its Dock
++/// icon. It comes back together with whatever it was parked with. This reads
++/// the focus events rather than the focus marker, because a float that keeps
++/// focus while its row is switched away never gains the marker again.
++#[instrument(level = Level::DEBUG, skip_all)]
++fn unpark_focused_float(
++    mut messages: MessageReader<Event>,
++    strips: Query<(Entity, &LayoutStrip)>,
++    windows: Windows,
++    mut commands: Commands,
++) {
++    let Some(parked) = messages
++        .read()
++        .filter_map(|event| match event {
++            Event::WindowFocused { window_id } => windows.find(*window_id),
++            _ => None,
++        })
++        .last()
++        .and_then(|(_, entity)| windows.parked(entity))
++    else {
++        return;
++    };
++    let row_strip = match parked.parked_for {
++        ParkedFor::Row {
++            workspace_id,
++            virtual_index,
++        } => strips.iter().find_map(|(entity, strip)| {
++            (strip.id() == workspace_id && strip.virtual_index == virtual_index).then_some(entity)
++        }),
++        ParkedFor::PinLayer => None,
++    };
++    if let Some(row_strip) = row_strip
++        && let Ok(mut entity_commands) = commands.get_entity(row_strip)
++    {
++        entity_commands.try_insert(ActiveWorkspaceMarker);
++        return;
++    }
++    let parked_for = parked.parked_for;
++    for (entity, parked) in windows.parked_iter() {
++        if parked.parked_for == parked_for {
++            unpark_float(entity, parked, &mut commands);
++        }
++    }
++}
++
++/// Brings back the floating windows parked for a row that is going away.
++fn unpark_floats_of_removed_row(
++    trigger: On<Remove, LayoutStrip>,
++    strips: Query<&LayoutStrip>,
++    windows: Windows,
++    mut commands: Commands,
++) {
++    let Ok(strip) = strips.get(trigger.entity) else {
++        return;
++    };
++    let row = ParkedFor::Row {
++        workspace_id: strip.id(),
++        virtual_index: strip.virtual_index,
++    };
++    for (entity, parked) in windows.parked_iter() {
++        if parked.parked_for == row {
++            unpark_float(entity, parked, &mut commands);
++        }
++    }
++}
++
++/// Pinning and parking only mean something for a floating window.
++fn forget_pin_of_tiled_window(trigger: On<Remove, Unmanaged>, mut commands: Commands) {
++    if let Ok(mut entity_commands) = commands.get_entity(trigger.entity) {
++        entity_commands.try_remove::<(Pinned, ParkedFloat)>();
++    }
++}
++
+ /// Resolves duplicate `virtual_index` values by reassigning each
+ /// duplicate to the lowest unused index on its workspace. Triggered by
+ /// `Added<LayoutStrip>` — the only event that can introduce a duplicate
+diff --git a/src/ecs.rs b/src/ecs.rs
+--- a/src/ecs.rs
++++ b/src/ecs.rs
+@@ -364,6 +364,31 @@ pub struct PreviousManagedStrip {
+     pub index: usize,
+ }
+ 
++/// Marks a floating window that stays on screen whichever virtual workspace is
++/// showing.
++#[derive(Component, Debug)]
++pub struct Pinned;
++
++/// What a parked floating window is waiting for before it comes back.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum ParkedFor {
++    /// Its virtual workspace showing again.
++    Row {
++        workspace_id: WorkspaceId,
++        virtual_index: u32,
++    },
++    /// The pinned windows being shown again.
++    PinLayer,
++}
++
++/// A floating window parked at the corner of its display, with the origin it
++/// returns to.
++#[derive(Component, Debug)]
++pub struct ParkedFloat {
++    pub origin: Origin,
++    pub parked_for: ParkedFor,
++}
++
+ /// Wrapper component for a `ProcessApi` trait object, enabling dynamic dispatch for process-related operations within Bevy.
+ #[derive(Component, Deref, DerefMut)]
+ pub struct BProcess(pub Box<dyn ProcessApi>);
+diff --git a/src/lua/runtime.rs b/src/lua/runtime.rs
+--- a/src/lua/runtime.rs
++++ b/src/lua/runtime.rs
+@@ -654,6 +654,7 @@ mod tests {
+                     title: "window".to_string(),
+                     focused: true,
+                     floating: false,
++                    pinned: false,
+                     display_id: Some(1),
+                     frame: None,
+                     visible: true,
+diff --git a/src/lua/worker.rs b/src/lua/worker.rs
+--- a/src/lua/worker.rs
++++ b/src/lua/worker.rs
+@@ -636,6 +636,7 @@ mod tests {
+                     title: "window".to_string(),
+                     focused: true,
+                     floating: false,
++                    pinned: false,
+                     display_id: Some(1),
+                     frame: None,
+                     visible: true,
+@@ -852,6 +853,7 @@ mod tests {
+                                     title: format!("{app} window"),
+                                     frame: None,
+                                     floating: false,
++                                    pinned: false,
+                                     managed: true,
+                                     visible: number == 1,
+                                     focused: false,
+@@ -915,6 +917,7 @@ mod tests {
+             title: "window".to_string(),
+             frame: None,
+             floating: false,
++            pinned: false,
+             managed: true,
+             visible: true,
+             focused: true,
+diff --git a/src/tests/pinned.rs b/src/tests/pinned.rs
+new file mode 100644
+--- /dev/null
++++ b/src/tests/pinned.rs
+@@ -0,0 +1,271 @@
++//! Tests for `Operation::Pin` and `Operation::PinLayer`, and for floating
++//! windows staying with their virtual workspace while pinned ones stay on
++//! screen across a switch.
++
++use std::cell::Cell;
++use std::rc::Rc;
++
++use bevy::ecs::system::SystemState;
++use bevy::prelude::*;
++
++use crate::commands::{Command, Operation};
++use crate::ecs::layout::LayoutStrip;
++use crate::ecs::state::{PaneruQueryState, QueryStateParams};
++use crate::ecs::{ActiveWorkspaceMarker, ParkedFloat, ParkedFor, Pinned, Unmanaged};
++use crate::events::Event;
++use crate::manager::{Origin, Window};
++use crate::platform::WinID;
++use crate::types::windowset::WindowSet;
++use crate::{assert_focused, assert_window_at};
++
++use super::*;
++
++const PARKED_X: i32 = TEST_DISPLAY_WIDTH - 10;
++const PARKED_Y: i32 = TEST_DISPLAY_HEIGHT - 10;
++
++fn command(operation: Operation) -> Event {
++    Event::Command {
++        command: Command::Window(operation),
++    }
++}
++
++fn is_pinned(world: &mut World, window_id: WinID) -> bool {
++    let entity = find_window_entity(window_id, world);
++    world.get::<Pinned>(entity).is_some()
++}
++
++fn is_floating(world: &mut World, window_id: WinID) -> bool {
++    let entity = find_window_entity(window_id, world);
++    matches!(world.get::<Unmanaged>(entity), Some(Unmanaged::Floating))
++}
++
++fn parked_for(world: &mut World, window_id: WinID) -> Option<ParkedFor> {
++    let entity = find_window_entity(window_id, world);
++    world
++        .get::<ParkedFloat>(entity)
++        .map(|parked| parked.parked_for)
++}
++
++fn origin_of(world: &mut World, window_id: WinID) -> Origin {
++    let mut query = world.query::<&Window>();
++    query
++        .iter(world)
++        .find(|window| window.id() == window_id)
++        .expect("window not found")
++        .frame()
++        .min
++}
++
++fn in_any_strip(world: &mut World, window_id: WinID) -> bool {
++    let entity = find_window_entity(window_id, world);
++    let mut query = world.query::<&LayoutStrip>();
++    query.iter(world).any(|strip| strip.contains(entity))
++}
++
++fn snapshot(world: &mut World) -> (PaneruQueryState, WindowSet) {
++    let mut system_state: SystemState<QueryStateParams> = SystemState::new(world);
++    let params = system_state.get(world).expect("state params");
++    (
++        params.extract().expect("query state"),
++        params.extract_window_set().expect("window set"),
++    )
++}
++
++#[test]
++fn test_pin_floats_a_tiled_window_and_unpinning_keeps_it_floating() {
++    let commands = vec![
++        Event::WindowFocused { window_id: 0 },
++        command(Operation::Pin),
++        command(Operation::Pin),
++    ];
++
++    TestHarness::new()
++        .with_windows(2)
++        .on_iteration(1, |world, _state| {
++            assert!(is_pinned(world, 0));
++            assert!(is_floating(world, 0));
++            assert!(
++                !in_any_strip(world, 0),
++                "a pinned window leaves the strip like any floating window"
++            );
++        })
++        .on_iteration(2, |world, _state| {
++            assert!(!is_pinned(world, 0));
++            assert!(is_floating(world, 0), "unpinning must not tile the window");
++        })
++        .run(commands);
++}
++
++#[test]
++fn test_retiling_a_pinned_window_unpins_it() {
++    let commands = vec![
++        Event::WindowFocused { window_id: 0 },
++        command(Operation::Pin),
++        command(Operation::Manage),
++    ];
++
++    TestHarness::new()
++        .with_windows(2)
++        .on_iteration(2, |world, _state| {
++            assert!(!is_floating(world, 0));
++            assert!(!is_pinned(world, 0));
++            assert!(in_any_strip(world, 0));
++        })
++        .run(commands);
++}
++
++#[test]
++fn test_virtual_switch_parks_floats_and_keeps_pinned_windows_on_screen() {
++    let pinned_origin = Rc::new(Cell::new(Origin::ZERO));
++    let floating_origin = Rc::new(Cell::new(Origin::ZERO));
++    let commands = vec![
++        Event::WindowFocused { window_id: 0 },
++        command(Operation::Pin),
++        Event::Command {
++            command: Command::PrintState,
++        },
++        command(Operation::Manage),
++        command(Operation::VirtualNumber(1)),
++        command(Operation::VirtualNumber(0)),
++    ];
++
++    let (pinned_before, floating_before) = (pinned_origin.clone(), floating_origin.clone());
++    let (pinned_after, floating_after) = (pinned_origin, floating_origin);
++    TestHarness::new()
++        .with_windows(3)
++        .on_iteration(1, |_world, state| state.focus_window(1))
++        .on_iteration(3, move |world, _state| {
++            pinned_before.set(origin_of(world, 0));
++            floating_before.set(origin_of(world, 1));
++        })
++        .on_iteration(4, move |world, _state| {
++            assert_eq!(parked_for(world, 0), None);
++            assert_eq!(origin_of(world, 0), pinned_after.get());
++            assert_eq!(
++                parked_for(world, 1),
++                Some(ParkedFor::Row {
++                    workspace_id: TEST_WORKSPACE_ID,
++                    virtual_index: 0,
++                })
++            );
++            assert_window_at!(world, 1, PARKED_X, PARKED_Y);
++        })
++        .on_iteration(5, move |world, _state| {
++            assert_eq!(parked_for(world, 1), None);
++            assert_eq!(origin_of(world, 1), floating_after.get());
++        })
++        .run(commands);
++}
++
++#[test]
++fn test_focusing_a_float_parked_with_its_row_shows_the_row() {
++    let commands = vec![
++        Event::WindowFocused { window_id: 0 },
++        command(Operation::Manage),
++        command(Operation::VirtualNumber(1)),
++        Event::Command {
++            command: Command::PrintState,
++        },
++    ];
++
++    TestHarness::new()
++        .with_windows(2)
++        .on_iteration(2, |world, state| {
++            assert!(parked_for(world, 0).is_some());
++            state.focus_window(0);
++        })
++        .on_iteration(3, |world, _state| {
++            let mut query = world.query_filtered::<&LayoutStrip, With<ActiveWorkspaceMarker>>();
++            let active = query.single(world).expect("an active strip");
++            assert_eq!(active.virtual_index, 0);
++            assert_eq!(parked_for(world, 0), None);
++            assert_focused!(world, 0);
++        })
++        .run(commands);
++}
++
++#[test]
++fn test_pin_layer_parks_pinned_windows_and_brings_them_back() {
++    let origin = Rc::new(Cell::new(Origin::ZERO));
++    let commands = vec![
++        Event::WindowFocused { window_id: 0 },
++        command(Operation::Pin),
++        command(Operation::PinLayer),
++        command(Operation::PinLayer),
++    ];
++
++    let (before, after) = (origin.clone(), origin);
++    TestHarness::new()
++        .with_windows(2)
++        .on_iteration(1, move |world, _state| {
++            before.set(origin_of(world, 0));
++        })
++        .on_iteration(2, |world, _state| {
++            assert_eq!(parked_for(world, 0), Some(ParkedFor::PinLayer));
++            assert_window_at!(world, 0, PARKED_X, PARKED_Y);
++            assert_focused!(world, 1);
++        })
++        .on_iteration(3, move |world, _state| {
++            assert_eq!(parked_for(world, 0), None);
++            assert_eq!(origin_of(world, 0), after.get());
++            assert!(is_pinned(world, 0));
++        })
++        .run(commands);
++}
++
++#[test]
++fn test_state_reports_pinned_and_parked_windows() {
++    let commands = vec![
++        Event::WindowFocused { window_id: 0 },
++        command(Operation::Pin),
++        Event::Command {
++            command: Command::PrintState,
++        },
++        command(Operation::Manage),
++        command(Operation::VirtualNumber(1)),
++    ];
++
++    TestHarness::new()
++        .with_windows(3)
++        .on_iteration(1, |_world, state| state.focus_window(1))
++        .on_iteration(4, |world, _state| {
++            let (state, set) = snapshot(world);
++            let row = |number: u32| {
++                state
++                    .virtual_workspaces
++                    .iter()
++                    .find(|workspace| workspace.number == number)
++                    .expect("the row")
++            };
++
++            let shown = row(2);
++            assert!(shown.active);
++            let pinned = shown
++                .windows
++                .iter()
++                .find(|window| window.window_id == 0)
++                .expect("the pinned window shows on the new row");
++            assert!(pinned.pinned);
++            assert!(pinned.visible);
++            assert!(shown.windows.iter().all(|window| window.window_id != 1));
++
++            let left = row(1);
++            let parked = left
++                .windows
++                .iter()
++                .find(|window| window.window_id == 1)
++                .expect("the parked float stays listed with its row");
++            assert!(!parked.pinned);
++            assert!(!parked.visible);
++
++            let floating = set
++                .current()
++                .expect("an active workspace")
++                .floating
++                .iter()
++                .map(|window| (window.id, window.pinned))
++                .collect::<Vec<_>>();
++            assert_eq!(floating, vec![(0, true)]);
++        })
++        .run(commands);
++}
+diff --git a/src/tests.rs b/src/tests.rs
+--- a/src/tests.rs
++++ b/src/tests.rs
+@@ -3,6 +3,7 @@ mod focus_or_virtual;
+ mod harness;
+ mod interaction;
+ mod mocks;
++mod pinned;
+ mod session_restore;
+ mod state;
+ mod tabbed_display;
+diff --git a/src/types/argv.rs b/src/types/argv.rs
+--- a/src/types/argv.rs
++++ b/src/types/argv.rs
+@@ -71,6 +71,8 @@ fn parse_operation(argv: &[&str]) -> Result<Operation> {
+             _ => return Err(err()),
+         },
+         "togglefloatlayer" => Operation::ToggleFloatingLayer,
++        "pin" => Operation::Pin,
++        "pinlayer" => Operation::PinLayer,
+         "swap" => Operation::Swap(Direction::parse(argument()?)?),
+         "center" => Operation::Center,
+         "resize" => Operation::Resize(
+@@ -222,6 +224,8 @@ impl Operation {
+             Operation::FocusManaged => owned(&["focus", "managed"]),
+             Operation::RaiseFloating => owned(&["raise", "floating"]),
+             Operation::ToggleFloatingLayer => owned(&["togglefloatlayer"]),
++            Operation::Pin => owned(&["pin"]),
++            Operation::PinLayer => owned(&["pinlayer"]),
+             Operation::CopyRule => owned(&["copyrule"]),
+         }
+     }
+@@ -269,6 +273,8 @@ mod tests {
+             Operation::FocusManaged,
+             Operation::RaiseFloating,
+             Operation::ToggleFloatingLayer,
++            Operation::Pin,
++            Operation::PinLayer,
+             Operation::CopyRule,
+         ];
+ 
+@@ -298,6 +304,18 @@ mod tests {
+         }
+     }
+ 
++    #[test]
++    fn pin_bindings_parse_to_their_operations() {
++        assert_eq!(
++            parse_command(&["window", "pin"]),
++            Ok(Command::Window(Operation::Pin))
++        );
++        assert_eq!(
++            parse_command(&["window", "pinlayer"]),
++            Ok(Command::Window(Operation::PinLayer))
++        );
++    }
++
+     #[test]
+     fn lua_commands_have_no_argv_encoding() {
+         assert!(Command::Lua(1).to_argv().is_none());
+diff --git a/src/types/commands.rs b/src/types/commands.rs
+--- a/src/types/commands.rs
++++ b/src/types/commands.rs
+@@ -279,6 +279,13 @@ pub enum Operation {
+     /// Flips `FloatingLayer`, raises the other windows in the new top tier,
+     /// and focuses the tier's last-focused window.
+     ToggleFloatingLayer,
++    /// Pins the focused window, floating it first when it is tiled. A pinned
++    /// window stays on screen whichever virtual workspace is showing. On a
++    /// window that is already pinned, unpins it and leaves it floating.
++    Pin,
++    /// Parks every pinned window at the corner of its display, keeping its
++    /// frame, or brings them all back when they are parked.
++    PinLayer,
+     /// Copies a `[windows]` configuration rule for the focused window to the
+     /// clipboard.
+     CopyRule,
+diff --git a/src/types/state.rs b/src/types/state.rs
+--- a/src/types/state.rs
++++ b/src/types/state.rs
+@@ -111,6 +111,8 @@ pub struct Frame {
+ }
+ 
+ /// A window, as reported by queries and subscription events.
++// Each flag is independent of the others, as on `WindowRec`.
++#[allow(clippy::struct_excessive_bools)]
+ #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+ pub struct WindowState {
+     pub window_id: i32,
+@@ -119,6 +121,10 @@ pub struct WindowState {
+     pub title: String,
+     pub focused: bool,
+     pub floating: bool,
++    /// Stays on screen whichever virtual workspace is showing. Defaults so a
++    /// client reading a daemon from before pinning still decodes its windows.
++    #[serde(default)]
++    pub pinned: bool,
+     /// Display the window is (mostly) on, when it overlaps one at all.
+     pub display_id: Option<u32>,
+     /// Frame in global display coordinates, when known.
+@@ -282,6 +288,7 @@ mod tests {
+                 title: "window".into(),
+                 focused: true,
+                 floating: false,
++                pinned: false,
+                 display_id: Some(1),
+                 frame: Some(Frame {
+                     x: 0,
+@@ -315,6 +322,7 @@ mod tests {
+             title: String::new(),
+             focused: false,
+             floating: false,
++            pinned: false,
+             display_id: Some(1),
+             frame: Some(Frame {
+                 x,
+diff --git a/src/types/windowset.rs b/src/types/windowset.rs
+--- a/src/types/windowset.rs
++++ b/src/types/windowset.rs
+@@ -140,8 +140,9 @@ pub enum ColumnKind {
+ }
+ 
+ /// One window, as a script sees it.
+-// The four flags are genuinely independent -- a window can be any combination
+-// of floating, managed, visible and focused -- so there is no enum hiding here.
++// The flags are genuinely independent -- a window can be any combination of
++// floating, pinned, managed, visible and focused -- so there is no enum hiding
++// here.
+ #[allow(clippy::struct_excessive_bools)]
+ #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+ pub struct WindowRec {
+@@ -153,6 +154,10 @@ pub struct WindowRec {
+     pub frame: Option<Frame>,
+     /// Outside the tiling layout, positioned by hand.
+     pub floating: bool,
++    /// Stays on screen whichever virtual workspace is showing. Defaults so a
++    /// client reading a daemon from before pinning still decodes its windows.
++    #[serde(default)]
++    pub pinned: bool,
+     /// Laid out by the window manager at all.
+     pub managed: bool,
+     /// More than a sliver of it is actually showing.
+@@ -773,6 +778,7 @@ mod tests {
+             title: format!("{name} window"),
+             frame: None,
+             floating: false,
++            pinned: false,
+             managed: true,
+             visible: true,
+             focused: false,
+diff --git a/src/types/wire.rs b/src/types/wire.rs
+--- a/src/types/wire.rs
++++ b/src/types/wire.rs
+@@ -230,6 +230,7 @@ mod tests {
+                 height: 600,
+             }),
+             floating: false,
++            pinned: false,
+             managed: true,
+             visible: true,
+             focused: id == 1,

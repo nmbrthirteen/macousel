@@ -6,6 +6,7 @@ import os
 nonisolated struct EngineBridgeAnswer: Decodable, Equatable, Sendable {
   var id: Int?
   var error: String?
+  var unparsed = false
   var snapshot: EngineSnapshot?
 
   private static let logger = Logger(subsystem: Log.subsystem, category: "engine")
@@ -28,13 +29,14 @@ nonisolated struct EngineBridgeAnswer: Decodable, Equatable, Sendable {
 
 nonisolated extension EngineBridgeAnswer {
   private enum CodingKeys: String, CodingKey {
-    case id, error, state
+    case id, error, unparsed, state
   }
 
   init(from decoder: Decoder) throws {
     let values = try decoder.container(keyedBy: CodingKeys.self)
     id = try values.decodeIfPresent(Int.self, forKey: .id)
     error = try values.decodeIfPresent(String.self, forKey: .error)
+    unparsed = try values.decodeIfPresent(Bool.self, forKey: .unparsed) ?? false
     guard values.contains(.state) else { return }
     // An unreadable state must still answer its request, or the caller waits out the timeout.
     do {

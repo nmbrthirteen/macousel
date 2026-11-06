@@ -27,7 +27,7 @@ nonisolated extension Action {
       .equalizeHeights:
       .size
     case .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating,
-      .switchToFloatingWindows, .bringBackFloatingWindows:
+      .switchToFloatingWindows, .bringBackFloatingWindows, .pinWindow, .togglePinnedWindows:
       .stacks
     case .toggleOverview, .sendToScratchpad, .toggleScratchpad, .togglePaused:
       .other

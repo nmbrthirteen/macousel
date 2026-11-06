@@ -36,6 +36,8 @@ nonisolated extension Action {
     case .toggleFloating: "Float or unfloat"
     case .switchToFloatingWindows: "Switch to floating windows"
     case .bringBackFloatingWindows: "Bring back floating windows"
+    case .pinWindow: "Pin window"
+    case .togglePinnedWindows: "Show pinned windows"
     case .toggleOverview: "Show or hide overview"
     case .sendToScratchpad: "Send window to scratchpad"
     case .toggleScratchpad: "Show or hide scratchpad"

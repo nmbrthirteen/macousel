@@ -103,6 +103,8 @@ enum EngineChangedGolden {
     window_grow = "alt + ctrl - equal"
     window_nextdisplay = "alt + ctrl - n"
     window_nextdisplaysend = "alt + shift + ctrl - n"
+    window_pin = "alt + ctrl - p"
+    window_pinlayer = "alt + shift + ctrl - p"
     window_resize = "alt + ctrl - r"
     window_shrink = "alt + ctrl - minus"
     window_stack = "alt + ctrl - rightbracket"

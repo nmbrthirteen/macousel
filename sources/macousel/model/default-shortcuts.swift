@@ -53,6 +53,8 @@ extension Action {
       .toggleTabbed: [Hotkey(kVK_ANSI_T, shifted)],
       .toggleFloating: [Hotkey(kVK_ANSI_T, base)],
       .switchToFloatingWindows: [Hotkey(kVK_ANSI_Grave, base)],
+      .pinWindow: [Hotkey(kVK_ANSI_P, base)],
+      .togglePinnedWindows: [Hotkey(kVK_ANSI_P, shifted)],
       .toggleOverview: [Hotkey(kVK_ANSI_O, base)],
       .sendToScratchpad: [Hotkey(kVK_ANSI_S, shifted)],
       .toggleScratchpad: [Hotkey(kVK_ANSI_S, base)],
