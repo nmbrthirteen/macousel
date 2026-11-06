@@ -188,7 +188,8 @@ struct EngineReorderTests {
     strip.focused = 4
 
     let first = Task { await reorder.move(WindowID(4), to: .column(position: 0)) }
-    await Task.yield()
+    // One yield is not always enough for the task to start on a busy machine.
+    while !reorder.isRunning { await Task.yield() }
     let duringRun = await reorder.move(WindowID(1), to: .column(position: 3))
     _ = await first.value
 
