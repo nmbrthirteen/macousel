@@ -231,13 +231,20 @@ struct EngineBridgeTests {
     let world = EngineWorld(
       commands: FakeEngineCommands(log: EngineCallLog()),
       sleep: { try await Task.sleep(for: $0) })
-    let started = ContinuousClock.now
+    var woke = false
 
-    let waiting = Task { try await world.awaitEvent(upTo: .seconds(30)) }
-    for _ in 0..<10 { await Task.yield() }
-    world.handle(.displayChanged(displayId: 1))
-    try await waiting.value
+    // The limit is far past the test, so only an event can wake the waiter. Events keep
+    // coming until it does, which covers a waiter that registers after the first one.
+    let waiting = Task {
+      try await world.awaitEvent(upTo: .seconds(3600))
+      woke = true
+    }
 
-    #expect(ContinuousClock.now - started < .seconds(5))
+    #expect(
+      await harness.eventually {
+        world.handle(.displayChanged(displayId: 1))
+        return woke
+      })
+    waiting.cancel()
   }
 }
