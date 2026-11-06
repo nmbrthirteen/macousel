@@ -42,7 +42,7 @@ final class DimOverlay {
 
   private func resizePool(to count: Int) {
     while panels.count < count {
-      panels.append(OverlayPanel(content: Color.black, interactive: false, level: .normal))
+      panels.append(OverlayPanel(content: Color(nsColor: .shadowColor), interactive: false, level: .normal))
     }
     while panels.count > count {
       panels.removeLast().orderOut(nil)

@@ -16,11 +16,11 @@ struct MinimapCellView: View {
       if isPlaceholder {
         PendingChangeView(radius: cell.cornerRadius)
       } else {
-        shape.fill(Color.primary.opacity(Metrics.Opacity.minimapColumn))
+        shape.fill(.tertiary)
         content
         ForEach(Array(cell.tabDots.enumerated()), id: \.offset) { _, dot in
           Circle()
-            .fill(Color.primary.opacity(Metrics.Opacity.minimapTabDot))
+            .fill(.secondary)
             .frame(width: dot.width, height: dot.height)
             .position(relative(CGPoint(x: dot.midX, y: dot.midY)))
         }
@@ -46,7 +46,7 @@ struct MinimapCellView: View {
     if let number = cell.content.number {
       Text("\(number.value)")
         .font(.overlay(.small, weight: .semibold))
-        .foregroundStyle(Color.primary.opacity(Metrics.Opacity.minimapNumber))
+        .foregroundStyle(.secondary)
         .position(relative(number.center))
     }
   }

@@ -11,10 +11,9 @@ struct OverviewGripView: View {
   let isActive: Bool
   @State private var isHovering = false
 
-  private var color: Color {
-    if isActive { return .accentColor }
-    return Color.primary.opacity(
-      isHovering ? Metrics.Overview.gripHoverOpacity : Metrics.Overview.gripOpacity)
+  private var style: AnyShapeStyle {
+    if isActive { return AnyShapeStyle(Color.accentColor) }
+    return isHovering ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary)
   }
 
   private var gripSize: CGSize {
@@ -28,7 +27,7 @@ struct OverviewGripView: View {
       .frame(width: rect.width, height: rect.height)
       .overlay {
         Capsule()
-          .fill(color)
+          .fill(style)
           .frame(width: gripSize.width, height: gripSize.height)
       }
       .contentShape(Rectangle())

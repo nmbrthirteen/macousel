@@ -20,29 +20,15 @@ enum Metrics {
 
 
   enum Opacity {
-    static let overviewBadge = 0.18
-    static let overviewHairline = 0.12
     static let overviewCardShadow = 0.3
-    static let overviewSelectedShadow = 0.45
-    static let overviewSolidBackdrop = 0.92
-    static let minimapColumn = 0.22
-    static let minimapLens = 0.10
-    static let minimapLensBorder = 0.30
-    static let minimapTabDot = 0.5
-    static let minimapNumber = 0.85
+    static let windowShadow = 0.4
     static let minimapOffscreen = 0.45
-    static let minimapContrastBorder = 0.5
     static let pendingFill = 0.22
-    static let pendingBorder = 0.70
   }
 
   enum Overlay {
-    static let pendingBorderWidth = 1.0
     static let dragThreshold = 4.0
     static let liftShadowOpacity = 0.35
-    static let smallText = 11.0
-    static let regularText = 13.0
-    static let largeText = 15.0
   }
 
   enum Minimap {
@@ -85,7 +71,8 @@ enum Metrics {
     static let stackGap = 6.0
     static let iconSide = 48.0
     static let compactIconSide = 16.0
-    static let selectionStroke = 3.0
+    static let focusRingWidth = 3.0
+    static let symbolShare = 0.75
     static let roomyCardMinimumHeight = 110.0
     static let titleMinimumWidth = 72.0
     static let badgeMinimumWidth = 22.0
@@ -101,12 +88,11 @@ enum Metrics {
     static let labelHeight = 24.0
     static let gripThickness = 3.0
     static let gripLength = 28.0
-    static let gripOpacity = 0.4
-    static let gripHoverOpacity = 0.8
     static let parkedSliver = 48.0
     static let cardShadowRadius = 12.0
     static let cardShadowOffset = 4.0
-    static let selectedShadowRadius = 20.0
+    static let windowShadowRadius = 24.0
+    static let windowShadowOffset = 10.0
     static let hoverTitleGap = 8.0
     static let hoverTitleMaximumWidth = 320.0
     static let noticeInset = 24.0

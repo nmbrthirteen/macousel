@@ -26,4 +26,15 @@ struct OverviewSnapshot: Equatable {
   var presetWidths: [Double] = []
   var springResponse: Double?
   var allowsResize = true
+
+  func placing(_ frame: (Card) -> CGRect?) -> OverviewSnapshot {
+    var placed = self
+    for column in placed.columns.indices {
+      for row in placed.columns[column].cards.indices {
+        let card = placed.columns[column].cards[row]
+        placed.columns[column].cards[row].frame = frame(card) ?? card.frame
+      }
+    }
+    return placed
+  }
 }

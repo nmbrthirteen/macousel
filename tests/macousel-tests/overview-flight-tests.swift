@@ -1,4 +1,5 @@
 import CoreGraphics
+import StripCore
 import Testing
 
 @testable import Macousel
@@ -48,5 +49,36 @@ struct OverviewFlightTests {
     #expect(transform.offset == CGSize(width: 200, height: 50))
     #expect(transform.scale == CGSize(width: 4, height: 4))
     #expect(OverviewFlight.transform(from: slot, to: slot) == .identity)
+  }
+
+  @Test func aCardStartsExactlyOnItsRealWindow() {
+    let snapshot = OverviewSnapshot(
+      columns: [
+        OverviewSnapshot.Column(
+          width: 800,
+          cards: [
+            OverviewSnapshot.Card(
+              window: WindowID(1), title: "One", bundleIdentifier: nil, heightShare: 1,
+              frame: CGRect(x: 1800, y: 40, width: 800, height: 900))
+          ])
+      ], stripHeight: 900, selection: nil)
+    let second = CGRect(x: 1600, y: 0, width: 1600, height: 1000)
+    let slot = OverviewGeometry(snapshot: snapshot, size: second.size).cards[0].rect
+
+    let source = OverviewFlight.source(of: CGRect(x: 1800, y: 40, width: 800, height: 900), on: second)
+    let start = OverviewFlight.transform(from: slot, to: source).applied(to: slot)
+
+    #expect(start == CGRect(x: 200, y: 40, width: 800, height: 900))
+    #expect(slot.width < start.width)
+  }
+
+  @Test func theIdentityTransformLeavesTheCardInItsSlot() {
+    let slot = CGRect(x: 120, y: 80, width: 300, height: 200)
+    #expect(OverviewFlight.Transform.identity.applied(to: slot) == slot)
+  }
+
+  @Test func aWindowWithOnlyASliverShowingCountsAsParked() {
+    #expect(!OverviewFlight.isShown(CGRect(x: 1590, y: 40, width: 800, height: 900), on: display))
+    #expect(OverviewFlight.isShown(CGRect(x: 1200, y: 40, width: 800, height: 900), on: display))
   }
 }

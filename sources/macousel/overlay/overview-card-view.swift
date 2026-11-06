@@ -7,6 +7,7 @@ struct OverviewCardView: View {
   let radius: Double
   var isLifted = false
   var isHovered = false
+  var showsChrome = true
 
   private var shape: RoundedRectangle {
     RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -16,11 +17,8 @@ struct OverviewCardView: View {
   private var showsTitle: Bool { card.rect.width >= Metrics.Overview.titleMinimumWidth }
   private var showsBadge: Bool { card.rect.width >= Metrics.Overview.badgeMinimumWidth }
 
-  private var restingScale: Double {
-    if isHovered { return OverlayTiming.overviewHoverScale }
-    return card.isSelected ? OverlayTiming.overviewSelectedScale : 1
-  }
-
+  // The picture keeps the window's own transparent corners, so it is never clipped: any clip
+  // rounder than the real window would show at the first frame, when it sits on the window.
   var body: some View {
     let picture = previews.images[card.id]
     ZStack {
@@ -28,9 +26,7 @@ struct OverviewCardView: View {
         Image(decorative: picture, scale: 1)
           .resizable()
           .interpolation(.high)
-          .aspectRatio(contentMode: .fill)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .clipShape(shape)
           .overlay(alignment: .topLeading) {
             badge(onPicture: true).padding(Metrics.Spacing.regular)
           }
@@ -41,39 +37,28 @@ struct OverviewCardView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .overlay {
-      shape.strokeBorder(
-        Color.white.opacity(Metrics.Opacity.overviewHairline),
-        lineWidth: Metrics.Size.hairlineStroke)
+      if card.isSelected { focusRing.opacity(showsChrome ? 1 : 0) }
     }
-    .overlay {
-      if card.isSelected {
-        shape.strokeBorder(Color.accentColor, lineWidth: Metrics.Overview.selectionStroke)
-      }
-    }
-    .shadow(
-      color: .black.opacity(
-        card.isSelected
-          ? Metrics.Opacity.overviewSelectedShadow : Metrics.Opacity.overviewCardShadow),
-      radius: card.isSelected
-        ? Metrics.Overview.selectedShadowRadius : Metrics.Overview.cardShadowRadius,
-      y: Metrics.Overview.cardShadowOffset)
-    .scaleEffect(restingScale)
     .opacity(isLifted ? Metrics.Overview.liftOpacity : 1)
     .overlayLift(
       isLifted, scale: OverlayTiming.liftScale, shadowRadius: Metrics.Overview.liftShadowRadius)
     .overlay(alignment: .bottom) {
       if isHovered { hoverTitle }
     }
-    .animation(
-      .spring(
-        response: OverlayTiming.overviewHoverResponse,
-        dampingFraction: OverlayTiming.criticalDamping),
-      value: isHovered
-    )
+    .animation(.easeOut(duration: OverlayTiming.fade), value: isHovered)
     .contentShape(shape)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(card.content.title)
     .accessibilityAddTraits(card.isSelected ? [.isButton, .isSelected] : .isButton)
+  }
+
+  // Drawn outside the card, in the keyboard focus color, like the system focus ring.
+  private var focusRing: some View {
+    let width = Metrics.Overview.focusRingWidth
+    return RoundedRectangle(cornerRadius: radius + width, style: .continuous)
+      .strokeBorder(Color(nsColor: .keyboardFocusIndicatorColor), lineWidth: width)
+      .padding(-width)
+      .allowsHitTesting(false)
   }
 
   private var placeholder: some View {
@@ -82,7 +67,7 @@ struct OverviewCardView: View {
     }
     .padding(Metrics.Spacing.regular)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .overlaySurface(in: shape)
+    .background(.regularMaterial, in: shape)
   }
 
   private var roomyContent: some View {
@@ -129,10 +114,8 @@ struct OverviewCardView: View {
         .padding(.horizontal, Metrics.Spacing.compact)
         .padding(.vertical, Metrics.Spacing.hairline)
         .background(
-          onPicture
-            ? AnyShapeStyle(.regularMaterial)
-            : AnyShapeStyle(Color.primary.opacity(Metrics.Opacity.overviewBadge)),
-          in: Capsule())
+          onPicture ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(.quaternary), in: Capsule())
+        .opacity(showsChrome ? 1 : 0)
     }
   }
 
@@ -141,8 +124,10 @@ struct OverviewCardView: View {
     if let icon {
       Image(nsImage: icon).resizable().interpolation(.high).frame(width: side, height: side)
     } else {
-      Image(systemName: "macwindow").resizable().scaledToFit().frame(width: side, height: side)
+      Image(systemName: "macwindow")
+        .font(.system(size: side * Metrics.Overview.symbolShare))
         .foregroundStyle(.secondary)
+        .frame(width: side, height: side)
     }
   }
 
@@ -152,5 +137,6 @@ struct OverviewCardView: View {
       .lineLimit(alignment == .center ? Metrics.Overview.titleLineLimit : 1)
       .multilineTextAlignment(alignment)
       .truncationMode(.middle)
+      .opacity(showsChrome ? 1 : 0)
   }
 }

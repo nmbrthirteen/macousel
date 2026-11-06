@@ -21,6 +21,9 @@ final class OverlayPanel: NSPanel {
     hidesOnDeactivate = false
     ignoresMouseEvents = !interactive
     becomesKeyOnlyIfNeeded = true
+    // Ordering in and out must be instant: the overview swaps to and from the real windows
+    // between two identical frames.
+    animationBehavior = .none
 
     let hostingView = NSHostingView(rootView: content)
     hostingView.sizingOptions = []
@@ -59,7 +62,7 @@ final class OverlayPanel: NSPanel {
   func present(fadeDuration: TimeInterval) {
     guard !isPresented else { return }
     isPresented = true
-    if !isVisible { alphaValue = fadeDuration > 0 && !Self.reducesMotion ? 0 : 1 }
+    if !isVisible { alphaValue = fadeDuration > 0 ? 0 : 1 }
     orderFrontRegardless()
     if keyHandler != nil { makeKey() }
     fade(to: 1, duration: fadeDuration)
@@ -82,7 +85,8 @@ final class OverlayPanel: NSPanel {
   func fade(
     to alpha: CGFloat, duration: TimeInterval, completion: @escaping @MainActor () -> Void = {}
   ) {
-    guard duration > 0, !Self.reducesMotion else {
+    // Fades stay under Reduce Motion: they are what motion falls back to.
+    guard duration > 0 else {
       alphaValue = alpha
       completion()
       return
