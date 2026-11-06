@@ -30,6 +30,9 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 - Turn a stack into a tabbed column. Paneru shows one window at a time and has no tab bar.
 - Cycle a column through preset widths, or nudge it wider and narrower.
 - Float a window to take it out of the strip. Quick Look floats by default, and Paneru never tiles dialogs and sheets.
+- Floating windows over the focused window come back to the front when you focus a tiled window, without taking focus. Settings > App rules has a switch for it.
+- Switch between the floating windows and the strip with one shortcut.
+- "Bring back floating windows" moves every floating window that is mostly off screen onto the active display, at the same size. It has no default shortcut.
 - Windows that an app merges into native tabs, like Finder or Terminal tabs, share one column. Settings > Layout has a switch for it. This is Paneru only.
 
 **Input**
@@ -38,12 +41,14 @@ Paneru runs as a child process of the app. Macousel writes its configuration, st
 - Give an app its own key in Settings > App shortcuts. The key focuses its window, cycles through its windows when you press it again, and opens the app if it is not running.
 - Swipe with three or four fingers, or hold Control-Option and scroll.
 - A swipe moves one column at a time. Keep swiping to move further. Settings > Pointer has a free-scrolling mode if you prefer Paneru's own swipe.
+- "Focus previous window" goes back to the window you focused before. Press it again to return.
 - Optional focus follows mouse and mouse follows focus.
 
 **The rest**
 
-- A minimap of the strip that appears when focus moves, and a column count in the menu bar.
+- A minimap of the strip that appears when focus moves, and a column count in the menu bar. With Paneru, the minimap also counts the floating windows on its display.
 - An overview that shows every window in the strip, stacks included, with a picture of each window when Screen Recording is allowed. Pick one to focus it, or drag a card to reorder columns or stack it onto another window. Shift plus an arrow key or a number moves the selected window.
+- The overview shows the floating windows in a row above the strip. Pick one to focus it. They stay out of the strip, so dragging one does nothing.
 - Drag a cell in the minimap to reorder and stack the same way.
 - Drag a real window by its title bar. A preview shows where it will land, between two columns, at either end of the strip, or on the top or bottom half of another window. Release and Paneru moves the window there.
 - A focus border and dimming for inactive windows.
@@ -65,7 +70,6 @@ Paneru does not do these. The built-in engine does, and Macousel greys out the m
 - A tab bar for tabbed columns.
 - Tiling off for one display, and the display under the pointer becoming the active one.
 - The scratchpad.
-- Floating windows that return to the front when you focus a tiled window.
 - Resize columns and rows in the overview.
 - Putting every window back at its original frame when you quit or pause.
 
@@ -155,7 +159,7 @@ CODESIGN_IDENTITY="My Certificate" scripts/bundle.sh
 
 Most of them use Control-Option, including the column numbers. Plain Option plus a digit would block characters on layouts such as German, where Option-5 to Option-9 type brackets and braces. Rebind any of them in Settings > Shortcuts, which groups them as Navigate, Size, Stacks, and Other and draws each key as a keycap. A shortcut you already changed keeps its binding.
 
-Paneru handles the keys itself through an event tap. Macousel registers only the pause and overview keys and your app shortcuts. A key that Paneru has no name for stays in Settings but is not sent to Paneru, and its row says so.
+Paneru handles the keys itself through an event tap. Macousel registers only the pause, overview, and previous window keys and your app shortcuts. A key that Paneru has no name for stays in Settings but is not sent to Paneru, and its row says so.
 
 Two columns of two stacked windows make a 2 by 2 grid. I build one by stacking each window onto the column on its left.
 
@@ -164,6 +168,7 @@ Two columns of two stacked windows make a 2 by 2 grid. I build one by stacking e
 | Focus left, down, up, right | ⌃⌥ H J K L, or the arrows |
 | Move the window | ⌃⌥⇧ and the same keys |
 | First or last window | ⌃⌥⌘ ← → |
+| Focus previous window | ⌃⌥ \ |
 | Jump to column 1 to 8, or 9 for the last | ⌃⌥ 1 to 9 |
 | Move the window to the first or last spot | ⌃⌥⌘⇧ ← → |
 | Cycle width, full width, center | ⌃⌥ R, F, C |
@@ -173,6 +178,7 @@ Two columns of two stacked windows make a 2 by 2 grid. I build one by stacking e
 | Pop out to its own column on the right, or on the left | ⌃⌥⇧ ] and [ |
 | Tabbed column | ⌃⌥⇧ T |
 | Float | ⌃⌥ T |
+| Switch to floating windows | ⌃⌥ ` |
 | Send to the next display | ⌃⌥ N |
 | Send to the next display and stay here | ⌃⌥⇧ N |
 | Focus the next display | ⌃⌥ D |

@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 public final class AccessibilityTrustObserver {
   // macOS posts this whenever any app's Accessibility grant changes. The new trust value can
   // lag the notification, so each change is checked again a moment later.
