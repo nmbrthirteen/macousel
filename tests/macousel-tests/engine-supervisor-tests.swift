@@ -22,6 +22,19 @@ struct EngineSupervisorTests {
     #expect(harness.launcher.launches.isEmpty)
   }
 
+  @Test func waitsForTheScreenToUnlockBeforeSpawning() async throws {
+    harness.isScreenLocked = true
+    let engine = try supervisor()
+
+    engine.start()
+    #expect(await harness.eventually { harness.sleeps.contains(EngineSupervisor.lockedScreenRecheck) })
+    #expect(harness.launcher.launches.isEmpty)
+
+    harness.isScreenLocked = false
+    #expect(await harness.eventually { engine.state == .running })
+    #expect(harness.launcher.launches.count == 1)
+  }
+
   @Test func clearsAnOrphanBeforeSpawning() async throws {
     harness.commands.isAlive = true
     let engine = try supervisor()

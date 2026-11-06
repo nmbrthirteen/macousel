@@ -33,7 +33,8 @@ extension PaneruEngine {
           }
         },
         isTrusted: { environment.isAccessibilityGranted }, writeConfig: { try sync.writeCurrent() },
-        now: { ContinuousClock.now }, sleep: { try await Task.sleep(for: $0) }))
+        now: { ContinuousClock.now }, sleep: { try await Task.sleep(for: $0) },
+        isScreenLocked: { ScreenLock.isLocked }))
     let displays: () -> [Display] = { environment.displays }
     let world = EngineWorld(commands: commands, sleep: { try await Task.sleep(for: $0) })
     let reorder = EngineReorder(commands: commands, sleep: { try await world.awaitEvent(upTo: $0) })

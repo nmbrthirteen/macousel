@@ -1,0 +1,24 @@
+diff --git a/src/ecs/restore.rs b/src/ecs/restore.rs
+--- a/src/ecs/restore.rs
++++ b/src/ecs/restore.rs
+@@ -541,7 +541,10 @@ pub(super) fn restore_window_state(
+             }
+         }
+ 
+-        let origin = if is_global_active {
++        // Only one display holds the global active marker, but each display shows its
++        // space's selected row. Parking every other display's row left its windows hidden
++        // below the screen until that display was focused.
++        let origin = if is_active {
+             display.bounds().min
+         } else {
+             display.bounds().max - PARKED_STRIP_SLIVER
+@@ -555,7 +558,7 @@ pub(super) fn restore_window_state(
+             ctx.commands
+                 .spawn_layout_strip(strip, origin, display_entity, is_global_active);
+ 
+-        if !is_global_active {
++        if !is_active {
+             spawned.insert(previous);
+         }
+         restored_strips += 1;
