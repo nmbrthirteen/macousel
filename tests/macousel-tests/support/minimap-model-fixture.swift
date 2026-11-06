@@ -12,7 +12,7 @@ final class MinimapModelFixture {
 
   init(snapshot: MinimapSnapshot) {
     let clock = clock
-    model = MinimapModel { clock.schedule(after: $0, $1) }
+    model = MinimapModel(now: { clock.now }, schedule: { clock.schedule(after: $0, $1) })
     model.onSelect = { [unowned self] in selected.append($0) }
     model.onMove = { [unowned self] in moves.append(($0, $1)) }
     model.onVisibilityChange = { [unowned self] in visibility.append($0) }

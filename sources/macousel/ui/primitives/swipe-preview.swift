@@ -28,7 +28,7 @@ struct SwipePreview: View {
             width: PreviewMetrics.Trackpad.stripArrowReach,
             height: PreviewMetrics.Trackpad.stripArrowHeight)
         Text(diagram.stripCaption)
-          .font(.caption)
+          .font(.footnote)
           .foregroundStyle(.secondary)
       }
       StripPreview(scenario: scenario, config: config, animation: animation)

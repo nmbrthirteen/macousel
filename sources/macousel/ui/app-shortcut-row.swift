@@ -23,23 +23,21 @@ struct AppShortcutRow: View {
   }
 
   var body: some View {
-    CaptionedRow {
-      LabeledContent {
-        HStack(spacing: Metrics.Spacing.regular) {
-          AppShortcutChip(recording: recording, hotkey: hotkey, appName: identity.name)
-          RemoveButton(label: "Remove shortcut for \(identity.name)", action: onRemove)
-        }
-      } label: {
-        AppLabel(identity: identity)
+    LabeledContent {
+      HStack(spacing: Metrics.Spacing.regular) {
+        AppShortcutChip(recording: recording, hotkey: hotkey, appName: identity.name)
+        RemoveButton(label: "Remove shortcut for \(identity.name)", action: onRemove)
       }
-      if let message = recording.message {
-        ErrorText(message)
-      }
+    } label: {
+      AppLabel(identity: identity)
     }
     .onAppear {
       if startsRecording { recording.start() }
     }
     .onDisappear(perform: recording.stop)
+    if let message = recording.message {
+      ErrorText(message)
+    }
   }
 
   private var identity: AppIdentity {

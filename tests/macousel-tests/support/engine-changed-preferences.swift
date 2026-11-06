@@ -25,6 +25,7 @@ extension Preferences {
     preferences.reversesSwipeDirection = true
     preferences.focusFollowsMouse = true
     preferences.mouseFollowsFocus = true
+    preferences.groupsNativeTabs = false
     preferences.appRules = [
       AppRule(bundleIdentifier: "com.apple.Calculator", behavior: .float),
       AppRule(bundleIdentifier: "com.example.Editor", behavior: .width(0.6)),

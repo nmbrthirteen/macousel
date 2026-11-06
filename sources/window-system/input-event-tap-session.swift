@@ -16,28 +16,35 @@ private nonisolated func inputTapCallback(
 
 nonisolated final class InputEventTapSession {
   private static let nanosecondsPerSecond = 1e9
-  private static let observedTypes: [CGEventType] = [
-    .scrollWheel, .leftMouseDown, .leftMouseDragged, .leftMouseUp,
-  ]
+  private static let mouseTypes: [CGEventType] = [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
 
   private let modifiers: InputEventTapModifiers
+  private let observesScroll: Bool
   private let deliver: @Sendable (TapDelivery) -> Void
   private var policy = TapEventPolicy()
   private var port: CFMachPort?
 
-  init(modifiers: InputEventTapModifiers, deliver: @escaping @Sendable (TapDelivery) -> Void) {
+  init(
+    modifiers: InputEventTapModifiers, observesScroll: Bool,
+    deliver: @escaping @Sendable (TapDelivery) -> Void
+  ) {
     self.modifiers = modifiers
+    self.observesScroll = observesScroll
     self.deliver = deliver
   }
 
   func run(handle: TapThreadHandle) {
-    let mask = Self.observedTypes.reduce(CGEventMask(0)) {
+    let types = observesScroll ? Self.mouseTypes + [.scrollWheel] : Self.mouseTypes
+    let mask = types.reduce(CGEventMask(0)) {
       (mask: CGEventMask, type: CGEventType) -> CGEventMask in
       mask | (CGEventMask(1) << type.rawValue)
     }
     guard
       let port = CGEvent.tapCreate(
-        tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
+        // Only the scroll gesture swallows events. Without it the tap listens, so every
+        // other app's input never waits on this thread.
+        tap: .cgSessionEventTap, place: .headInsertEventTap,
+        options: observesScroll ? .defaultTap : .listenOnly,
         eventsOfInterest: mask, callback: inputTapCallback,
         userInfo: Unmanaged.passUnretained(self).toOpaque())
     else {

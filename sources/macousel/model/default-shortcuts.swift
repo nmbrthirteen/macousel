@@ -34,6 +34,8 @@ extension Action {
       .moveToFirst: [Hotkey(kVK_LeftArrow, everyModifier)],
       .moveToLast: [Hotkey(kVK_RightArrow, everyModifier)],
       .sendToNextDisplay: [Hotkey(kVK_ANSI_N, base)],
+      .sendToNextDisplayWithoutFollowing: [Hotkey(kVK_ANSI_N, shifted)],
+      .focusNextDisplay: [Hotkey(kVK_ANSI_D, base)],
       .togglePaused: [Hotkey(kVK_ANSI_Q, base)],
       .cycleWidth: [Hotkey(kVK_ANSI_R, base)],
       .toggleFullWidth: [Hotkey(kVK_ANSI_F, base)],

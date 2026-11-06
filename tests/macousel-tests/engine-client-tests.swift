@@ -98,4 +98,39 @@ struct EngineClientTests {
         .displayChanged(displayId: 2),
       ])
   }
+
+  @Test func deliversCommandsInTheOrderTheyWereIssued() async throws {
+    let directory = try TemporaryDirectory()
+    defer { directory.remove() }
+    let log = directory.url.appendingPathComponent("calls.log").path
+    let body = """
+      if [ "$3" = "slow" ]; then sleep 0.3; fi
+      echo "$@" >> '\(log)'
+      """
+    let script = try helper(in: directory, body: body)
+    let client = EngineClient(service: "dev.macousel.app.engine", locate: { script })
+
+    let first = Task { await client.send(["slow"]) }
+    let second = Task { await client.send(["fast"]) }
+    await first.value
+    await second.value
+
+    #expect(try calls(in: directory) == ["send-cmd slow", "send-cmd fast"])
+  }
+
+  @Test func connectsOnlyOnceTheFirstEventArrives() async throws {
+    let directory = try TemporaryDirectory()
+    defer { directory.remove() }
+    let silent = try helper(in: directory, body: "exit 1")
+    let subscriber = EngineSubscriber(
+      service: "dev.macousel.app.engine", retryDelay: .milliseconds(10), locate: { silent })
+    var connects = 0
+    subscriber.onConnect = { connects += 1 }
+
+    subscriber.start()
+    try await Task.sleep(for: .milliseconds(100))
+    subscriber.stop()
+
+    #expect(connects == 0)
+  }
 }

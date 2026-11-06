@@ -7,7 +7,7 @@ final class OverlayPanel: NSPanel {
 
   init<Content: View>(
     content: Content, interactive: Bool, level: NSWindow.Level = .floating,
-    glassCornerRadius: CGFloat? = nil
+    glassCornerRadius: CGFloat? = nil, backdrop: NSView? = nil
   ) {
     super.init(
       contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered,
@@ -40,6 +40,14 @@ final class OverlayPanel: NSPanel {
       hostingView.autoresizingMask = [.width, .height]
       materialView.addSubview(hostingView)
       contentView = materialView
+    } else if let backdrop {
+      let container = NSView()
+      for view in [backdrop, hostingView] {
+        view.frame = container.bounds
+        view.autoresizingMask = [.width, .height]
+        container.addSubview(view)
+      }
+      contentView = container
     } else {
       contentView = hostingView
     }

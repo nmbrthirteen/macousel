@@ -1,0 +1,313 @@
+diff --git a/src/config.rs b/src/config.rs
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -794,6 +794,14 @@ impl Config {
+         self.options().horizontal_mouse_warp
+     }
+ 
++    /// Returns `true` when an enabled feature reads plain mouse movement, which
++    /// is the only reason for the event tap to subscribe to it.
++    pub fn wants_mouse_moved(&self) -> bool {
++        self.focus_follows_mouse()
++            || self.mouse_resize_modifier().is_some()
++            || self.horizontal_mouse_warp().is_some()
++    }
++
+     /// Returns `true` if focus should follow the mouse based on the current configuration.
+     /// If the configuration option is not set, it defaults to `true`.
+     pub fn focus_follows_mouse(&self) -> bool {
+diff --git a/src/ecs/systems.rs b/src/ecs/systems.rs
+--- a/src/ecs/systems.rs
++++ b/src/ecs/systems.rs
+@@ -14,7 +14,7 @@ use bevy::time::Time;
+ use objc2_foundation::NSPoint;
+ use std::collections::HashSet;
+ use std::pin::Pin;
+-use std::sync::mpsc::{Receiver, RecvTimeoutError, TryRecvError};
++use std::sync::mpsc::{Receiver, TryRecvError};
+ use std::time::{Duration, Instant};
+ use tracing::{Level, debug, error, info, instrument, trace, warn};
+ 
+@@ -88,11 +88,11 @@ const LOOP_MAX_TIMEOUT_LOWPOWER_MS: u32 = 2000;
+ // via `EventLoopWaker`, so this only bounds how late the free-running 1s
+ // `on_timer` systems (`recover_lost_focus`, workspace refresh) can land, and
+ // how long a dead event tap can go unnoticed between the 30s health sweeps.
+-// Kept well under both: with no genuine work to do, this used to run the
+-// whole schedule 20 times a second.
++// Kept well under both. The wait doubles each quiet frame, so an idle loop
++// settles at the ceiling within ten frames.
+ const LOOP_MAX_TIMEOUT_MS: u32 = 500;
+ const TAP_HEALTH_CHECK_INTERVAL: Duration = Duration::from_secs(30);
+-const LOOP_TIMEOUT_STEP: u32 = 1;
++const LOOP_TIMEOUT_MIN_MS: u32 = 1;
+ 
+ /// How long [`pump_events`] may spend draining the incoming channel before it
+ /// has to hand the frame back, and how many events it may take in one go.
+@@ -684,6 +684,34 @@ pub(crate) fn demux_input_events(
+     }
+ }
+ 
++/// The wait before the next frame. Any event resets it to the minimum, then it
++/// doubles each quiet frame up to a ceiling: short while something animates,
++/// long in low power mode, [`LOOP_MAX_TIMEOUT_MS`] otherwise.
++fn next_timeout(current_ms: u32, event: bool, animating: bool, low_power: bool) -> u32 {
++    if event {
++        return LOOP_TIMEOUT_MIN_MS;
++    }
++    let ceiling = if animating {
++        LOOP_MAX_TIMEOUT_FRAME_ACTIVE_MS
++    } else if low_power {
++        LOOP_MAX_TIMEOUT_LOWPOWER_MS
++    } else {
++        LOOP_MAX_TIMEOUT_MS
++    };
++    (current_ms.min(ceiling) * 2).clamp(LOOP_TIMEOUT_MIN_MS, ceiling)
++}
++
++/// Keeps the input tap subscribed to plain mouse movement only while the
++/// configuration has a feature that reads it.
++pub(crate) fn sync_mouse_moved_tap(
++    config: Res<Config>,
++    platform: Option<NonSendMut<Pin<Box<PlatformCallbacks>>>>,
++) {
++    if let Some(mut platform) = platform {
++        platform.set_mouse_moved_tap(config.wants_mouse_moved());
++    }
++}
++
+ #[allow(clippy::too_many_arguments)]
+ pub(crate) fn pump_events(
+     mut exit: MessageWriter<AppExit>,
+@@ -710,6 +738,7 @@ pub(crate) fn pump_events(
+     let mut received_events = Vec::new();
+     let mut pending_mouse = None;
+     let mut woke = false;
++    let mut real_event = false;
+ 
+     // `true` when the channel went quiet, `false` when a cap sent us home with
+     // events still queued. Only the quiet case may back the poll timeout off.
+@@ -724,15 +753,10 @@ pub(crate) fn pump_events(
+             break false;
+         }
+ 
+-        // Polled before any timed wait: the Cocoa pump above already did this
+-        // frame's sleeping, so a quiet channel used to cost another millisecond.
+-        let received = match incoming_events.try_recv() {
+-            Err(TryRecvError::Empty) => incoming_events.recv_timeout(Duration::from_millis(1)),
+-            Err(TryRecvError::Disconnected) => Err(RecvTimeoutError::Disconnected),
+-            Ok(event) => Ok(event),
+-        };
+-        match received {
+-            Ok(Event::Exit) | Err(RecvTimeoutError::Disconnected) => {
++        // The Cocoa pump above already did this frame's sleeping, and the event
++        // sender wakes it, so an empty channel needs no second wait here.
++        match incoming_events.try_recv() {
++            Ok(Event::Exit) | Err(TryRecvError::Disconnected) => {
+                 exit.write(AppExit::Success);
+                 return;
+             }
+@@ -743,31 +767,25 @@ pub(crate) fn pump_events(
+                 } else {
+                     received_events.extend(pending_mouse.take());
+                     received_events.push(event);
++                    real_event = true;
+                 }
+-                *timeout = LOOP_TIMEOUT_STEP;
+             }
+-            Err(RecvTimeoutError::Timeout) => break true,
++            Err(TryRecvError::Empty) => break true,
+         }
+     };
+ 
+     received_events.extend(pending_mouse.take());
+     messages.write_batch(received_events);
+ 
+-    if drained {
+-        let frame_active = activity.mid_frame();
+-        let low_power = low_power_mode.is_some_and(|low_power| low_power.0);
+-        let timeout_limit = if frame_active {
+-            LOOP_MAX_TIMEOUT_FRAME_ACTIVE_MS
+-        } else if low_power {
+-            LOOP_MAX_TIMEOUT_LOWPOWER_MS
+-        } else {
+-            LOOP_MAX_TIMEOUT_MS
+-        };
+-        *timeout = timeout.min(timeout_limit) + LOOP_TIMEOUT_STEP;
+-    } else {
+-        // Still backed up: come straight back rather than sleeping on it.
+-        *timeout = LOOP_TIMEOUT_STEP;
+-    }
++    // Still backed up counts as an event: come straight back rather than
++    // sleeping on it. Pointer movement does not reset the wait, because it
++    // already wakes the loop on its own and would otherwise pin it at full rate.
++    *timeout = next_timeout(
++        *timeout,
++        real_event || !drained,
++        activity.mid_frame(),
++        low_power_mode.is_some_and(|low_power| low_power.0),
++    );
+ 
+     // macOS can invalidate the event tap while the machine sleeps without ever
+     // notifying the callback, which kills every keybinding, click and swipe
+@@ -1626,3 +1644,60 @@ mod tests {
+         assert_eq!(tap_config.swipe_gesture_fingers(), Some(3));
+     }
+ }
++
++#[cfg(test)]
++mod timeout_tests {
++    use super::*;
++
++    #[test]
++    fn an_event_resets_the_wait_from_any_level() {
++        for current in [1, 37, 500, 2000] {
++            assert_eq!(next_timeout(current, true, false, false), 1);
++            assert_eq!(next_timeout(current, true, true, true), 1);
++        }
++    }
++
++    #[test]
++    fn quiet_frames_double_until_the_ceiling() {
++        let mut wait = 1;
++        let mut seen = vec![wait];
++        for _ in 0..12 {
++            wait = next_timeout(wait, false, false, false);
++            seen.push(wait);
++        }
++        assert_eq!(seen, [1, 2, 4, 8, 16, 32, 64, 128, 256, 500, 500, 500, 500]);
++    }
++
++    #[test]
++    fn animation_keeps_frames_at_full_rate() {
++        let mut wait = 1;
++        for _ in 0..10 {
++            wait = next_timeout(wait, false, true, false);
++            assert!(wait <= LOOP_MAX_TIMEOUT_FRAME_ACTIVE_MS);
++        }
++        assert_eq!(wait, LOOP_MAX_TIMEOUT_FRAME_ACTIVE_MS);
++        // An animation starting after a long idle pulls the wait straight down.
++        assert_eq!(
++            next_timeout(500, false, true, false),
++            LOOP_MAX_TIMEOUT_FRAME_ACTIVE_MS
++        );
++    }
++
++    #[test]
++    fn low_power_mode_raises_the_ceiling() {
++        assert_eq!(next_timeout(500, false, false, true), 1000);
++        assert_eq!(next_timeout(2000, false, false, true), 2000);
++        assert_eq!(next_timeout(2000, false, true, true), 16);
++    }
++
++    #[test]
++    fn an_idle_minute_runs_the_schedule_about_a_hundred_and_thirty_times() {
++        let (mut wait, mut elapsed_ms, mut runs) = (1, 0, 0);
++        while elapsed_ms < 60_000 {
++            elapsed_ms += u64::from(wait);
++            runs += 1;
++            wait = next_timeout(wait, false, false, false);
++        }
++        assert!((120..=135).contains(&runs), "{runs} runs in a minute");
++    }
++}
+diff --git a/src/ecs.rs b/src/ecs.rs
+--- a/src/ecs.rs
++++ b/src/ecs.rs
+@@ -9,7 +9,7 @@ use bevy::ecs::lifecycle::RemovedComponents;
+ use bevy::ecs::query::{Added, Changed, With};
+ use bevy::ecs::resource::Resource;
+ use bevy::ecs::schedule::SystemCondition;
+-use bevy::ecs::schedule::common_conditions::{not, resource_exists};
++use bevy::ecs::schedule::common_conditions::{not, resource_exists, resource_exists_and_changed};
+ use bevy::ecs::schedule::{ScheduleLabel as _, SingleThreadedExecutor};
+ use bevy::ecs::system::{Commands, EntityCommands, Query, Res, SystemId};
+ use bevy::prelude::Event as BevyEvent;
+@@ -129,6 +129,7 @@ pub fn register_systems(app: &mut bevy::app::App) {
+             // the first resize of a newly visible window.
+             systems::window_creation_event.after(systems::pump_events),
+             systems::demux_input_events.after(systems::pump_events),
++            systems::sync_mouse_moved_tap.run_if(resource_exists_and_changed::<Config>),
+         ),
+     );
+     app.add_systems(
+diff --git a/src/platform/input.rs b/src/platform/input.rs
+--- a/src/platform/input.rs
++++ b/src/platform/input.rs
+@@ -124,6 +124,9 @@ pub(super) struct InputHandler {
+     events: Option<EventSender>,
+     /// The application `Config` for looking up keybindings.
+     config: Config,
++    /// Whether the tap subscribes to plain mouse movement. The mask is fixed
++    /// when the tap is created, so changing this rebuilds the tap.
++    mouse_moved: bool,
+     /// The previous event's fingers, for swipe gesture detection.
+     finger_position: Option<Vec<Touch>>,
+     /// The `CFMachPort` representing the `CGEventTap`.
+@@ -157,6 +160,7 @@ impl InputHandler {
+     pub(super) fn new(events: EventSender, config: Config) -> Self {
+         InputHandler {
+             events: Some(events),
++            mouse_moved: config.wants_mouse_moved(),
+             config,
+             finger_position: None,
+             tap_port: None,
+@@ -193,8 +197,7 @@ impl InputHandler {
+     /// The caller must keep `self` pinned: the tap callback holds a raw pointer
+     /// back to this handler and dereferences it on every event.
+     fn install_tap(&mut self) -> Result<()> {
+-        let mouse_event_mask = (1 << CGEventType::MouseMoved.0)
+-            | (1 << CGEventType::LeftMouseDown.0)
++        let mut mouse_event_mask = (1 << CGEventType::LeftMouseDown.0)
+             | (1 << CGEventType::LeftMouseUp.0)
+             | (1 << CGEventType::LeftMouseDragged.0)
+             | (1 << CGEventType::RightMouseDown.0)
+@@ -203,6 +206,9 @@ impl InputHandler {
+             | (1 << CGEventType::ScrollWheel.0)
+             | (1 << NSEventType::Gesture.0)
+             | (1 << CGEventType::KeyDown.0);
++        if self.mouse_moved {
++            mouse_event_mask |= 1 << CGEventType::MouseMoved.0;
++        }
+ 
+         let this = NonNull::from(&mut *self).as_ptr();
+         let port = unsafe {
+@@ -277,6 +283,20 @@ impl InputHandler {
+         }
+     }
+ 
++    /// Subscribes the tap to plain mouse movement or drops it, rebuilding the
++    /// tap when that changes the mask. Every mouse move wakes the whole
++    /// pipeline, so it stays off unless a feature reads it.
++    pub(super) fn set_mouse_moved(&mut self, wanted: bool) {
++        if self.mouse_moved == wanted {
++            return;
++        }
++        self.mouse_moved = wanted;
++        self.uninstall_tap();
++        if let Err(err) = self.install_tap() {
++            error!("unable to rebuild event tap: {err}");
++        }
++    }
++
+     fn rebuild_tap(&mut self) -> TapHealth {
+         self.uninstall_tap();
+         match self.install_tap() {
+diff --git a/src/platform.rs b/src/platform.rs
+--- a/src/platform.rs
++++ b/src/platform.rs
+@@ -348,6 +348,15 @@ impl PlatformCallbacks {
+         unsafe { handler.as_mut().get_unchecked_mut() }.ensure_tap_alive()
+     }
+ 
++    /// Makes the input tap deliver plain mouse movement only when `wanted`.
++    pub fn set_mouse_moved_tap(&mut self, wanted: bool) {
++        let Some(handler) = self.event_handler.as_mut() else {
++            return;
++        };
++        // Safety: as in `ensure_input_tap_alive`.
++        unsafe { handler.as_mut().get_unchecked_mut() }.set_mouse_moved(wanted);
++    }
++
+     /// Returns `true` when at least one event was dispatched this pass.
+     pub fn pump_cocoa_event_loop(&mut self, timeout: f64) -> bool {
+         // Re-armed before the wait, not after it — see [`EventLoopWaker::rearm`].

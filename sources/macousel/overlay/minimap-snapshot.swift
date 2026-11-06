@@ -30,6 +30,13 @@ struct MinimapSnapshot: Equatable {
   var animationResponse: Double?
   var innerGap = 0.0
 
+  // Engines can report a frame mid-change with no columns or with a column whose windows
+  // have not resolved yet. Drawing that would blank part of the strip for a moment.
+  var isRenderable: Bool {
+    contentWidth > 0 && viewportWidth > 0 && !columns.isEmpty
+      && columns.allSatisfy { !$0.rows.isEmpty && $0.width > 0 }
+  }
+
   var focusedWindow: WindowID? {
     guard let column = columns.first(where: \.isFocused) else { return nil }
     return column.activeWindow

@@ -1,3 +1,4 @@
+import CoreGraphics
 import StripCore
 
 struct OverviewSnapshot: Equatable {
@@ -6,6 +7,7 @@ struct OverviewSnapshot: Equatable {
     var title: String
     var bundleIdentifier: String?
     var heightShare: Double
+    var frame: CGRect? = nil
   }
 
   struct Column: Equatable {

@@ -11,14 +11,15 @@ struct DisplaysPane: View {
         description: Text("Displays appear here after you allow Accessibility access."))
     } else {
       SettingsForm {
-        DisplaysPreview(
-          displays: manager.displays, disabled: store.preferences.disabledDisplays,
-          config: store.preferences.layout, animationSpeed: store.preferences.animationSpeed)
-
-        ForEach(manager.displays, id: \.uuid) { display in
-          SettingsGroup(title: display.name) {
-            ToggleRow(title: "Tile windows on this display", isOn: tilingBinding(for: display.uuid))
-              .engineGated(.perDisplayTiling, for: store.preferences.engine)
+        SettingsGroup(title: "Tiling") {
+          DisplaysPreview(
+            displays: manager.displays, disabled: store.preferences.disabledDisplays,
+            config: store.preferences.layout, animationSpeed: store.preferences.animationSpeed)
+          ForEach(manager.displays, id: \.uuid) { display in
+            ToggleRow(
+              title: "Tile windows on \(display.name)", isOn: tilingBinding(for: display.uuid),
+              unavailable: EngineFeature.perDisplayTiling.unavailableCaption(
+                for: store.preferences.engine))
           }
         }
       }

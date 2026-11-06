@@ -3,11 +3,13 @@ import SwiftUI
 struct ToggleRow: View {
   let title: String
   @Binding var isOn: Bool
-  var caption: String?
+  var detail: String?
+  var unavailable: String?
 
   var body: some View {
-    CaptionedRow(caption: caption) {
-      Toggle(title, isOn: $isOn)
+    Toggle(isOn: $isOn) {
+      RowLabel(title: title, detail: unavailable ?? detail)
     }
+    .disabled(unavailable != nil)
   }
 }

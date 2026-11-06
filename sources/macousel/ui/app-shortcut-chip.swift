@@ -8,9 +8,7 @@ struct AppShortcutChip: View {
 
   var body: some View {
     Button(title, action: recording.toggle)
-      .buttonStyle(.plain)
       .monospacedDigit()
-      .chipSurface()
       .help("Record a new shortcut")
       .accessibilityLabel("Shortcut for \(appName)")
       .accessibilityValue(hotkey?.displayString ?? "None")

@@ -14,8 +14,14 @@ struct DefaultRuleTests {
 
     #expect(preferences.rule(for: "com.apple.systempreferences") == .float)
     #expect(preferences.rule(for: "com.apple.calculator") == .float)
+    #expect(preferences.rule(for: "com.apple.ScreenContinuity") == .float)
+    #expect(preferences.rule(for: "com.apple.SystemProfiler") == .float)
     #expect(preferences.appRules == AppRule.defaults)
-    #expect(Set(AppRule.defaults.map(\.bundleIdentifier)).count == 8)
+    #expect(Set(AppRule.defaults.map(\.bundleIdentifier)).count == 11)
+  }
+
+  @Test func freshPreferencesFloatQuickLook() {
+    #expect(Preferences().rule(for: "com.apple.quicklook.QuickLookUIService") == .float)
   }
 
   @Test func savedPreferencesWithAnEmptyRuleListStayEmpty() throws {

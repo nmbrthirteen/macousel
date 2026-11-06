@@ -28,7 +28,8 @@ final class ControllerFixture {
   init(
     displays: [Display] = [.fake()], suite: IsolatedDefaults? = nil,
     bootSession: String = "boot-1", preferences: (inout Preferences) -> Void = { _ in },
-    paneru: ((PreferencesStore, FakeDesktopEnvironment, FakeShortcutRegistry) -> PaneruEngine)? = nil
+    paneru: ((PreferencesStore, FakeDesktopEnvironment, FakeShortcutRegistry) -> PaneruEngine)? = nil,
+    settleDelay: Duration = .zero
   ) throws {
     let suite = try suite ?? IsolatedDefaults()
     let store = PreferencesStore(defaults: suite.defaults)
@@ -53,7 +54,7 @@ final class ControllerFixture {
         pointer: pointer, shortcuts: shortcuts, gestures: gestures, overlays: overlays,
         crashRecovery: crashRecovery),
       defaults: suite.defaults,
-      paneru: paneru?(store, environment, shortcuts))
+      paneru: paneru?(store, environment, shortcuts), settleDelay: settleDelay)
     try FixtureRegistry.enroll(self)
   }
 

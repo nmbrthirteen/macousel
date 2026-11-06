@@ -11,7 +11,7 @@ struct PointerPreview: View {
   }
 
   var body: some View {
-    PreviewSection(
+    PreviewCard(
       description: PreviewDescription.swipe(
         fingers: preferences.swipeFingers, reversed: preferences.reversesSwipeDirection,
         sensitivity: preferences.swipeSensitivity),

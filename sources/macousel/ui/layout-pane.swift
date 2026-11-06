@@ -9,11 +9,10 @@ struct LayoutPane: View {
 
   var body: some View {
     SettingsForm {
-      LayoutPreview(
-        config: store.preferences.layout, animationSpeed: store.preferences.animationSpeed,
-        hoveredPreset: hoveredPreset)
-
       SettingsGroup(title: "Gaps") {
+        LayoutPreview(
+          config: store.preferences.layout, animationSpeed: store.preferences.animationSpeed,
+          hoveredPreset: hoveredPreset)
         LabelledSliderRow(
           title: "Gap between windows", value: $store.preferences.layout.innerGap,
           range: Self.gapRange, step: 1, readout: .points)
@@ -23,12 +22,19 @@ struct LayoutPane: View {
       }
 
       SettingsGroup(title: "Widths") {
-        CaptionedRow(caption: defaultWidthCaption) {
-          DefaultWidthPicker(selection: $store.preferences.layout.defaultWidth)
-        }
-        CaptionedRow(caption: store.preferences.layout.centerMode.summary) {
-          CenterModePicker(selection: $store.preferences.layout.centerMode)
-        }
+        DefaultWidthPicker(
+          selection: $store.preferences.layout.defaultWidth, detail: defaultWidthCaption)
+        CenterModePicker(
+          selection: $store.preferences.layout.centerMode,
+          detail: store.preferences.layout.centerMode.summary)
+      }
+
+      SettingsGroup(title: "Tabs") {
+        ToggleRow(
+          title: "Treat native tabs as one column", isOn: $store.preferences.groupsNativeTabs,
+          detail: "Windows merged into tabs by Finder or Terminal share one column.",
+          unavailable: EngineFeature.nativeTabGrouping.unavailableCaption(
+            for: store.preferences.engine))
       }
 
       SettingsGroup(

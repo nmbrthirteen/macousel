@@ -1,0 +1,105 @@
+diff --git a/src/ecs/state.rs b/src/ecs/state.rs
+--- a/src/ecs/state.rs
++++ b/src/ecs/state.rs
+@@ -489,7 +489,11 @@ impl QueryStateParams<'_, '_> {
+             let floating_entities = if active_workspace
+                 || selected_workspace && active_workspace_id != Some(strip.id())
+             {
+-                self.window_manager.windows_in_workspace(strip.id())?
++                // A space macOS has deleted answers with an error. One stale strip must not
++                // fail the whole read, so it counts as having no floating windows.
++                self.window_manager
++                    .windows_in_workspace(strip.id())
++                    .unwrap_or_default()
+             } else {
+                 Vec::new()
+             };
+@@ -689,7 +693,9 @@ impl QueryState for PaneruQueryState {
+             let floating = if active_workspace
+                 || selected_workspace && active_workspace_id != Some(strip.id())
+             {
+-                window_manager.windows_in_workspace(strip.id())?
++                window_manager
++                    .windows_in_workspace(strip.id())
++                    .unwrap_or_default()
+             } else {
+                 Vec::new()
+             }
+diff --git a/src/ecs/workspace.rs b/src/ecs/workspace.rs
+--- a/src/ecs/workspace.rs
++++ b/src/ecs/workspace.rs
+@@ -103,6 +103,7 @@ impl Plugin for WorkspaceEventsPlugin {
+                 renumber_virtual_indexes,
+                 reap_empty_virtual_workspaces.run_if(reap_workspaces),
+                 workspace_change_handler,
++                prune_vanished_workspaces,
+                 workspace_created_handler,
+                 show_active_workspace,
+                 handle_virtual_window_moves,
+@@ -396,6 +397,42 @@ fn detect_moved_windows(
+     }
+ }
+ 
++/// Drops empty strips whose space macOS no longer lists. A missed `SpaceDestroyed`
++/// otherwise leaves a strip that every state read trips over.
++#[instrument(level = Level::DEBUG, skip_all)]
++fn prune_vanished_workspaces(
++    mut messages: MessageReader<Event>,
++    workspaces: Query<(&LayoutStrip, Entity, Has<ActiveWorkspaceMarker>)>,
++    displays: Query<&Display>,
++    window_manager: Res<WindowManager>,
++    mut commands: Commands,
++) {
++    if !messages
++        .read()
++        .any(|event| matches!(event, Event::SpaceChanged))
++    {
++        return;
++    }
++    let present = window_manager.present_displays();
++    // A display whose spaces could not be read would make all of its spaces look gone.
++    if present.len() < displays.iter().count() {
++        return;
++    }
++    let live: HashSet<WorkspaceId> = present
++        .into_iter()
++        .flat_map(|(_, spaces)| spaces)
++        .collect();
++    for (strip, entity, active) in &workspaces {
++        if active || strip.len() > 0 || strip.is_fullscreen() || live.contains(&strip.id()) {
++            continue;
++        }
++        debug!("despawning strip for vanished space {}", strip.id());
++        if let Ok(mut entity_commands) = commands.get_entity(entity) {
++            entity_commands.try_despawn();
++        }
++    }
++}
++
+ #[instrument(level = Level::DEBUG, skip_all, fields(trigger))]
+ fn workspace_destroyed_handler(
+     mut messages: MessageReader<Event>,
+diff --git a/src/tests/state.rs b/src/tests/state.rs
+--- a/src/tests/state.rs
++++ b/src/tests/state.rs
+@@ -653,7 +653,7 @@ fn test_query_state_assigns_float_only_to_active_row() {
+ }
+ 
+ #[test]
+-fn test_query_state_propagates_workspace_query_failure() {
++fn test_query_state_survives_a_deleted_workspace() {
+     use crate::errors::Error;
+     use crate::manager::MockWindowManagerApi;
+     use crate::tests::harness::TestHarness;
+@@ -669,9 +669,9 @@ fn test_query_state_propagates_workspace_query_failure() {
+         .world()
+         .insert_resource(WindowManager(Box::new(window_manager)));
+ 
+-    let error = extract_query_state(harness.world()).expect_err("workspace query should fail");
++    let state = extract_query_state(harness.world()).expect("a deleted space must not fail the read");
+ 
+-    assert_eq!(error.to_string(), "Generic error: workspace query failed");
++    assert!(!state.virtual_workspaces.is_empty());
+ }
+ 
+ #[test]

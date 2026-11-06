@@ -3,6 +3,7 @@ import SwiftUI
 struct ShortcutsPane: View {
   @Bindable var store: PreferencesStore
   @State private var filter = ShortcutsFilter()
+  @State private var confirmsRestore = false
 
   var body: some View {
     SettingsForm {
@@ -12,15 +13,12 @@ struct ShortcutsPane: View {
 
       if !filter.isFiltering {
         SettingsGroup(title: "Base keys") {
-          CaptionedRow(caption: "Shortcuts you changed keep their keys.") {
-            Picker("Base keys", selection: baseBinding) {
-              ForEach(ShortcutBase.allCases, id: \.self) { base in
-                Text("\(base.title) (\(base.symbol))").tag(base)
-              }
+          Picker(selection: baseBinding) {
+            ForEach(ShortcutBase.allCases, id: \.self) { base in
+              Text("\(base.title) (\(base.symbol))").tag(base)
             }
-          }
-          if let warning = store.preferences.shortcutBase.warning {
-            CaptionText(warning)
+          } label: {
+            RowLabel(title: "Base keys", detail: baseKeysDetail)
           }
         }
       }
@@ -30,7 +28,7 @@ struct ShortcutsPane: View {
       }
 
       ForEach(filter.entries) { entry in
-        SettingsGroup(title: entry.section.title) {
+        SettingsGroup(title: entry.group.title) {
           ForEach(entry.actions, id: \.self) { action in
             ShortcutRow(action: action, store: store)
           }
@@ -39,10 +37,21 @@ struct ShortcutsPane: View {
 
       if !filter.isFiltering {
         Section {
-          Button("Restore default shortcuts", action: store.resetShortcuts)
+          Button("Restore default shortcuts") { confirmsRestore = true }
         }
       }
     }
+    .confirmationDialog("Restore default shortcuts?", isPresented: $confirmsRestore) {
+      Button("Restore defaults", role: .destructive, action: store.resetShortcuts)
+    } message: {
+      Text("This replaces every shortcut you changed.")
+    }
+  }
+
+  private var baseKeysDetail: String {
+    let note = "Shortcuts you changed keep their keys."
+    guard let warning = store.preferences.shortcutBase.warning else { return note }
+    return "\(note) \(warning)"
   }
 
   private var baseBinding: Binding<ShortcutBase> {

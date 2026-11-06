@@ -12,7 +12,8 @@ struct EngineOverviewBuilder {
     return OverviewSnapshot(
       columns: columns, stripHeight: displayFrame.height - 2 * Self.innerGap,
       selection: snapshot.focusedWindowID, usableWidth: displayFrame.width,
-      innerGap: Self.innerGap, allowsResize: false)
+      innerGap: Self.innerGap, springResponse: OverlayTiming.overviewOpenResponse,
+      allowsResize: false)
   }
 
   private func column(from column: EngineColumns.Column) -> OverviewSnapshot.Column {
@@ -20,7 +21,7 @@ struct EngineOverviewBuilder {
       EngineWindowID.make(window.windowId).map { id in
         OverviewSnapshot.Card(
           window: id, title: window.title.isEmpty ? window.appName : window.title,
-          bundleIdentifier: window.bundleId, heightShare: share)
+          bundleIdentifier: window.bundleId, heightShare: share, frame: window.frame?.rect)
       }
     }
     return OverviewSnapshot.Column(width: column.width ?? displayFrame.width / 2, cards: cards)

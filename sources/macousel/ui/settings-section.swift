@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 
 enum SettingsSection: String, CaseIterable, Identifiable {
   case general, layout, motion, appRules, displays, shortcuts, appShortcuts, pointer, macSetup, about
@@ -37,21 +37,6 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     }
   }
 
-  var tint: Color {
-    switch self {
-    case .general: .gray
-    case .layout: .blue
-    case .motion: .purple
-    case .appRules: .orange
-    case .displays: .cyan
-    case .shortcuts: .pink
-    case .appShortcuts: .teal
-    case .pointer: .green
-    case .macSetup: .indigo
-    case .about: .brown
-    }
-  }
-
   var group: SettingsSectionGroup {
     switch self {
     case .general: .general
@@ -63,7 +48,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
   var keywords: [String] {
     switch self {
-    case .general: ["engine", "paneru", "built-in", "permissions", "accessibility", "login", "startup", "launch", "restore", "session", "update", "automatic"]
+    case .general: ["engine", "paneru", "built-in", "permissions", "accessibility", "login", "startup", "launch", "restore", "session", "update", "automatic", "dock"]
     case .layout: ["gap", "width", "preset", "center", "default", "column", "spacing"]
     case .motion: ["animation", "speed", "focus", "border", "dim", "minimap", "overview", "reduce motion"]
     case .appRules: ["app", "float", "rule", "column", "width", "exception"]
@@ -77,6 +62,10 @@ enum SettingsSection: String, CaseIterable, Identifiable {
       "credits", "maker", "nikusha",
     ]
     }
+  }
+
+  static func isSearching(_ query: String) -> Bool {
+    !query.trimmingCharacters(in: .whitespaces).isEmpty
   }
 
   static func matching(_ query: String) -> [SettingsSection] {

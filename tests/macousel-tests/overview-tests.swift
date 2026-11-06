@@ -11,6 +11,16 @@ struct OverviewTests {
     fixture.overlays.overview?.snapshot.selection
   }
 
+  private func flightSources(of overview: FakeOverlayHost.Overview) -> [CGRect?] {
+    overview.snapshot.columns.flatMap(\.cards).map { card in
+      card.frame.map { OverviewFlight.source(of: $0, on: overview.displayFrame) }
+    }
+  }
+
+  private func flightSources(of windows: [FakeWindow], on displayFrame: CGRect) -> [CGRect?] {
+    windows.map { window in window.frame.map { OverviewFlight.source(of: $0, on: displayFrame) } }
+  }
+
   @Test func openingShowsEveryColumnOnTheActiveDisplayWithTheFocusedWindowSelected() throws {
     let fixture = try ControllerFixture()
     _ = fixture.openRow(3)
@@ -255,5 +265,49 @@ struct OverviewTests {
 
     #expect(row.map(\.titleReadCount) == readsAfterAdmission)
     #expect(readsAfterAdmission == [1, 1, 1])
+  }
+
+  @Test func cardsCarryTheFramesTheWindowsAreLaidOutAt() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(3)
+    fixture.launch()
+
+    fixture.manager.perform(.toggleOverview)
+
+    let overview = try #require(fixture.overlays.overview)
+    #expect(flightSources(of: overview) == flightSources(of: row, on: overview.displayFrame))
+  }
+
+  @Test func confirmingSendsTheFramesAfterScrollingBeforeTheOverviewCloses() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(4)
+    fixture.launch()
+    fixture.manager.perform(.toggleOverview)
+    fixture.overlays.press(.jump(4))
+
+    fixture.overlays.press(.confirm)
+
+    let last = try #require(fixture.overlays.lastOverview)
+    #expect(fixture.overlays.overview == nil)
+    #expect(last.snapshot.selection == WindowID(4))
+    #expect(flightSources(of: last) == flightSources(of: row, on: last.displayFrame))
+  }
+
+  @Test func keysStillMoveJumpAndConfirmWithFramesOnTheCards() throws {
+    let fixture = try ControllerFixture()
+    let row = fixture.openRow(4)
+    fixture.launch()
+    fixture.manager.perform(.toggleOverview)
+
+    fixture.overlays.press(.move(.right))
+    #expect(selection(of: fixture) == WindowID(2))
+    fixture.overlays.press(.jump(4))
+    #expect(selection(of: fixture) == WindowID(4))
+    fixture.overlays.press(.move(.left))
+    #expect(selection(of: fixture) == WindowID(3))
+    fixture.overlays.press(.confirm)
+
+    #expect(fixture.overlays.overview == nil)
+    #expect(row[2].focusCount == 1)
   }
 }

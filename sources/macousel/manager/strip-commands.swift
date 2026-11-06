@@ -39,8 +39,8 @@ extension Strip {
     case .toggleFullWidth: performing { $0.toggleFullWidth() }
     case .equalizeHeights: performing { $0.equalizeHeights() }
     case .center: centering(viewportWidth: viewportWidth, config: config)
-    case .togglePaused, .toggleFloating, .sendToNextDisplay, .toggleOverview,
-      .sendToScratchpad, .toggleScratchpad:
+    case .togglePaused, .toggleFloating, .sendToNextDisplay, .sendToNextDisplayWithoutFollowing,
+      .focusNextDisplay, .toggleOverview, .sendToScratchpad, .toggleScratchpad:
       .ignored
     }
   }

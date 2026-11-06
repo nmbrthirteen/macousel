@@ -32,7 +32,7 @@ enum OnboardingSceneMetrics {
   static let menuWidth = 168.0
   static let menuRowHeight = 22.0
   static let menuPadding = 5.0
-  static let menuItems = ["Pause tiling", "Settings…", "Show welcome guide", "Quit Macousel"]
+  static let menuItems = ["Pause Tiling", "Settings…", "Show Welcome Guide", "Quit Macousel"]
   static let settingsItem = 1
 
   static var usableWidth: Double { size.width - edgeGap * 2 }

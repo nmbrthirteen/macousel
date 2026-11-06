@@ -13,6 +13,11 @@ struct PaneruEngineTests {
 
   private var pauseHotkeys: Set<Hotkey> { Set(Action.defaultShortcuts[.togglePaused] ?? []) }
   private var overviewHotkeys: Set<Hotkey> { Set(Action.defaultShortcuts[.toggleOverview] ?? []) }
+  private var columnMoveHotkeys: Set<Hotkey> {
+    Set(Action.places.flatMap { Action.defaultShortcuts[.moveToColumn($0)] ?? [] })
+      .union(Action.defaultShortcuts[.stackRight] ?? [])
+      .union(Action.defaultShortcuts[.popOutLeft] ?? [])
+  }
 
   private func makeEngine(
     configure: (inout Preferences) -> Void = { _ in }
@@ -35,7 +40,7 @@ struct PaneruEngineTests {
     let (engine, _) = try await running()
 
     #expect(engine.status == .running)
-    #expect(shortcuts.boundHotkeys == pauseHotkeys.union(overviewHotkeys))
+    #expect(shortcuts.boundHotkeys == pauseHotkeys.union(overviewHotkeys).union(columnMoveHotkeys))
   }
 
   @Test func doesNotSpawnWithoutAccessibility() throws {
@@ -105,12 +110,46 @@ struct PaneruEngineTests {
 
     engine.perform(.focusLeft)
     engine.perform(.popOutRight)
-    engine.perform(.moveToColumn(2))
+    engine.perform(.focusNextDisplay)
+    engine.perform(.sendToNextDisplayWithoutFollowing)
 
     #expect(
       await harness.eventually {
-        harness.commands.sent == [["window", "focus", "west"], ["window", "unstack"]]
+        harness.commands.sent == [
+          ["window", "focus", "west"], ["window", "unstack"], ["mouse", "nextdisplay"],
+          ["window", "nextdisplaysend"],
+        ]
       })
+  }
+
+  @Test func stacksIntoTheRightColumnBySwappingPastItFirst() async throws {
+    let (engine, _) = try await running()
+
+    engine.perform(.stackRight)
+
+    #expect(
+      await harness.eventually {
+        harness.commands.sent == [["window", "swap", "east"], ["window", "stack"]]
+      })
+  }
+
+  @Test func popOutLeftDoesNothingForAWindowThatIsNotStacked() async throws {
+    let (engine, _) = try await running()
+
+    engine.perform(.popOutLeft)
+    await Task.yield()
+
+    #expect(harness.commands.sent.isEmpty)
+  }
+
+  @Test func movesTheFocusedWindowToAColumnNumberThroughTheReorderSteps() async throws {
+    let (engine, _) = try await running()
+    harness.commands.strip = FakePaneruStrip(columns: [[1], [2], [3], [4]], focused: 4)
+
+    engine.perform(.moveToColumn(2))
+
+    #expect(
+      await harness.eventually { harness.commands.strip?.columns == [[1], [4], [2], [3]] })
   }
 
   @Test func dropsEngineActionsWhilePaused() async throws {
@@ -171,7 +210,7 @@ struct PaneruEngineTests {
     let normal = String(decoding: harness.files.handle.contents, as: UTF8.self)
 
     #expect(!recording.contains("window_focus_west"))
-    #expect(shortcuts.boundHotkeys == pauseHotkeys.union(overviewHotkeys))
+    #expect(shortcuts.boundHotkeys == pauseHotkeys.union(overviewHotkeys).union(columnMoveHotkeys))
     #expect(normal.contains("window_focus_west"))
   }
 

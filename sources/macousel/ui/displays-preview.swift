@@ -10,7 +10,7 @@ struct DisplaysPreview: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
-    PreviewSection(description: PreviewDescription.displays(displays, disabled: disabled)) {
+    PreviewCard(description: PreviewDescription.displays(displays, disabled: disabled)) {
       DisplayDrawing(
         displays: displays, disabled: disabled, config: config,
         animation: PreviewAnimation.curve(for: animationSpeed, reduceMotion: reduceMotion))

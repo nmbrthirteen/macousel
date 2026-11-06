@@ -35,6 +35,17 @@ struct DragPollingCostTests {
     #expect(fixture.pointer.serverBoundsReadCount == reads)
   }
 
+  @Test func aPressThatNeverTravelsReadsNothingFromTheWindowServer() throws {
+    let (fixture, row) = try launchedRow()
+    let session = try DragSession(row[0], in: fixture)
+    let reads = fixture.pointer.serverBoundsReadCount
+
+    session.letPollingRun(frames: 10)
+    session.release()
+
+    #expect(fixture.pointer.serverBoundsReadCount == reads)
+  }
+
   @Test func pollingStopsWhenTheButtonIsFoundUpWithoutAnUpEvent() throws {
     let (fixture, row) = try launchedRow()
     let session = try DragSession(row[0], in: fixture)

@@ -8,6 +8,7 @@ enum EngineDefaultGolden {
     preset_column_widths = [0.25, 0.33333, 0.5, 0.66667, 0.75]
     animation_speed = 20.0
     auto_center = false
+    disable_native_tabs = false
 
     [padding]
     top = 4
@@ -50,6 +51,11 @@ enum EngineDefaultGolden {
     vertical_padding = 4
     width = 0.5
 
+    [windows.macousel]
+    bundle_id = "dev.macousel.app"
+    title = ".*"
+    floating = true
+
     [windows.app_com_apple_systempreferences]
     bundle_id = "com.apple.systempreferences"
     title = ".*"
@@ -90,7 +96,23 @@ enum EngineDefaultGolden {
     title = ".*"
     floating = true
 
+    [windows.app_com_apple_screencontinuity]
+    bundle_id = "com.apple.ScreenContinuity"
+    title = ".*"
+    floating = true
+
+    [windows.app_com_apple_systemprofiler]
+    bundle_id = "com.apple.SystemProfiler"
+    title = ".*"
+    floating = true
+
+    [windows.app_com_apple_quicklook_quicklookuiservice]
+    bundle_id = "com.apple.quicklook.QuickLookUIService"
+    title = ".*"
+    floating = true
+
     [bindings]
+    mouse_nextdisplay = "alt + ctrl - d"
     window_center = "alt + ctrl - c"
     window_equalize = "alt + ctrl - 0"
     window_focus_1 = "alt + ctrl - 1"
@@ -111,9 +133,10 @@ enum EngineDefaultGolden {
     window_grow = "alt + ctrl - equal"
     window_manage = "alt + ctrl - t"
     window_nextdisplay = "alt + ctrl - n"
+    window_nextdisplaysend = "alt + shift + ctrl - n"
     window_resize = "alt + ctrl - r"
     window_shrink = "alt + ctrl - minus"
-    window_stack = ["alt + ctrl - rightbracket", "alt + ctrl - leftbracket"]
+    window_stack = "alt + ctrl - rightbracket"
     window_swap_east = ["alt + shift + ctrl - l", "alt + shift + ctrl - rightarrow"]
     window_swap_first = "alt + shift + cmd + ctrl - leftarrow"
     window_swap_last = "alt + shift + cmd + ctrl - rightarrow"
@@ -121,7 +144,7 @@ enum EngineDefaultGolden {
     window_swap_south = ["alt + shift + ctrl - j", "alt + shift + ctrl - downarrow"]
     window_swap_west = ["alt + shift + ctrl - h", "alt + shift + ctrl - leftarrow"]
     window_tabbeddisplay = "alt + shift + ctrl - t"
-    window_unstack = ["alt + shift + ctrl - leftbracket", "alt + shift + ctrl - rightbracket"]
+    window_unstack = "alt + shift + ctrl - rightbracket"
     window_vertical_grow = "alt + shift + ctrl - equal"
     window_vertical_shrink = "alt + shift + ctrl - minus"
 

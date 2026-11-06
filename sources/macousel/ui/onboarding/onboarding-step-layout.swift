@@ -20,6 +20,7 @@ struct OnboardingStepLayout<Content: View>: View {
         content
       }
       .padding(.horizontal, OnboardingMetrics.contentInset)
+      .padding(.top, Metrics.Spacing.roomy)
       Spacer(minLength: 0)
     }
     .frame(maxWidth: .infinity, alignment: .leading)

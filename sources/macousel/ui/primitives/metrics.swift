@@ -12,22 +12,26 @@ enum Metrics {
   }
 
   enum Radius {
-    static let chip = 6.0
-    static let sidebarTile = 6.0
     static let tab = 8.0
     static let window = 16.0
     static let concentricFloor = 4.0
     static let panel = 12.0
   }
 
+
   enum Opacity {
-    static let overviewBackdrop = 0.45
     static let overviewBadge = 0.18
+    static let overviewHairline = 0.12
+    static let overviewCardShadow = 0.3
+    static let overviewSelectedShadow = 0.45
+    static let overviewSolidBackdrop = 0.92
     static let minimapColumn = 0.22
     static let minimapLens = 0.10
     static let minimapLensBorder = 0.30
     static let minimapTabDot = 0.5
     static let minimapNumber = 0.85
+    static let minimapOffscreen = 0.45
+    static let minimapContrastBorder = 0.5
     static let pendingFill = 0.22
     static let pendingBorder = 0.70
   }
@@ -67,11 +71,16 @@ enum Metrics {
     static let tabDotInset = 2.0
     static let tabDotLimit = 3
     static let liftShadowRadius = 5.0
+    static let labelLineHeight = 14.0
+    static let panelHeight = height + labelLineHeight + verticalPadding
+    static let focusRingWidth = 2.0
+    static let focusRingOutset = 1.5
   }
 
   enum Overview {
-    static let maximumScale = 0.5
+    static let maximumScale = 0.7
     static let edgeMargin = 32.0
+    static let verticalMargin = 64.0
     static let columnGap = 12.0
     static let stackGap = 6.0
     static let iconSide = 48.0
@@ -94,11 +103,18 @@ enum Metrics {
     static let gripLength = 28.0
     static let gripOpacity = 0.4
     static let gripHoverOpacity = 0.8
+    static let parkedSliver = 48.0
+    static let cardShadowRadius = 12.0
+    static let cardShadowOffset = 4.0
+    static let selectedShadowRadius = 20.0
+    static let hoverTitleGap = 8.0
+    static let hoverTitleMaximumWidth = 320.0
+    static let noticeInset = 24.0
   }
 
   enum Size {
-    static let sliderWidth = 180.0
-    static let sliderReadoutWidth = 48.0
+    static let guideIcon = 48.0
+    static let guidePanelWidth = 320.0
     static let appIcon = 16.0
     static let settingsWidth = 780.0
     static let settingsHeight = 560.0
@@ -107,10 +123,8 @@ enum Metrics {
     static let sidebarMinWidth = 200.0
     static let sidebarIdealWidth = 220.0
     static let sidebarMaxWidth = 280.0
-    static let sidebarTile = 24.0
-    static let sidebarGlyph = 13.0
     static let aboutIcon = 96.0
-    static let statusIcon = 20.0
     static let hairlineStroke = 0.5
+    static let contrastStroke = 1.0
   }
 }

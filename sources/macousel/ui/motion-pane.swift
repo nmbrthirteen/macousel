@@ -7,17 +7,16 @@ struct MotionPane: View {
 
   var body: some View {
     SettingsForm {
-      MotionPreview(preferences: store.preferences)
-
-      SettingsGroup(
-        title: "Animation", footer: "Animations follow Reduce Motion and Low Power Mode."
-      ) {
-        Picker("Animation speed", selection: $store.preferences.animationSpeed) {
+      SettingsGroup(title: "Animation") {
+        MotionPreview(preferences: store.preferences)
+        Picker(selection: $store.preferences.animationSpeed) {
           ForEach(AnimationSpeed.allCases, id: \.self) { speed in
             Text(speed.title).tag(speed)
           }
+        } label: {
+          RowLabel(
+            title: "Animation speed", detail: "Animations follow Reduce Motion and Low Power Mode.")
         }
-        .pickerStyle(.segmented)
       }
 
       SettingsGroup(title: "Focus") {
@@ -34,8 +33,8 @@ struct MotionPane: View {
       }
 
       SettingsGroup(title: "Minimap") {
-        ToggleRow(title: "Show strip minimap", isOn: $store.preferences.showsMinimap)
         MinimapPreview(config: store.preferences.layout, isEnabled: store.preferences.showsMinimap)
+        ToggleRow(title: "Show strip minimap", isOn: $store.preferences.showsMinimap)
       }
 
       SettingsGroup(title: "Menu bar") {

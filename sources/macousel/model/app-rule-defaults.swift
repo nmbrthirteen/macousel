@@ -8,6 +8,9 @@ extension AppRule {
     "com.apple.archiveutility",
     "com.apple.FaceTime",
     "com.apple.PhotoBooth",
+    "com.apple.ScreenContinuity",
+    "com.apple.SystemProfiler",
+    "com.apple.quicklook.QuickLookUIService",
   ]
 
   static let defaults: [AppRule] = floatingBundleIdentifiers.map {

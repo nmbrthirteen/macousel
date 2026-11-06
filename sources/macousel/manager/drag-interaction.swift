@@ -12,6 +12,7 @@ final class DragInteraction {
   private let rearrangement: DragRearrangement
   private let log = DragLog()
   private var phase = DragPhase.idle
+  private var pressOrigin: CGPoint?
 
   init(
     state: TilingState, source: any WindowSource, presenter: LayoutPresenter,
@@ -58,6 +59,7 @@ final class DragInteraction {
 
   private func pressed(at point: CGPoint) {
     phase = .idle
+    pressOrigin = point
     poller.stop()
     guard let window = pointer.windowID(at: point), source.window(window) != nil else { return }
     let isTiled = state.activeKey(containing: WindowID(window)) != nil
@@ -97,7 +99,8 @@ final class DragInteraction {
 
   private func recognise(_ candidate: DragCandidate, noticedBy notice: DragNotice) {
     let window = candidate.window
-    guard presenter.isSettled, state.activeKey(containing: WindowID(window)) != nil,
+    guard let origin = pressOrigin, hasTravelled(from: origin), presenter.isSettled,
+      state.activeKey(containing: WindowID(window)) != nil,
       let actual = pointer.serverBounds(of: window)
     else { return }
     let reference =
@@ -113,6 +116,11 @@ final class DragInteraction {
     rearrangement.begin()
     pointer.startObservingEscape { [weak self] in self?.escaped() }
     showPreview(for: drag)
+  }
+
+  private func hasTravelled(from origin: CGPoint) -> Bool {
+    let location = pointer.location
+    return hypot(location.x - origin.x, location.y - origin.y) > DragResize.tolerance
   }
 
   private func showPreview(for drag: LiveDrag) {

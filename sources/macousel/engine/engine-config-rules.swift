@@ -1,5 +1,7 @@
 struct EngineConfigRules {
   static let catchAllName = "all"
+  static let ownWindowsName = "macousel"
+  static let ownBundleIdentifier = "dev.macousel.app"
 
   let preferences: Preferences
 
@@ -8,8 +10,8 @@ struct EngineConfigRules {
   }
 
   var lines: [String] {
-    var lines = catchAll
-    var used: Set<String> = [Self.catchAllName]
+    var lines = catchAll + [""] + ownWindows
+    var used: Set<String> = [Self.catchAllName, Self.ownWindowsName]
     for rule in preferences.appRules {
       lines += [""] + section(for: rule, name: uniqueName(for: rule, used: &used))
     }
@@ -27,6 +29,16 @@ struct EngineConfigRules {
       lines.append("width = \(TomlNumber.decimal(preferences.layout.defaultWidth))")
     }
     return lines
+  }
+
+  // Settings turns Macousel into a regular app while open, which Paneru would otherwise tile.
+  private var ownWindows: [String] {
+    [
+      "[windows.\(Self.ownWindowsName)]",
+      "bundle_id = \(TomlString.quoted(Self.ownBundleIdentifier))",
+      "title = \".*\"",
+      "floating = true",
+    ]
   }
 
   private func section(for rule: AppRule, name: String) -> [String] {

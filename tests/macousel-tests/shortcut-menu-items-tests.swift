@@ -27,7 +27,7 @@ struct ShortcutMenuItemsTests {
     let sections = ShortcutMenuItems.sections(in: preferences(engine: .paneru))
     let shown = actions(in: sections)
     #expect(!shown.contains(.sendToScratchpad))
-    #expect(!shown.contains(.moveToColumn(1)))
+    #expect(shown.contains(.moveToColumn(1)))
     #expect(shown.contains(.focusLeft))
   }
 
@@ -48,10 +48,8 @@ struct ShortcutMenuItemsTests {
     #expect(items.first { $0.action == .focusRight }?.keys == "Not set")
   }
 
-  @Test func sectionsWithoutVisibleActionsAreDropped() {
-    let builtIn = ShortcutMenuItems.sections(in: preferences(engine: .builtIn))
+  @Test func paneruKeepsTheMoveToColumnSection() {
     let paneru = ShortcutMenuItems.sections(in: preferences(engine: .paneru))
-    #expect(builtIn.map(\.section).contains(.moveToColumn))
-    #expect(!paneru.map(\.section).contains(.moveToColumn))
+    #expect(paneru.map(\.section).contains(.moveToColumn))
   }
 }

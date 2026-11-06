@@ -47,6 +47,30 @@ struct ShortcutConflictTests {
     #expect(store.preferences.appShortcuts.map(\.bundleIdentifier) == [browser])
   }
 
+  @Test func aCommandOnlyChordOnAReservedKeyIsRejected() throws {
+    let store = try store()
+    let copy = Hotkey(keyCode: UInt16(kVK_ANSI_C), modifiers: [.command])
+    let recording = ShortcutRecording(target: .app(editor), store: store)
+
+    recording.record(copy)
+
+    #expect(recording.message == "\(copy.displayString) is a system shortcut. Add ⌃ or ⌥.")
+    #expect(store.preferences.appShortcuts.isEmpty)
+  }
+
+  @Test func reservedChordsNeedAControlOrOptionToPass() {
+    let key = UInt16(kVK_ANSI_C)
+
+    #expect(ShortcutRecording.reservedMessage(for: Hotkey(keyCode: key, modifiers: [.command])) != nil)
+    #expect(ShortcutRecording.reservedMessage(for: Hotkey(keyCode: key, modifiers: [.option])) == nil)
+    #expect(
+      ShortcutRecording.reservedMessage(for: Hotkey(keyCode: key, modifiers: [.command, .control]))
+        == nil)
+    #expect(
+      ShortcutRecording.reservedMessage(
+        for: Hotkey(keyCode: UInt16(kVK_ANSI_B), modifiers: [.command])) == nil)
+  }
+
   @Test func aFreeCombinationIsAssignedToANewApp() throws {
     let store = try store()
     let recording = ShortcutRecording(target: .app(editor), store: store)

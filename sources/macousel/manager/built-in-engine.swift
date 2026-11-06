@@ -30,6 +30,7 @@ final class BuiltInEngine: ManagementEngine {
   private let systemFocus: SystemFocusHandler
 
   @ObservationIgnored private var appliedPreferences: Preferences?
+  @ObservationIgnored private var appliedInputs: InputSettings?
   @ObservationIgnored private let synchronization = SynchronizationScheduler()
   @ObservationIgnored private var hasLostAccess = false
   @ObservationIgnored private var restoresArrivingWindows = false
@@ -187,13 +188,19 @@ final class BuiltInEngine: ManagementEngine {
     synchronize()
   }
 
+  private var currentInputs: InputSettings {
+    store.preferences.inputSettings(
+      isRecordingShortcut: store.isRecordingShortcut, isActive: status == .running)
+  }
+
   private func applyInputs() {
+    appliedInputs = currentInputs
     inputs.apply(isTiling: status == .running) { [weak self] action in self?.perform(action) }
   }
 
   func preferencesChanged() {
     guard status != .needsPermission else { return }
-    applyInputs()
+    if currentInputs != appliedInputs { applyInputs() }
     guard status == .running, store.preferences != appliedPreferences else { return }
     appliedPreferences = store.preferences
     presenter.invalidateAll()

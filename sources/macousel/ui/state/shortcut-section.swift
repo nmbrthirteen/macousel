@@ -3,10 +3,12 @@ enum ShortcutSection: CaseIterable {
 
   init(_ action: Action) {
     switch action {
-    case .focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast: self = .focus
+    case .focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast,
+      .focusNextDisplay:
+      self = .focus
     case .focusColumn: self = .jumpToColumn
     case .moveLeft, .moveRight, .moveUp, .moveDown, .moveToFirst, .moveToLast,
-      .sendToNextDisplay:
+      .sendToNextDisplay, .sendToNextDisplayWithoutFollowing:
       self = .move
     case .moveToColumn: self = .moveToColumn
     case .cycleWidth, .toggleFullWidth, .center, .wider, .narrower, .taller, .shorter,

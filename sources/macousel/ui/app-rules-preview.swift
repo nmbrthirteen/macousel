@@ -6,7 +6,7 @@ struct AppRulesPreview: View {
   let keepsFloatingOnTop: Bool
 
   var body: some View {
-    PreviewSection(description: PreviewDescription.floating(keepsOnTop: keepsFloatingOnTop)) {
+    PreviewCard(description: PreviewDescription.floating(keepsOnTop: keepsFloatingOnTop)) {
       StripPreview(
         scenario: PreviewScenarios.rules().withLeadingColumns(
           PreviewMetrics.Sample.rulesLeadingColumns,

@@ -13,7 +13,6 @@ struct SceneCursorView: View {
       .fill(.black)
       .overlay { ArrowShape().stroke(.white, style: StrokeStyle(lineWidth: Self.outline, lineJoin: .round)) }
       .frame(width: Self.size.width, height: Self.size.height)
-      .shadow(color: .black.opacity(0.3), radius: 1.5, y: 1)
       .scaleEffect(1 - (1 - Self.pressedScale) * press, anchor: .topLeading)
       .position(x: point.x + Self.size.width / 2, y: point.y + Self.size.height / 2)
   }

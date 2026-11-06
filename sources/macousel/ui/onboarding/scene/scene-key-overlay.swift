@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct SceneKeyOverlay: View {
-  private static let fontSize = 22.0
   private static let horizontalPadding = 16.0
   private static let verticalPadding = 8.0
   private static let radius = 12.0
@@ -13,12 +12,12 @@ struct SceneKeyOverlay: View {
 
   var body: some View {
     Text(keys)
-      .font(.system(size: Self.fontSize, weight: .semibold, design: .rounded))
-      .foregroundStyle(.white)
+      .font(.title.weight(.semibold))
+      .fontDesign(.rounded)
       .padding(.horizontal, Self.horizontalPadding)
       .padding(.vertical, Self.verticalPadding)
-      .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
-      .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
+      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
+      .environment(\.colorScheme, .dark)
       .scaleEffect(Self.enteringScale.mixed(with: 1, by: visibility))
       .opacity(visibility)
       .position(x: OnboardingSceneMetrics.size.width / 2, y: Self.centerY)

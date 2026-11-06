@@ -49,6 +49,20 @@ struct EngineBuilderGeometryTests {
     #expect(overview.columns.map(\.width) == [800, 400])
   }
 
+  @Test func overviewCardsCarryTheRealWindowFrames() throws {
+    let snapshot = EngineFixtures.snapshot(of: [
+      window(1, x: 0, width: 600), window(2, x: 1590, width: 400, focused: true),
+    ])
+
+    let overview = try #require(EngineOverviewBuilder(snapshot: snapshot, displayFrame: frame).build())
+
+    #expect(
+      overview.columns.flatMap(\.cards).map(\.frame) == [
+        CGRect(x: 0, y: 0, width: 600, height: 800), CGRect(x: 1590, y: 0, width: 400, height: 800),
+      ])
+    #expect(overview.springResponse == OverlayTiming.overviewOpenResponse)
+  }
+
   @Test func overviewIsEmptyWithoutTiledWindows() {
     #expect(EngineOverviewBuilder(snapshot: EngineFixtures.snapshot(of: []), displayFrame: frame).build() == nil)
   }

@@ -10,26 +10,26 @@ struct PresetWidthsEditor: View {
   @State private var newPercent = initialPercent
 
   var body: some View {
-    FlowLayout(spacing: Metrics.Spacing.compact) {
-      ForEach(widths, id: \.self) { width in
-        RemovableChip(title: "\(width.wholePercent)%", removeLabel: "Remove \(width.wholePercent)% preset") {
+    ForEach(widths, id: \.self) { width in
+      LabeledContent("\(width.wholePercent)%") {
+        RemoveButton(label: "Remove \(width.wholePercent)% preset") {
           widths.removeAll { $0 == width }
         }
         .disabled(widths.count <= 1)
-        .onHover { isInside in
-          if isInside {
-            hoveredWidth = width
-          } else if hoveredWidth == width {
-            hoveredWidth = nil
-          }
-        }
-        .onDisappear {
-          if hoveredWidth == width { hoveredWidth = nil }
+      }
+      .monospacedDigit()
+      .contentShape(Rectangle())
+      .onHover { isInside in
+        if isInside {
+          hoveredWidth = width
+        } else if hoveredWidth == width {
+          hoveredWidth = nil
         }
       }
+      .onDisappear {
+        if hoveredWidth == width { hoveredWidth = nil }
+      }
     }
-    .accessibilityElement(children: .contain)
-    .accessibilityLabel("Preset widths")
     LabeledContent("Add a preset") {
       HStack(spacing: Metrics.Spacing.regular) {
         Text("\(newPercent)%")

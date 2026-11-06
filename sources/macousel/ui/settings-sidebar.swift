@@ -32,12 +32,8 @@ struct SettingsSidebar: View {
 
   private func rows(_ sections: [SettingsSection]) -> some View {
     ForEach(sections) { section in
-      Label {
-        Text(section.title)
-      } icon: {
-        SidebarIconTile(systemImage: section.systemImage, tint: section.tint)
-      }
-      .tag(section)
+      Label(section.title, systemImage: section.systemImage)
+        .tag(section)
     }
   }
 }

@@ -26,11 +26,13 @@ struct Preferences: Codable, Equatable {
   var focusFollowsMouse = false
   var mouseFollowsFocus = false
   var keepsFloatingWindowsOnTop = true
+  var groupsNativeTabs = true
   var appRules: [AppRule] = AppRule.defaults
   var appShortcuts: [AppShortcut] = []
   var disabledDisplays: Set<String> = []
   var hasCompletedOnboarding = false
   var checksForUpdates = true
+  var showsInDock = false
 
   static let swipeSensitivityRange = 0.5...2.0
   static let focusBorderWidthRange = 1.0...8.0
@@ -76,11 +78,13 @@ struct Preferences: Codable, Equatable {
     mouseFollowsFocus = try value(.mouseFollowsFocus, or: defaults.mouseFollowsFocus)
     keepsFloatingWindowsOnTop = try value(
       .keepsFloatingWindowsOnTop, or: defaults.keepsFloatingWindowsOnTop)
+    groupsNativeTabs = try value(.groupsNativeTabs, or: defaults.groupsNativeTabs)
     appRules = try value(.appRules, or: defaults.appRules)
     appShortcuts = try value(.appShortcuts, or: defaults.appShortcuts)
     disabledDisplays = try value(.disabledDisplays, or: defaults.disabledDisplays)
     hasCompletedOnboarding = try value(.hasCompletedOnboarding, or: defaults.hasCompletedOnboarding)
     checksForUpdates = try value(.checksForUpdates, or: defaults.checksForUpdates)
+    showsInDock = try value(.showsInDock, or: defaults.showsInDock)
   }
 
   var clampedSwipeSensitivity: Double {
@@ -182,7 +186,30 @@ final class PreferencesStore {
   }
 }
 
+// The preference fields that hotkeys, the swipe monitor, and pointer observation read when
+// they are applied. Anything else changing leaves the registered input as it is.
+struct InputSettings: Equatable {
+  var shortcuts: [Action: [Hotkey]]
+  var appShortcuts: [AppShortcut]
+  var scrollGestureEnabled: Bool
+  var swipeGestureEnabled: Bool
+  var swipeFingers: Int
+  var swipeStep: SwipeStep
+  var focusFollowsMouse: Bool
+  var displayFollowsPointer: Bool
+  var isRecordingShortcut = false
+  var isActive = false
+}
+
 extension Preferences {
+  func inputSettings(isRecordingShortcut: Bool, isActive: Bool) -> InputSettings {
+    InputSettings(
+      shortcuts: shortcuts, appShortcuts: appShortcuts, scrollGestureEnabled: scrollGestureEnabled,
+      swipeGestureEnabled: swipeGestureEnabled, swipeFingers: swipeFingers, swipeStep: swipeStep,
+      focusFollowsMouse: focusFollowsMouse, displayFollowsPointer: displayFollowsPointer,
+      isRecordingShortcut: isRecordingShortcut, isActive: isActive)
+  }
+
   var hasWidthRule: Bool {
     appRules.contains { rule in
       if case .width = rule.behavior { true } else { false }

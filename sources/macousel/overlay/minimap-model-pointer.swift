@@ -38,7 +38,8 @@ extension MinimapModel {
     default:
       break
     }
-    finishInteraction(pointerIsInside: MinimapGeometry(snapshot: snapshot).bounds.contains(point))
+    finishInteraction(
+      pointerIsInside: MinimapGeometry(snapshot: snapshot).panelBounds.contains(point))
   }
 
   private func begin(_ window: WindowID, from origin: CGPoint) -> MinimapInteraction {

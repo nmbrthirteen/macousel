@@ -7,19 +7,19 @@ struct LabelledSliderRow: View {
   let step: Double
   let readout: SliderReadout
 
+  // A stepped slider draws a tick mark per step, so the slider stays continuous and the
+  // binding snaps instead.
+  private var snapped: Binding<Double> {
+    Binding(
+      get: { value },
+      set: { value = min(max(($0 / step).rounded() * step, range.lowerBound), range.upperBound) })
+  }
+
   var body: some View {
-    LabeledContent(title) {
-      HStack {
-        Slider(value: $value, in: range, step: step) { Text(title) }
-          .frame(width: Metrics.Size.sliderWidth)
-          .labelsHidden()
-          .accessibilityValue(readout.text(for: value))
-        Text(readout.text(for: value))
-          .monospacedDigit()
-          .foregroundStyle(.secondary)
-          .frame(width: Metrics.Size.sliderReadoutWidth, alignment: .trailing)
-          .accessibilityHidden(true)
-      }
+    Slider(value: snapped, in: range) {
+      RowLabel(title: title, detail: readout.text(for: value))
     }
+    .accessibilityValue(readout.text(for: value))
+    .help(readout.text(for: value))
   }
 }

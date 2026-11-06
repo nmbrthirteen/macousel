@@ -255,7 +255,7 @@ struct MinimapGeometryTests {
     let display = CGRect(x: 100, y: 50, width: 1000, height: 800)
     let frame = MinimapPanelFrame.frame(containerWidth: 228, on: display)
     #expect(frame.width == 228)
-    #expect(abs(frame.height - Metrics.Minimap.height) < 0.001)
+    #expect(abs(frame.height - Metrics.Minimap.panelHeight) < 0.001)
     #expect(abs(frame.midX - display.midX) < 0.001)
     #expect(abs(frame.maxY - (display.maxY - Metrics.Spacing.spacious)) < 0.001)
   }

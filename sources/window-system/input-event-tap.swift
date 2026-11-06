@@ -22,26 +22,35 @@ public final class InputEventTap {
   public var isRunning: Bool { handle != nil }
 
   public func start(for client: Client) -> Bool {
+    let observedScroll = clients.contains(.scroll)
     clients.insert(client)
+    if clients.contains(.scroll) != observedScroll { stop() }
     return start()
   }
 
   public func stop(for client: Client) {
+    let observedScroll = clients.contains(.scroll)
     clients.remove(client)
-    if clients.isEmpty { stop() }
+    guard !clients.isEmpty else { return stop() }
+    if clients.contains(.scroll) != observedScroll {
+      stop()
+      _ = start()
+    }
   }
 
   private func start() -> Bool {
     if handle != nil { return true }
     let handle = TapThreadHandle()
     let modifiers = configuredModifiers
+    let observesScroll = clients.contains(.scroll)
     let deliver: @Sendable (TapDelivery) -> Void = { [weak self] delivery in
       DispatchQueue.main.async {
         MainActor.assumeIsolated { self?.dispatch(delivery) }
       }
     }
     let thread = Thread {
-      InputEventTapSession(modifiers: modifiers, deliver: deliver).run(handle: handle)
+      InputEventTapSession(modifiers: modifiers, observesScroll: observesScroll, deliver: deliver)
+        .run(handle: handle)
     }
     thread.name = "dev.macousel.input-tap"
     thread.qualityOfService = .userInteractive

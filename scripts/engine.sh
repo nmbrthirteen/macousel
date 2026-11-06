@@ -6,6 +6,8 @@ version="$(tr -d '[:space:]' < "$root/support/engine-version")"
 out="$root/build/engine-$version"
 binary="$out/bin/paneru"
 export PATH="$HOME/.cargo/bin:$PATH"
+# Symbols are a third of the engine binary and nothing reads them at run time.
+export CARGO_PROFILE_RELEASE_STRIP=true
 
 if ! command -v cargo > /dev/null; then
   echo "Install Rust from https://rustup.rs, then run this again." >&2

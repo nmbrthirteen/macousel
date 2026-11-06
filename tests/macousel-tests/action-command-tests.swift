@@ -18,8 +18,8 @@ struct ActionCommandTests {
     #expect(Set(Action.allCases.map(\.commandName)).count == Action.allCases.count)
   }
 
-  @Test func thereAreFortyNineActions() {
-    #expect(Action.allCases.count == 49)
+  @Test func thereAreFiftyOneActions() {
+    #expect(Action.allCases.count == 51)
   }
 
   @Test func overviewAndScratchpadCommandNames() {

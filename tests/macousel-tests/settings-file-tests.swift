@@ -22,7 +22,9 @@ struct SettingsFileTests {
         hotkey: Hotkey(keyCode: UInt16(kVK_ANSI_B), modifiers: [.control, .option]))
     ]
     preferences.disabledDisplays = ["display-2"]
+    preferences.groupsNativeTabs = false
     preferences.checksForUpdates = false
+    preferences.showsInDock = true
     return preferences
   }
 

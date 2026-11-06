@@ -3,19 +3,20 @@ import SwiftUI
 struct AppRulesPane: View {
   @Bindable var store: PreferencesStore
   @State private var runningApps = RunningApps()
+  @State private var confirmsRestore = false
 
   var body: some View {
     SettingsForm {
-      AppRulesPreview(
-        config: store.preferences.layout,
-        keepsFloatingOnTop: store.preferences.keepsFloatingWindowsOnTop)
-
       SettingsGroup(title: "Floating windows") {
+        AppRulesPreview(
+          config: store.preferences.layout,
+          keepsFloatingOnTop: store.preferences.keepsFloatingWindowsOnTop)
         ToggleRow(
           title: "Keep floating windows above tiled windows",
           isOn: $store.preferences.keepsFloatingWindowsOnTop,
-          caption: "After you focus a tiled window, floating windows it covers come back to the front.")
-          .engineGated(.floatingWindowsOnTop, for: store.preferences.engine)
+          detail: "After you focus a tiled window, floating windows it covers come back to the front.",
+          unavailable: EngineFeature.floatingWindowsOnTop.unavailableCaption(
+            for: store.preferences.engine))
       }
 
       SettingsGroup(title: "Apps", footer: "A rule applies to every window of the app.") {
@@ -34,9 +35,14 @@ struct AppRulesPane: View {
           }
         }
         .disabled(addableApps.isEmpty)
-        Button("Restore default rules", action: restoreDefaults)
+        Button("Restore default rules") { confirmsRestore = true }
           .disabled(store.preferences.appRules == AppRule.defaults)
       }
+    }
+    .confirmationDialog("Restore default rules?", isPresented: $confirmsRestore) {
+      Button("Restore defaults", role: .destructive, action: restoreDefaults)
+    } message: {
+      Text("This replaces your app rules with the defaults.")
     }
     .onAppear(perform: runningApps.start)
     .onDisappear(perform: runningApps.stop)

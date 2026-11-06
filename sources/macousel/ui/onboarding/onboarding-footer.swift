@@ -1,32 +1,27 @@
 import SwiftUI
 
 struct OnboardingFooter: View {
-  private static let transition = Animation.smooth(duration: 0.35)
+  private static let transition = Animation.easeInOut(duration: 0.2)
 
   let flow: OnboardingFlow
+  let onSkip: () -> Void
 
   var body: some View {
-    ZStack {
-      OnboardingPageDots(current: flow.step.rawValue, count: OnboardingFlow.Step.allCases.count)
-      buttons
+    HStack {
+      if !flow.isLastStep {
+        Button("Skip guide", action: onSkip)
+          .keyboardShortcut(.cancelAction)
+      }
+      Spacer()
+      if flow.canGoBack {
+        Button("Back") { withAnimation(Self.transition, flow.goBack) }
+      }
+      Button(flow.continueTitle) { withAnimation(Self.transition, flow.advance) }
+        .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.defaultAction)
     }
     .padding(.horizontal, OnboardingMetrics.contentInset)
     .padding(.top, Metrics.Spacing.comfortable)
     .padding(.bottom, Metrics.Spacing.spacious)
-  }
-
-  private var buttons: some View {
-    HStack {
-      Button("Back") { withAnimation(Self.transition, flow.goBack) }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-        .keyboardShortcut(.cancelAction)
-        .opacity(flow.canGoBack ? 1 : 0)
-        .disabled(!flow.canGoBack)
-      Spacer()
-      Button(flow.continueTitle) { withAnimation(Self.transition, flow.advance) }
-        .buttonStyle(ContinueButtonStyle())
-        .keyboardShortcut(.defaultAction)
-    }
   }
 }

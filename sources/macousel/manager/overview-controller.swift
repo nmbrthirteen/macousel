@@ -116,9 +116,24 @@ final class OverviewController {
   }
 
   private func choose(_ window: WindowID) {
-    guard session != nil else { return }
+    guard let current = session else { return }
+    returnCards(focusing: window, in: current.key)
     close()
     onChoose(window)
+  }
+
+  // Shows the frames the strip lands on once the chosen window is focused, so the closing
+  // cards fly to where the windows end up rather than where they were.
+  private func returnCards(focusing window: WindowID, in key: Workspace.Key) {
+    guard var strip = state.workspaces[key]?.strip, let display = state.display(for: key) else {
+      return
+    }
+    strip.focus(window)
+    strip.scrollToFocus(viewportWidth: display.visibleFrame.width, config: state.config)
+    let layout = strip.layout(in: display.visibleFrame, config: state.config, scrollOffset: nil)
+    guard var snapshot = snapshot(of: strip, in: key, layout: layout) else { return }
+    snapshot.selection = window
+    host.showOverview(snapshot, on: display.frame)
   }
 
   private func render() {
@@ -129,14 +144,21 @@ final class OverviewController {
   }
 
   private func snapshot(of strip: Strip, in key: Workspace.Key) -> OverviewSnapshot? {
-    guard let display = state.display(for: key), let layout = state.targetLayout(for: key)
-    else { return nil }
+    state.targetLayout(for: key).flatMap { snapshot(of: strip, in: key, layout: $0) }
+  }
+
+  private func snapshot(of strip: Strip, in key: Workspace.Key, layout: StripLayout)
+    -> OverviewSnapshot?
+  {
+    guard let display = state.display(for: key) else { return nil }
     let names = titles()
+    let frames = Dictionary(
+      layout.placements.map { ($0.window, $0.frame) }, uniquingKeysWith: { first, _ in first })
     let columns = strip.columns.enumerated().map { index, column in
       OverviewSnapshot.Column(
         width: Double(layout.placements.first { $0.column == index }?.frame.width ?? 0),
         cards: column.windows.indices.map { row in
-          card(for: column, row: row, names: names)
+          card(for: column, row: row, names: names, frame: frames[column.windows[row]])
         },
         isTabbed: column.display == .tabbed && column.windows.count > 1)
     }
@@ -147,8 +169,9 @@ final class OverviewController {
       springResponse: springResponse())
   }
 
-  private func card(for column: Column, row: Int, names: [CGWindowID: String])
-    -> OverviewSnapshot.Card
+  private func card(
+    for column: Column, row: Int, names: [CGWindowID: String], frame: CGRect?
+  ) -> OverviewSnapshot.Card
   {
     let window = column.windows[row]
     let handle = source.window(window.rawValue)
@@ -159,6 +182,6 @@ final class OverviewController {
       ? 1 : column.heightWeights[row] / column.heightWeights.reduce(0, +)
     return OverviewSnapshot.Card(
       window: window, title: captured.isEmpty ? handle?.appName ?? "" : captured,
-      bundleIdentifier: handle?.bundleIdentifier, heightShare: share)
+      bundleIdentifier: handle?.bundleIdentifier, heightShare: share, frame: frame)
   }
 }

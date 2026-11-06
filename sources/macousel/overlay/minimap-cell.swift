@@ -9,13 +9,14 @@ struct MinimapCell: Identifiable, Equatable {
   let rect: CGRect
   let cornerRadius: Double
   let isFocused: Bool
+  let isOnScreen: Bool
   let content: MinimapCellContent
   let tabDots: [CGRect]
 
   init(
     id: WindowID, window: WindowID, column: Int, row: Int, rect: CGRect, isFocused: Bool,
-    isLeadRow: Bool, dotCount: Int, bundleIdentifier: String?, containerSize: CGSize,
-    isStacked: Bool
+    isOnScreen: Bool, isLeadRow: Bool, dotCount: Int, bundleIdentifier: String?,
+    containerSize: CGSize, isStacked: Bool
   ) {
     self.id = id
     self.window = window
@@ -28,6 +29,7 @@ struct MinimapCell: Identifiable, Equatable {
       ? min(concentricRadius, rect.height * Metrics.Minimap.stackedRowRadiusShare)
       : concentricRadius
     self.isFocused = isFocused
+    self.isOnScreen = isOnScreen
     tabDots = Self.dots(count: dotCount, in: rect)
     let contentBottom =
       tabDots.first.map { $0.minY - Metrics.Minimap.tabDotGap } ?? rect.maxY
