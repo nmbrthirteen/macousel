@@ -1,0 +1,75 @@
+diff --git a/src/ecs.rs b/src/ecs.rs
+--- a/src/ecs.rs
++++ b/src/ecs.rs
+@@ -2,6 +2,7 @@ use std::sync::mpsc::Receiver;
+ use std::time::Duration;
+ 
+ use bevy::MinimalPlugins;
++use bevy::app::{PluginGroup as _, TaskPoolOptions, TaskPoolPlugin, TaskPoolThreadAssignmentPolicy};
+ use bevy::app::App as BevyApp;
+ use bevy::app::{First, Last, PostUpdate, PreUpdate, Startup};
+ use bevy::ecs::hierarchy::ChildOf;
+@@ -679,6 +680,25 @@ pub(crate) fn rewatch_configs(
+ /// Runs the Bevy schedule loop with each tick wrapped in an Objective-C
+ /// `NSAutoreleasePool`.
+ ///
++/// Bevy sizes its pools to the CPU core count, which gave a window manager two
++/// dozen mostly idle threads. The schedules run single threaded, so compute only
++/// serves the odd `par_iter_mut`, and async compute keeps a few threads so the
++/// startup window scans of several apps still overlap.
++fn small_task_pools() -> TaskPoolOptions {
++    let defaults = TaskPoolOptions::default();
++    TaskPoolOptions {
++        async_compute: TaskPoolThreadAssignmentPolicy {
++            max_threads: 3,
++            ..defaults.async_compute
++        },
++        compute: TaskPoolThreadAssignmentPolicy {
++            max_threads: 2,
++            ..defaults.compute
++        },
++        ..defaults
++    }
++}
++
+ /// `MinimalPlugins`'s default `ScheduleRunnerPlugin` runs `app.update()` in a
+ /// bare Rust loop with no pool. While `pump_cocoa_event_loop` wraps
+ /// `nextEventMatchingMask` in its own pool, every Bevy system in `Startup`,
+@@ -745,7 +765,9 @@ pub fn setup_bevy_app(sender: EventSender, receiver: Receiver<Event>) -> Result<
+ 
+     let mut app = BevyApp::new();
+ 
+-    app.add_plugins(MinimalPlugins)
++    app.add_plugins(MinimalPlugins.set(TaskPoolPlugin {
++        task_pool_options: small_task_pools(),
++    }))
+         // `add_message`, not `init_resource`: the latter never registers the
+         // buffer with bevy's `MessageRegistry`, so it's never double-buffered
+         // and grows unbounded instead — every event lived for the process's
+diff --git a/src/reader.rs b/src/reader.rs
+--- a/src/reader.rs
++++ b/src/reader.rs
+@@ -7,7 +7,7 @@
+ //! channel the answering system fills in.
+ 
+ use crate::types::wire::{self, Delivery, Reply as MachReply, Request, service_name};
+-use bevy::tasks::{IoTaskPool, TaskPool};
++use bevy::tasks::{IoTaskPool, TaskPoolBuilder};
+ use futures_lite::StreamExt;
+ use std::sync::Arc;
+ use std::thread;
+@@ -160,7 +160,13 @@ fn answer(
+ 
+     // `get_or_init`, not `get`: the reader starts before the Bevy app is built,
+     // so an early client would otherwise find no pool at all and panic.
+-    IoTaskPool::get_or_init(TaskPool::default)
++    // One thread answers every query; the default sizes the pool to the CPU core count.
++    IoTaskPool::get_or_init(|| {
++        TaskPoolBuilder::new()
++            .num_threads(1)
++            .thread_name("IO Task Pool".to_string())
++            .build()
++    })
+         .spawn(async move {
+             match rx.recv().await {
+                 Ok(response) => {
