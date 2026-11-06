@@ -25,11 +25,14 @@ struct OverviewView: View {
           OverviewPlaceholderView(rect: slot.rect, radius: geometry.cornerRadius)
         }
         ZStack(alignment: .topLeading) {
-          ForEach(geometry.cards) { card in
+          ForEach(geometry.everyCard) { card in
             cardView(card, radius: geometry.cornerRadius)
           }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        if let origin = geometry.floatingTitleOrigin {
+          floatingTitle(at: origin)
+        }
         if model.lift == nil, model.isExpanded {
           OverviewHandlesView(
             areas: geometry.hitAreas, activeColumnWindow: model.resizeLabel?.window,
@@ -84,6 +87,17 @@ struct OverviewView: View {
     if let label = model.resizeLabel, let card = geometry.cards.first(where: { $0.id == label.window }) {
       OverviewResizeLabel(text: label.text, anchor: card.rect)
     }
+  }
+
+  private func floatingTitle(at origin: CGPoint) -> some View {
+    Text("Floating")
+      .font(.overlay(.regular, weight: .semibold))
+      .foregroundStyle(.secondary)
+      .frame(height: Metrics.Overview.floatingTitleHeight, alignment: .topLeading)
+      .offset(x: origin.x, y: origin.y)
+      .opacity(model.isExpanded ? 1 : 0)
+      .allowsHitTesting(false)
+      .accessibilityAddTraits(.isHeader)
   }
 
   private func pointerGesture(size: CGSize) -> some Gesture {

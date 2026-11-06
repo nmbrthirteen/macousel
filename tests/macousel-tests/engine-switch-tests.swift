@@ -53,7 +53,9 @@ struct EngineSwitchTests {
     let columnMoves = Set(Action.places.flatMap { Action.defaultShortcuts[.moveToColumn($0)] ?? [] })
       .union(Action.defaultShortcuts[.stackRight] ?? [])
       .union(Action.defaultShortcuts[.popOutLeft] ?? [])
-    #expect(fixture.shortcuts.boundHotkeys == paused.union(overview).union(columnMoves))
+    let previous = Set(Action.defaultShortcuts[.focusPrevious] ?? [])
+    #expect(
+      fixture.shortcuts.boundHotkeys == paused.union(overview).union(columnMoves).union(previous))
   }
 
   @Test func switchingBackStopsTheHelperAndTilesAgain() async throws {

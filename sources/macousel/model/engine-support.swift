@@ -35,7 +35,9 @@ nonisolated extension Action {
     case .popOutRight: .command(PaneruCommand("window", "unstack"))
     case .toggleTabbed: .command(PaneruCommand("window", "tabbeddisplay"))
     case .toggleFloating: .command(PaneruCommand("window", "manage"))
-    case .togglePaused, .toggleOverview, .moveToColumn, .stackRight, .popOutLeft:
+    case .switchToFloatingWindows: .command(PaneruCommand("window", "togglefloatlayer"))
+    case .togglePaused, .toggleOverview, .moveToColumn, .stackRight, .popOutLeft, .focusPrevious,
+      .bringBackFloatingWindows:
       .handledByMacousel
     case .sendToScratchpad, .toggleScratchpad: .builtInOnly
     }

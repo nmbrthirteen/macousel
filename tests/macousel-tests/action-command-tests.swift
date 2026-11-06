@@ -18,8 +18,20 @@ struct ActionCommandTests {
     #expect(Set(Action.allCases.map(\.commandName)).count == Action.allCases.count)
   }
 
-  @Test func thereAreFiftyOneActions() {
-    #expect(Action.allCases.count == 51)
+  @Test func thereAreFiftyFourActions() {
+    #expect(Action.allCases.count == 54)
+  }
+
+  @Test func floatingAndPreviousWindowCommandNames() {
+    #expect(Action.switchToFloatingWindows.commandName == "switch-to-floating-windows")
+    #expect(Action.bringBackFloatingWindows.commandName == "bring-back-floating-windows")
+    #expect(Action.focusPrevious.commandName == "focus-previous")
+  }
+
+  @Test func floatingAndPreviousWindowTitles() {
+    #expect(Action.switchToFloatingWindows.title == "Switch to floating windows")
+    #expect(Action.bringBackFloatingWindows.title == "Bring back floating windows")
+    #expect(Action.focusPrevious.title == "Focus previous window")
   }
 
   @Test func overviewAndScratchpadCommandNames() {
@@ -32,10 +44,11 @@ struct ActionCommandTests {
     #expect(Action(commandName: "fly-away") == nil)
   }
 
-  @Test func everyActionHasADefaultShortcut() {
-    for action in Action.allCases {
+  @Test func everyActionButBringingBackFloatingWindowsHasADefaultShortcut() {
+    for action in Action.allCases where action != .bringBackFloatingWindows {
       #expect(Action.defaultShortcuts[action]?.isEmpty == false)
     }
+    #expect(Action.defaultShortcuts[.bringBackFloatingWindows] == nil)
   }
 
   @Test func defaultShortcutsNeverCollide() {

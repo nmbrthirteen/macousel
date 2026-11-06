@@ -18,6 +18,9 @@ struct PaneruEngineTests {
       .union(Action.defaultShortcuts[.stackRight] ?? [])
       .union(Action.defaultShortcuts[.popOutLeft] ?? [])
   }
+  private var previousWindowHotkeys: Set<Hotkey> {
+    Set(Action.defaultShortcuts[.focusPrevious] ?? [])
+  }
 
   private func makeEngine(
     configure: (inout Preferences) -> Void = { _ in }
@@ -40,7 +43,8 @@ struct PaneruEngineTests {
     let (engine, _) = try await running()
 
     #expect(engine.status == .running)
-    #expect(shortcuts.boundHotkeys == pauseHotkeys.union(overviewHotkeys).union(columnMoveHotkeys))
+    #expect(shortcuts.boundHotkeys == pauseHotkeys.union(overviewHotkeys).union(columnMoveHotkeys)
+        .union(previousWindowHotkeys))
   }
 
   @Test func doesNotSpawnWithoutAccessibility() throws {
@@ -210,7 +214,8 @@ struct PaneruEngineTests {
     let normal = String(decoding: harness.files.handle.contents, as: UTF8.self)
 
     #expect(!recording.contains("window_focus_west"))
-    #expect(shortcuts.boundHotkeys == pauseHotkeys.union(overviewHotkeys).union(columnMoveHotkeys))
+    #expect(shortcuts.boundHotkeys == pauseHotkeys.union(overviewHotkeys).union(columnMoveHotkeys)
+        .union(previousWindowHotkeys))
     #expect(normal.contains("window_focus_west"))
   }
 

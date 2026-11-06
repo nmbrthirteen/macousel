@@ -31,6 +31,13 @@ struct ShortcutMenuItemsTests {
     #expect(shown.contains(.focusLeft))
   }
 
+  @Test func bringingBackFloatingWindowsIsListedWithoutAShortcut() {
+    let sections = ShortcutMenuItems.sections(in: preferences(engine: .paneru))
+    let item = sections.flatMap(\.items).first { $0.action == .bringBackFloatingWindows }
+    #expect(item?.keys == ShortcutMenuItem.unsetKeys)
+    #expect(item?.title == "Bring back floating windows")
+  }
+
   @Test func keysListEveryHotkey() {
     let first = Hotkey(keyCode: 18, modifiers: [.control, .option])
     let second = Hotkey(keyCode: 19, modifiers: [.control, .command])

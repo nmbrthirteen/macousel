@@ -18,14 +18,16 @@ nonisolated extension Action {
 
   var group: Group {
     switch self {
-    case .focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast, .focusColumn,
+    case .focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast, .focusPrevious,
+      .focusColumn,
       .moveLeft, .moveRight, .moveUp, .moveDown, .moveToColumn, .moveToFirst, .moveToLast,
       .sendToNextDisplay, .sendToNextDisplayWithoutFollowing, .focusNextDisplay:
       .navigate
     case .cycleWidth, .toggleFullWidth, .center, .wider, .narrower, .taller, .shorter,
       .equalizeHeights:
       .size
-    case .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating:
+    case .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating,
+      .switchToFloatingWindows, .bringBackFloatingWindows:
       .stacks
     case .toggleOverview, .sendToScratchpad, .toggleScratchpad, .togglePaused:
       .other

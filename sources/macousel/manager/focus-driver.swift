@@ -19,6 +19,7 @@ final class FocusDriver {
   var onActivated: ((WindowID) -> Void)?
   var needsRaise: (WindowID) -> Bool = { _ in true }
   let recents: RecentAppWindows
+  private(set) var history = FocusHistory()
 
   private var lastCommandActivation: ContinuousClock.Instant?
   private var pendingActivation: PendingActivation?
@@ -47,6 +48,7 @@ final class FocusDriver {
 
   func observed(_ window: WindowID) {
     recents.note(window)
+    history.note(window.rawValue)
   }
 
   func activate(
@@ -55,6 +57,7 @@ final class FocusDriver {
   ) {
     state.focusedKey = key
     recents.note(window)
+    history.note(window.rawValue)
     let requestedAt = now()
     pendingActivation = PendingActivation(window: window, requestedAt: requestedAt)
     scheduleEchoExpiry(of: window)

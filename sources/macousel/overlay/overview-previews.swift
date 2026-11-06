@@ -21,7 +21,7 @@ final class OverviewPreviews {
   static func requests(
     for geometry: OverviewGeometry, fullSizeOn displayFrame: CGRect?, backingScale: Double
   ) -> [WindowCaptureRequest] {
-    geometry.cards.map { card in
+    geometry.everyCard.map { card in
       let shown = displayFrame.flatMap { displayFrame in
         card.content.frame.flatMap { OverviewFlight.isShown($0, on: displayFrame) ? $0 : nil }
       }

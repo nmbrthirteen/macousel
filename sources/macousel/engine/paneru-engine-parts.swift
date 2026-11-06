@@ -15,5 +15,7 @@ struct PaneruEngineParts {
   var swipe: EngineSwipe
   var bindings: PaneruInputBindings
   var appShortcuts: EngineAppShortcuts
+  var windows: any EngineWindowControl
+  var floating: EngineFloatingKeeper
   var reporter: EngineReporter
 }

@@ -86,7 +86,7 @@ final class OverviewOverlay {
     let desktop =
       flies
       ? DesktopCaptureRequest(
-        displayFrame: displayFrame, backingScale: scale, excluding: geometry.cards.map(\.id))
+        displayFrame: displayFrame, backingScale: scale, excluding: geometry.everyCard.map(\.id))
       : nil
     let previews = model.previews
     capturing = Task { [weak self] in

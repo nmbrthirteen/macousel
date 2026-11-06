@@ -5,12 +5,17 @@ final class EngineOverview {
   private let host: any OverlayHost
   private let displays: () -> [Display]
   private let reorder: EngineReorder
+  private let windows: any EngineWindowControl
   private var session: (cursor: ColumnCursor, snapshot: EngineSnapshot)?
 
-  init(host: any OverlayHost, displays: @escaping () -> [Display], reorder: EngineReorder) {
+  init(
+    host: any OverlayHost, displays: @escaping () -> [Display], reorder: EngineReorder,
+    windows: any EngineWindowControl
+  ) {
     self.host = host
     self.displays = displays
     self.reorder = reorder
+    self.windows = windows
     host.onOverviewSelect = { [weak self] window in self?.choose(window) }
     host.onOverviewKey = { [weak self] key in self?.handle(key) }
     host.onOverviewDismiss = { [weak self] in self?.close() }
@@ -95,8 +100,13 @@ final class EngineOverview {
   }
 
   private func choose(_ window: WindowID) {
-    guard isOpen else { return }
+    guard let current = session else { return }
     close()
+    if current.snapshot.floatingWindows.contains(where: { EngineWindowID.make($0.windowId) == window })
+    {
+      windows.focus(window.rawValue)
+      return
+    }
     Task { [weak self] in await self?.reorder.focus(window) }
   }
 }

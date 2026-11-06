@@ -29,6 +29,7 @@ struct MinimapSnapshot: Equatable {
   var viewportWidth: Double
   var animationResponse: Double?
   var innerGap = 0.0
+  var floatingCount = 0
 
   // Engines can report a frame mid-change with no columns or with a column whose windows
   // have not resolved yet. Drawing that would blank part of the strip for a moment.

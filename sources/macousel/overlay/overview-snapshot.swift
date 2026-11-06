@@ -26,6 +26,7 @@ struct OverviewSnapshot: Equatable {
   var presetWidths: [Double] = []
   var springResponse: Double?
   var allowsResize = true
+  var floating: [Card] = []
 
   func placing(_ frame: (Card) -> CGRect?) -> OverviewSnapshot {
     var placed = self

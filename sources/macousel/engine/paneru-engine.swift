@@ -1,4 +1,6 @@
+import CoreGraphics
 import Observation
+import StripCore
 import WindowSystem
 import os
 
@@ -12,6 +14,7 @@ final class PaneruEngine: ManagementEngine {
   @ObservationIgnored private let parts: PaneruEngineParts
   @ObservationIgnored private let accessibility: AccessibilityMonitor
   @ObservationIgnored private var appliedInputs: InputSettings?
+  @ObservationIgnored private var focusHistory = FocusHistory()
 
   init(_ parts: PaneruEngineParts) {
     self.parts = parts
@@ -22,7 +25,8 @@ final class PaneruEngine: ManagementEngine {
     parts.world.onFocusMoved = { [weak self] snapshot in
       if self?.parts.overview.isOpen == false { self?.parts.minimap.flash(snapshot) }
     }
-    parts.world.onAdopted = { [weak self] snapshot in self?.parts.overview.refresh(with: snapshot) }
+    parts.world.onAdopted = { [weak self] snapshot in self?.adopted(snapshot) }
+    parts.floating.isSuppressed = { [overview = parts.overview] in overview.isOpen }
   }
 
   var position: StripPosition? { parts.world.position }
@@ -74,6 +78,17 @@ final class PaneruEngine: ManagementEngine {
     applyBindings()
   }
 
+  private func adopted(_ snapshot: EngineSnapshot) {
+    parts.overview.refresh(with: snapshot)
+    parts.floating.adopted(snapshot)
+    // A reorder walks focus through other windows on its way, which is not the user's focus.
+    if !parts.reorder.isRunning, let focused = snapshot.active.focusedWindowId,
+      let window = CGWindowID(exactly: focused)
+    {
+      focusHistory.note(window)
+    }
+  }
+
   private func performLocally(_ action: Action) {
     switch (action, status) {
     case (.togglePaused, .running): pause()
@@ -82,6 +97,11 @@ final class PaneruEngine: ManagementEngine {
     case (.moveToColumn(let place), .running):
       parts.overview.close()
       Task { _ = await parts.reorder.moveFocused(toPlace: place) }
+    case (.focusPrevious, .running):
+      parts.overview.close()
+      focusPreviousWindow()
+    case (.bringBackFloatingWindows, .running):
+      Task { await bringBackFloatingWindows() }
     case (.popOutLeft, .running) where !isFocusedWindowStacked:
       Self.logger.info("Dropped \(action.commandName, privacy: .public): not in a stack")
     case (_, .running) where action.paneruSequence != nil:
@@ -130,6 +150,7 @@ final class PaneruEngine: ManagementEngine {
     parts.minimap.hide()
     parts.events.stop()
     parts.world.clear()
+    parts.floating.cancel()
     parts.supervisor.stop()
     parts.sync.forget()
   }
@@ -172,6 +193,33 @@ final class PaneruEngine: ManagementEngine {
       return false
     }
     return (snapshot.tiledColumns.column(of: focused)?.windows.count ?? 0) > 1
+  }
+
+  private func focusPreviousWindow() {
+    guard let previous = focusHistory.previous, let snapshot = parts.world.snapshot else { return }
+    let id = WindowID(previous)
+    if snapshot.tiledColumns.position(of: id) != nil {
+      Task { await parts.reorder.focus(id) }
+    } else if snapshot.floatingWindows.contains(where: { EngineWindowID.make($0.windowId) == id }) {
+      parts.windows.focus(previous)
+    } else {
+      Self.logger.info("Dropped focus-previous: the window is gone")
+    }
+  }
+
+  private func bringBackFloatingWindows() async {
+    let displays = parts.environment.displays
+    guard let snapshot = await parts.commands.fetchSnapshot(),
+      let display = snapshot.display(in: displays)
+    else { return }
+    let screens = displays.map(\.frame)
+    for window in snapshot.activeFloatingWindows {
+      guard let id = CGWindowID(exactly: window.windowId), let frame = window.frame?.rect,
+        let target = FloatingRecovery.frame(
+          for: frame, displays: screens, into: display.visibleFrame)
+      else { continue }
+      parts.windows.move(id, to: target)
+    }
   }
 
   private func send(_ command: PaneruCommand) {

@@ -49,7 +49,8 @@ struct ManagerComponents {
     let overview = OverviewController(
       state: state, source: ports.source, host: ports.overlays,
       titles: { reconciler.capturedTitles },
-      springResponse: { store.preferences.animationSpeed.springResponse })
+      springResponse: { store.preferences.animationSpeed.springResponse },
+      floating: { floating.floatingFrames(on: $0) })
     self.state = state
     self.indicator = indicator
     self.floating = floating
@@ -63,7 +64,7 @@ struct ManagerComponents {
       presenter: presenter, scratchpad: scratchpad)
     let router = CommandRouter(
       state: state, source: ports.source, presenter: presenter, focus: focus,
-      reconciler: reconciler, scratchpad: scratchpad, overview: overview)
+      reconciler: reconciler, scratchpad: scratchpad, overview: overview, floating: floating)
     self.router = router
     appShortcuts = AppShortcutLauncher(
       state: state, source: ports.source, environment: ports.environment,

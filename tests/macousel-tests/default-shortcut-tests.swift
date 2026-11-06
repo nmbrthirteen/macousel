@@ -64,9 +64,27 @@ struct DefaultShortcutTests {
     #expect(hotkey.keycaps.joined() == hotkey.displayString)
   }
 
-  @Test func everyActionHasADefaultAndNoTwoActionsShareOne() {
+  @Test func everyActionButBringingBackHasADefaultAndNoTwoActionsShareOne() {
     let keys = Action.allCases.flatMap { Action.defaultShortcuts[$0] ?? [] }
-    #expect(Action.allCases.allSatisfy { Action.defaultShortcuts[$0]?.isEmpty == false })
+    let bound = Action.allCases.filter { $0 != .bringBackFloatingWindows }
+    #expect(bound.allSatisfy { Action.defaultShortcuts[$0]?.isEmpty == false })
     #expect(Set(keys).count == keys.count)
+  }
+
+  @Test func floatingLayerAndPreviousWindowUseControlOption() {
+    let base: Hotkey.Modifiers = [.control, .option]
+    #expect(
+      Action.defaultShortcuts[.switchToFloatingWindows]
+        == [Hotkey(keyCode: UInt16(kVK_ANSI_Grave), modifiers: base)])
+    #expect(
+      Action.defaultShortcuts[.focusPrevious]
+        == [Hotkey(keyCode: UInt16(kVK_ANSI_Backslash), modifiers: base)])
+  }
+
+  @Test func newDefaultsStayUniqueUnderEveryShortcutBase() {
+    for base in ShortcutBase.allCases {
+      let keys = Action.defaultShortcuts(base: base).values.flatMap { $0 }
+      #expect(Set(keys).count == keys.count, "\(base)")
+    }
   }
 }

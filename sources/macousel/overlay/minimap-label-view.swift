@@ -14,11 +14,20 @@ struct MinimapLabelView: View {
   }
 
   var body: some View {
-    Text(text)
-      .font(.overlay(.small, weight: .semibold))
-      .foregroundStyle(.primary)
-      .lineLimit(1)
-      .truncationMode(.middle)
-      .frame(maxWidth: .infinity)
+    HStack(spacing: Metrics.Spacing.compact) {
+      Text(text)
+        .font(.overlay(.small, weight: .semibold))
+        .foregroundStyle(.primary)
+        .lineLimit(1)
+        .truncationMode(.middle)
+      if let floating = MinimapLabel.floatingText(for: model.arrangement) {
+        Text(floating)
+          .font(.overlay(.small))
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+          .layoutPriority(1)
+      }
+    }
+    .frame(maxWidth: .infinity)
   }
 }

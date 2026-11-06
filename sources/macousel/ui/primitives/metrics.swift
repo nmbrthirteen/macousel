@@ -96,6 +96,10 @@ enum Metrics {
     static let hoverTitleGap = 8.0
     static let hoverTitleMaximumWidth = 320.0
     static let noticeInset = 24.0
+    static let floatingRowHeight = 140.0
+    static let floatingTitleHeight = 28.0
+    static let floatingRowGap = 24.0
+    static let floatingAspectRatio = 4.0 / 3.0
   }
 
   enum Size {

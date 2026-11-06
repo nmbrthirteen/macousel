@@ -37,7 +37,9 @@ extension PaneruEngine {
     let displays: () -> [Display] = { environment.displays }
     let world = EngineWorld(commands: commands, sleep: { try await Task.sleep(for: $0) })
     let reorder = EngineReorder(commands: commands, sleep: { try await world.awaitEvent(upTo: $0) })
-    let overview = EngineOverview(host: overlays, displays: displays, reorder: reorder)
+    let windows = SystemEngineWindowControl()
+    let overview = EngineOverview(
+      host: overlays, displays: displays, reorder: reorder, windows: windows)
     let drag = EngineDrag(
       pointer: pointer, clock: clock, host: overlays, world: world, displays: displays,
       reorder: reorder,
@@ -60,6 +62,10 @@ extension PaneruEngine {
         bindings: PaneruInputBindings(store: store, shortcuts: shortcuts),
         appShortcuts: EngineAppShortcuts(
           commands: commands, reorder: reorder, activate: { environment.activateOrLaunch(bundleIdentifier: $0) }),
+        windows: windows,
+        floating: EngineFloatingKeeper(
+          store: store, clock: clock, windows: windows,
+          stackingOrder: { environment.orderedOnScreenWindowIDs() }),
         reporter: EngineReporter(
           version: locator.version, locate: locate, supervisor: supervisor, sync: sync, log: log)))
   }

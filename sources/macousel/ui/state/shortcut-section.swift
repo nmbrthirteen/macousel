@@ -3,7 +3,7 @@ enum ShortcutSection: CaseIterable {
 
   init(_ action: Action) {
     switch action {
-    case .focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast,
+    case .focusLeft, .focusRight, .focusUp, .focusDown, .focusFirst, .focusLast, .focusPrevious,
       .focusNextDisplay:
       self = .focus
     case .focusColumn: self = .jumpToColumn
@@ -14,7 +14,8 @@ enum ShortcutSection: CaseIterable {
     case .cycleWidth, .toggleFullWidth, .center, .wider, .narrower, .taller, .shorter,
       .equalizeHeights:
       self = .size
-    case .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating:
+    case .stackLeft, .stackRight, .popOutLeft, .popOutRight, .toggleTabbed, .toggleFloating,
+      .switchToFloatingWindows, .bringBackFloatingWindows:
       self = .stacks
     case .toggleOverview, .sendToScratchpad, .toggleScratchpad, .togglePaused:
       self = .overviewAndTiling

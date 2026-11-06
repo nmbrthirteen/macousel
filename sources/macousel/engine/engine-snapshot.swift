@@ -74,6 +74,15 @@ nonisolated struct EngineSnapshot: Decodable, Equatable, Sendable {
     visibleWindows.filter { !$0.floating }
   }
 
+  var floatingWindows: [EngineWindow] {
+    visibleWindows.filter { $0.floating && $0.visible }
+  }
+
+  // The engine reports a window pushed off screen as not visible and on no display.
+  var activeFloatingWindows: [EngineWindow] {
+    virtualWorkspaces.filter(\.active).flatMap(\.windows).filter(\.floating)
+  }
+
   var tiledColumns: EngineColumns {
     EngineColumns(tiledWindows, grouping: layout?.columns(onDisplay: active.displayId))
   }
