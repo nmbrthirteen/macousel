@@ -20,6 +20,7 @@ private nonisolated func observerCallback(
   }
 }
 
+@MainActor
 public final class WindowTracker {
   static let messagingTimeout: Float = 0.25
 

@@ -1,6 +1,7 @@
 import AppKit
 import QuartzCore
 
+@MainActor
 public final class FrameTicker {
   public var onFrame: ((_ deltaTime: Double) -> Void)?
 

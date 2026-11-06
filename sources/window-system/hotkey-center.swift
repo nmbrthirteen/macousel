@@ -21,6 +21,7 @@ private nonisolated func hotKeyHandler(
   return noErr
 }
 
+@MainActor
 public final class HotkeyCenter {
   private static let signature: OSType = 0x4D43_534C
 
