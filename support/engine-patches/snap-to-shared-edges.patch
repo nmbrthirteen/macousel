@@ -1,0 +1,277 @@
+diff --git a/src/ecs/layout.rs b/src/ecs/layout.rs
+--- a/src/ecs/layout.rs
++++ b/src/ecs/layout.rs
+@@ -3,6 +3,7 @@ use bevy::ecs::change_detection::{DetectChanges, DetectChangesMut, Ref};
+ use bevy::ecs::component::Component;
+ use bevy::ecs::entity::{Entity, EntityHashMap, EntityHashSet};
+ use bevy::ecs::hierarchy::ChildOf;
++use bevy::ecs::lifecycle::RemovedComponents;
+ use bevy::ecs::query::{Changed, Has, Or, With, Without};
+ use bevy::ecs::schedule::IntoScheduleConfigs as _;
+ use bevy::ecs::schedule::common_conditions::{not, resource_exists};
+@@ -136,6 +137,48 @@ pub(crate) fn peek_for(
+     None
+ }
+ 
++/// A column's place in its strip: its x before the strip offset, its width, and
++/// the horizontal padding its windows carry.
++#[derive(Clone, Copy, Debug)]
++pub(crate) struct ColumnSpan {
++    pub x: i32,
++    pub width: i32,
++    pub h_pad: i32,
++}
++
++/// The strip offset that keeps a column from resting across an edge shared with
++/// another display. A column [`peek_for`] would slide in has to overlap its
++/// neighbour, so the strip moves just far enough to hide it instead, and the
++/// next column starts flush with the shared edge. Only a move that keeps the
++/// strip covering the opposite edge counts, so it never opens an empty band.
++pub(crate) fn snap_to_shared_edge(
++    columns: &[ColumnSpan],
++    offset: i32,
++    viewport: IRect,
++    display: IRect,
++    adjacency: Adjacency,
++) -> Option<i32> {
++    let (first, last) = (columns.first()?, columns.last()?);
++    for (index, column) in columns.iter().enumerate() {
++        let min_x = column.x + offset;
++        let frame = IRect::new(min_x, viewport.min.y, min_x + column.width, viewport.max.y);
++        let Some(peek) = peek_for(frame, viewport, display, column.h_pad, adjacency) else {
++            continue;
++        };
++        let snapped = if peek > min_x {
++            let next = columns.get(index + 1)?;
++            let snapped = viewport.min.x - next.x;
++            (last.x + last.width + snapped >= viewport.max.x).then_some(snapped)
++        } else {
++            let previous = columns.get(index.checked_sub(1)?)?;
++            let snapped = viewport.max.x - (previous.x + previous.width);
++            (first.x + snapped <= viewport.min.x).then_some(snapped)
++        };
++        return snapped.filter(|snapped| *snapped != offset);
++    }
++    None
++}
++
+ /// A strip, its entity, origin, display, whether it's the active one, and the
+ /// offset it is animating toward if a move is already in flight.
+ /// Shared by [`reshuffle_layout_strip`] and [`ensure_visible_in_strip`].
+@@ -280,6 +323,7 @@ impl Plugin for LayoutEventsPlugin {
+                     layout_strip_changed,
+                     reshuffle_layout_strip,
+                     ensure_visible_in_strip,
++                    snap_strips_to_shared_edges,
+                     position_layout_strips,
+                     position_layout_windows,
+                 )
+@@ -1512,6 +1556,69 @@ fn ensure_visible_in_strip(
+     }
+ }
+ 
++/// Moves a strip that is about to rest with a column across an edge shared
++/// with another display, see [`snap_to_shared_edge`]. It checks a strip when it
++/// gets a new scroll target, when its columns change, and when a swipe ends.
++#[allow(clippy::type_complexity)]
++#[instrument(level = Level::DEBUG, skip_all)]
++fn snap_strips_to_shared_edges(
++    strips: Query<
++        (
++            Entity,
++            Ref<LayoutStrip>,
++            &Position,
++            &ChildOf,
++            Option<Ref<RepositionMarker>>,
++            Ref<ActiveWorkspaceMarker>,
++        ),
++        Without<Scrolling>,
++    >,
++    mut swipes_ended: RemovedComponents<Scrolling>,
++    displays: DisplayViewports,
++    windows: Windows,
++    config: Res<Config>,
++    mut commands: Commands,
++) {
++    let swipes_ended = swipes_ended.read().collect::<EntityHashSet>();
++    for (strip_entity, strip, position, child, reposition, active) in &strips {
++        let target = reposition.as_ref().map_or(position.0, |marker| marker.0);
++        if active.is_added()
++            || !(strip.is_changed()
++                || reposition.is_some_and(|marker| marker.is_changed())
++                || swipes_ended.contains(&strip_entity))
++        {
++            continue;
++        }
++        let Ok((display, dock)) = displays.get(child.parent()) else {
++            continue;
++        };
++        let columns = strip
++            .columns()
++            .map(|column| {
++                let top = column.top()?;
++                let x = windows.layout_position(top)?.0.x;
++                let width = windows.moving_frame(top)?.width();
++                let h_pad = windows.get(top)?.horizontal_padding();
++                Some(ColumnSpan { x, width, h_pad })
++            })
++            .collect::<Option<Vec<_>>>();
++        let Some(columns) = columns else {
++            continue;
++        };
++        let adjacency = Adjacency::of(
++            display.bounds(),
++            displays.iter().map(|(other, _)| other.bounds()),
++        );
++        let viewport = display.actual_display_bounds(dock, &config);
++        if let Some(x) =
++            snap_to_shared_edge(&columns, target.x, viewport, display.bounds(), adjacency)
++        {
++            trace!("snap_strips_to_shared_edges: strip {strip_entity} to x {x}");
++            commands.reposition_entity(strip_entity, target.with_x(x));
++        }
++    }
++}
++
+ /// Reacts to changes in the position of the `LayoutStrip` to Display, and if changed,
+ /// marks all the windows in the strip as requiring re-positioning.
+ #[instrument(level = Level::DEBUG, skip_all)]
+@@ -1967,6 +2074,79 @@ mod tests {
+         );
+     }
+ 
++    fn span(x: i32, width: i32) -> ColumnSpan {
++        ColumnSpan { x, width, h_pad: 0 }
++    }
++
++    /// Two 1920 displays side by side. A wide column before one that rests
++    /// against the right edge would show less than half of itself on the right
++    /// display, so the strip hides it and starts the next column at the edge.
++    #[test]
++    fn a_column_mostly_across_the_left_shared_edge_scrolls_off() {
++        let beside_left = Adjacency {
++            left: true,
++            right: false,
++        };
++        let columns = [span(0, 1916), span(1920, 1280), span(3204, 1274)];
++
++        assert_eq!(
++            snap_to_shared_edge(&columns, 640, RIGHT_DISPLAY, RIGHT_DISPLAY, beside_left),
++            Some(0)
++        );
++    }
++
++    #[test]
++    fn a_column_mostly_across_the_right_shared_edge_scrolls_off() {
++        let beside_right = Adjacency {
++            left: false,
++            right: true,
++        };
++        let columns = [span(0, 1000), span(1004, 1280), span(2288, 1916)];
++
++        assert_eq!(
++            snap_to_shared_edge(&columns, -1004, LEFT_DISPLAY, LEFT_DISPLAY, beside_right),
++            Some(1920 - 2284)
++        );
++    }
++
++    #[test]
++    fn the_strip_keeps_its_offset_when_snapping_would_open_an_empty_band() {
++        let beside_left = Adjacency {
++            left: true,
++            right: false,
++        };
++        let columns = [span(0, 1916), span(1920, 1280)];
++
++        assert_eq!(
++            snap_to_shared_edge(&columns, 640, RIGHT_DISPLAY, RIGHT_DISPLAY, beside_left),
++            None
++        );
++    }
++
++    #[test]
++    fn the_strip_keeps_its_offset_away_from_shared_edges() {
++        let columns = [span(0, 1916), span(1920, 1280), span(3204, 1274)];
++        let beside_left = Adjacency {
++            left: true,
++            right: false,
++        };
++
++        assert_eq!(
++            snap_to_shared_edge(
++                &columns,
++                640,
++                RIGHT_DISPLAY,
++                RIGHT_DISPLAY,
++                Adjacency::default()
++            ),
++            None
++        );
++        assert_eq!(
++            snap_to_shared_edge(&columns, 1400, RIGHT_DISPLAY, RIGHT_DISPLAY, beside_left),
++            None
++        );
++    }
++
+     #[test]
+     fn signature_tolerates_pixel_drift_but_not_a_reshape() {
+         let mut world = World::new();
+diff --git a/src/tests/display.rs b/src/tests/display.rs
+--- a/src/tests/display.rs
++++ b/src/tests/display.rs
+@@ -1009,3 +1009,55 @@ fn test_empty_baseline_row_survives_display_removal() {
+         })
+         .run(commands);
+ }
++
++/// A column that would rest mostly past an edge shared with another display
++/// used to slide back over its neighbour. The strip now scrolls it off instead,
++/// so the windows left on screen sit side by side.
++#[test]
++fn test_column_across_shared_edge_scrolls_off_instead_of_overlapping() {
++    fn assert_no_overlap(world: &mut World) {
++        let mut query = world.query::<&Window>();
++        let shown = query
++            .iter(world)
++            .map(|window| (window.id(), window.frame()))
++            .filter(|(_, frame)| frame.max.x.min(TEST_DISPLAY_WIDTH) - frame.min.x.max(0) > 10)
++            .collect::<Vec<_>>();
++        for (index, (id, frame)) in shown.iter().enumerate() {
++            for (other_id, other) in &shown[index + 1..] {
++                assert!(
++                    frame.max.x <= other.min.x || other.max.x <= frame.min.x,
++                    "window {id} at {frame:?} overlaps window {other_id} at {other:?}"
++                );
++            }
++        }
++    }
++
++    let focus = |direction| Event::Command {
++        command: Command::Window(Operation::Focus(direction)),
++    };
++    let mut commands = vec![Event::MenuOpened { window_id: 0 }];
++    commands.extend((0..4).map(|_| focus(Direction::East)));
++    commands.extend((0..3).map(|_| focus(Direction::West)));
++
++    TestHarness::new()
++        .with_window(0, |_| {})
++        .with_window(1, |_| {})
++        .with_window(2, |_| {})
++        .with_window(3, |window| window.frame.max.x = window.frame.min.x + 700)
++        .with_window(4, |_| {})
++        .with_display(
++            EXT_DISPLAY_ID,
++            IRect::new(
++                TEST_DISPLAY_WIDTH,
++                0,
++                TEST_DISPLAY_WIDTH + EXT_DISPLAY_WIDTH,
++                EXT_DISPLAY_HEIGHT,
++            ),
++            vec![EXT_WORKSPACE_ID],
++        )
++        .on_iteration(7, |world, _state| {
++            crate::assert_focused!(world, 1);
++            assert_no_overlap(world);
++        })
++        .run(commands);
++}
