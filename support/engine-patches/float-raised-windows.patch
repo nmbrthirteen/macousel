@@ -1,0 +1,154 @@
+diff --git a/src/ecs/triggers.rs b/src/ecs/triggers.rs
+--- a/src/ecs/triggers.rs
++++ b/src/ecs/triggers.rs
+@@ -1243,19 +1243,24 @@ pub(super) fn apply_window_positions(
+             continue;
+         };
+ 
+-        if crate::ecs::restore::matches_startup_restore_state(
+-            window,
+-            app,
+-            restore.as_deref(),
+-            restoration.as_deref(),
+-            &ctx.config,
+-        ) {
++        // Checked before a restored layout can claim it: a window the app keeps
++        // above the rest never fits in the strip, whatever an older session saved.
++        let above_normal = window.is_above_normal_level();
++        if !above_normal
++            && crate::ecs::restore::matches_startup_restore_state(
++                window,
++                app,
++                restore.as_deref(),
++                restoration.as_deref(),
++                &ctx.config,
++            )
++        {
+             continue;
+         }
+ 
+         let properties = WindowProperties::new(app, window, &ctx.config);
+ 
+-        if properties.floating() {
++        if above_normal || properties.floating() {
+             if let Some(mut strip) = workspaces
+                 .iter_mut()
+                 .find_map(|(strip, _)| strip.contains(entity).then_some(strip))
+diff --git a/src/manager/skylight.rs b/src/manager/skylight.rs
+--- a/src/manager/skylight.rs
++++ b/src/manager/skylight.rs
+@@ -39,6 +39,10 @@ unsafe extern "C" {
+     /// Reports whether a window is currently ordered into the window list.
+     pub fn SLSWindowIsOrderedIn(cid: ConnID, window_id: WinID, ordered_in: &mut u8) -> OSStatus;
+ 
++    /// Reads a window's level in the window server, such as 0 for a normal window
++    /// and 3 for a floating one.
++    pub fn SLSGetWindowLevel(cid: ConnID, window_id: WinID, level: &mut i32) -> CGError;
++
+     /// Retrieves the bounding rectangle (`CGRect`) of a window.
+     ///
+     /// # Arguments
+diff --git a/src/manager/windows.rs b/src/manager/windows.rs
+--- a/src/manager/windows.rs
++++ b/src/manager/windows.rs
+@@ -26,7 +26,7 @@ use tracing::{Level, debug, instrument, trace, warn};
+ use super::skylight::{
+     _AXUIElementGetWindow, _SLPSSetFrontProcessWithOptions, AXUIElementCopyAttributeValue,
+     AXUIElementPerformAction, AXUIElementSetAttributeValue, SLPSPostEventRecordTo,
+-    SLSWindowIteratorAdvance,
++    SLSGetWindowLevel, SLSMainConnectionID, SLSWindowIteratorAdvance,
+ };
+ use crate::config::Config;
+ use crate::errors::{Error, Result};
+@@ -104,6 +104,9 @@ pub trait WindowApi: Send + Sync {
+     /// shuffle the floating-vs-tiled tier order. Best-effort: AX raise can't
+     /// lift a window above another app's frontmost window.
+     fn raise_without_focus(&self);
++    /// `true` when the app put the window above the normal level, as a
++    /// picture-in-picture player or an always-on-top panel does.
++    fn is_above_normal_level(&self) -> bool;
+     fn pid(&self) -> Result<Pid>;
+     fn set_padding(&mut self, padding: WindowPadding);
+     fn horizontal_padding(&self) -> i32;
+@@ -756,6 +759,14 @@ impl WindowApi for WindowOS {
+         unsafe { AXUIElementPerformAction(element_ref, &action) };
+     }
+ 
++    fn is_above_normal_level(&self) -> bool {
++        let mut level = 0;
++        unsafe { SLSGetWindowLevel(SLSMainConnectionID(), self.id, &mut level) }
++            .to_result(function_name!())
++            .inspect_err(|err| debug!("{err}"))
++            .is_ok_and(|()| level > 0)
++    }
++
+     fn pid(&self) -> Result<Pid> {
+         self.pid
+             .get_or_init(|| {
+diff --git a/src/tests/interaction.rs b/src/tests/interaction.rs
+--- a/src/tests/interaction.rs
++++ b/src/tests/interaction.rs
+@@ -116,6 +116,28 @@ fn frontmost_floating_window_is_focused_after_setup() {
+         .run(vec![Event::MenuOpened { window_id: 0 }]);
+ }
+ 
++/// A picture-in-picture player sits above the normal window level with a
++/// standard subrole, so only its level says it should not be tiled.
++#[test]
++fn window_above_normal_level_floats() {
++    TestHarness::new()
++        .with_window(0, |window| window.above_normal_level = true)
++        .with_window(1, |_| {})
++        .on_iteration(0, |world, _state| {
++            let raised = find_window_entity(0, world);
++            let normal = find_window_entity(1, world);
++            assert!(matches!(
++                world.get::<Unmanaged>(raised),
++                Some(Unmanaged::Floating)
++            ));
++            assert!(world.get::<Unmanaged>(normal).is_none());
++            let mut strips = world.query::<&LayoutStrip>();
++            assert!(strips.iter(world).all(|strip| !strip.contains(raised)));
++            assert!(strips.iter(world).any(|strip| strip.contains(normal)));
++        })
++        .run(vec![Event::MenuOpened { window_id: 1 }]);
++}
++
+ /// Regression: a floating window placed by a grid rule must land at the active
+ /// display's usable origin (menubar + padding offset), not at (0, 0). Dropping
+ /// the display bounds origin previously sent grid windows to the primary
+diff --git a/src/tests/mocks.rs b/src/tests/mocks.rs
+--- a/src/tests/mocks.rs
++++ b/src/tests/mocks.rs
+@@ -41,6 +41,7 @@ pub(crate) struct MockWindowData {
+     pub(crate) subrole: String,
+     pub(crate) identifier: String,
+     pub(crate) is_full_screen: bool,
++    pub(crate) above_normal_level: bool,
+     pub(crate) border_radius: Option<f64>,
+     pub(crate) horizontal_padding: i32,
+     pub(crate) vertical_padding: i32,
+@@ -61,6 +62,7 @@ impl Default for MockWindowData {
+             subrole: "AXStandardWindow".to_string(),
+             identifier: "testid".to_string(),
+             is_full_screen: false,
++            above_normal_level: false,
+             border_radius: None,
+             horizontal_padding: 0,
+             vertical_padding: 0,
+@@ -577,6 +579,15 @@ impl MockState {
+                 .is_some_and(|w| w.is_full_screen)
+         });
+ 
++        let s = self.clone();
++        mw.expect_is_above_normal_level().returning(move || {
++            s.inner
++                .force_read()
++                .windows
++                .get(&id)
++                .is_some_and(|w| w.above_normal_level)
++        });
++
+         let s = self.clone();
+         mw.expect_border_radius().returning(move || {
+             s.inner
