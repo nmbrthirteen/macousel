@@ -1,0 +1,191 @@
+diff --git a/src/ecs/systems.rs b/src/ecs/systems.rs
+index 8fd940c..5156fb4 100644
+--- a/src/ecs/systems.rs
++++ b/src/ecs/systems.rs
+@@ -1,5 +1,5 @@
+ use bevy::app::AppExit;
+-use bevy::ecs::change_detection::{DetectChanges, DetectChangesMut};
++use bevy::ecs::change_detection::{DetectChanges, DetectChangesMut, Mut};
+ use bevy::ecs::entity::{Entity, EntityHashMap};
+ use bevy::ecs::hierarchy::{ChildOf, Children};
+ use bevy::ecs::message::{MessageReader, MessageWriter};
+@@ -34,7 +34,7 @@ use crate::ecs::{
+ };
+ use crate::events::{Event, InputEvent};
+ use crate::manager::{
+-    Application, Display, Process, Window, WindowManager, WindowOS, bruteforce_windows,
++    Application, Display, Origin, Process, Window, WindowManager, WindowOS, bruteforce_windows,
+ };
+ use crate::overlay::{FlashMessageManager, OverlayManager};
+ use crate::platform::input::TapHealth;
+@@ -1119,17 +1119,95 @@ pub(super) fn update_overlays(
+     );
+ }
+ 
++/// How far into a display a window has to reach to count as visible. A window
++/// parked off screen keeps a sliver a few pixels wide, which does not count.
++const VISIBLE_REACH: i32 = 32;
++
++/// Groups window moves into waves that run one after another, so a spot on
++/// screen is covered before the window on it leaves.
++///
++/// Every app moves its own window, and they finish at different times. Moving
++/// all of them at once left gaps that showed the wallpaper for a frame or two.
++/// The first wave holds every window arriving on screen and every window that
++/// stays off screen, and runs in parallel. Then each window already on screen
++/// moves alone, starting from the back of the motion: when the strip shifts
++/// left, the rightmost window goes first and slides over its neighbour's spot
++/// before that neighbour leaves. A brief overlap replaces the gap. Windows
++/// stacked in one column share a wave.
++fn move_waves(moves: &[(IRect, Origin)], screens: &[IRect]) -> Vec<Vec<usize>> {
++    let visible = |frame: IRect| {
++        screens.iter().any(|screen| {
++            let shared = screen.intersect(frame);
++            shared.width() >= VISIBLE_REACH && shared.height() > 0
++        })
++    };
++    let mut first = Vec::new();
++    let mut leaving = Vec::new();
++    for (index, (frame, _)) in moves.iter().enumerate() {
++        if visible(*frame) {
++            leaving.push(index);
++        } else {
++            first.push(index);
++        }
++    }
++    let shift: i64 = leaving
++        .iter()
++        .map(|&index| i64::from(moves[index].1.x - moves[index].0.min.x))
++        .sum();
++    if shift < 0 {
++        leaving.sort_by_key(|&index| std::cmp::Reverse(moves[index].0.min.x));
++    } else {
++        leaving.sort_by_key(|&index| moves[index].0.min.x);
++    }
++    let mut waves = Vec::with_capacity(leaving.len() + 1);
++    if !first.is_empty() {
++        waves.push(first);
++    }
++    // Windows stacked in one column share an edge and move together.
++    waves.extend(
++        leaving
++            .chunk_by(|&a, &b| moves[a].0.min.x == moves[b].0.min.x)
++            .map(<[usize]>::to_vec),
++    );
++    waves
++}
++
+ #[instrument(level = Level::TRACE, skip_all)]
+ pub(super) fn commit_window_position(
+     mut moved_windows: Populated<(&mut Window, &Position), Changed<Position>>,
++    displays: Query<&Display>,
+ ) {
+-    // `par_iter_mut` runs on `ComputeTaskPool` worker threads, which have no
+-    // `CFRunLoop` of their own to drain thread-local autorelease pools.
+-    moved_windows
+-        .par_iter_mut()
+-        .for_each(|(mut window, position)| {
+-            objc2::rc::autoreleasepool(|_| window.reposition(position.0));
+-        });
++    let screens = displays.iter().map(Display::bounds).collect::<Vec<_>>();
++    let mut moves = moved_windows
++        .iter_mut()
++        .map(|(window, position)| Some((window, position.0)))
++        .collect::<Vec<_>>();
++    let plan = moves
++        .iter()
++        .flatten()
++        .map(|(window, origin)| (window.frame(), *origin))
++        .collect::<Vec<_>>();
++    for wave in move_waves(&plan, &screens) {
++        let batch = wave
++            .into_iter()
++            .filter_map(|index| moves[index].take())
++            .collect::<Vec<_>>();
++        // Worker threads have no `CFRunLoop` of their own to drain
++        // thread-local autorelease pools, hence the explicit pool.
++        let reposition = |(mut window, origin): (Mut<Window>, Origin)| {
++            objc2::rc::autoreleasepool(|_| window.reposition(origin));
++        };
++        match bevy::tasks::ComputeTaskPool::try_get() {
++            Some(pool) if batch.len() > 1 => {
++                pool.scope(|scope| {
++                    for item in batch {
++                        scope.spawn(async move { reposition(item) });
++                    }
++                });
++            }
++            _ => batch.into_iter().for_each(reposition),
++        }
++    }
+ }
+ 
+ #[instrument(level = Level::TRACE, skip_all)]
+@@ -1701,3 +1779,67 @@ mod timeout_tests {
+         assert!((120..=135).contains(&runs), "{runs} runs in a minute");
+     }
+ }
++
++#[cfg(test)]
++mod move_wave_tests {
++    use super::move_waves;
++    use bevy::math::{IRect, IVec2};
++
++    const SCREEN: IRect = IRect {
++        min: IVec2::new(0, 0),
++        max: IVec2::new(1000, 800),
++    };
++
++    fn half(x: i32) -> IRect {
++        IRect::new(x, 0, x + 500, 800)
++    }
++
++    #[test]
++    fn shifting_left_moves_the_arriving_window_then_right_to_left() {
++        let moves = [
++            (half(0), IVec2::new(-495, 0)),
++            (half(500), IVec2::new(0, 0)),
++            (half(995), IVec2::new(500, 0)),
++        ];
++        assert_eq!(move_waves(&moves, &[SCREEN]), vec![vec![2], vec![1], vec![0]]);
++    }
++
++    #[test]
++    fn shifting_right_moves_left_to_right() {
++        let moves = [
++            (half(500), IVec2::new(995, 0)),
++            (half(0), IVec2::new(500, 0)),
++            (half(-495), IVec2::new(0, 0)),
++        ];
++        assert_eq!(move_waves(&moves, &[SCREEN]), vec![vec![2], vec![1], vec![0]]);
++    }
++
++    #[test]
++    fn windows_off_screen_move_together_in_the_first_wave() {
++        let moves = [
++            (half(-495), IVec2::new(-490, 0)),
++            (half(2000), IVec2::new(1995, 0)),
++            (half(-495), IVec2::new(0, 0)),
++        ];
++        assert_eq!(move_waves(&moves, &[SCREEN]), vec![vec![0, 1, 2]]);
++    }
++
++    #[test]
++    fn a_stacked_column_moves_in_one_wave() {
++        let top = IRect::new(500, 0, 1000, 400);
++        let bottom = IRect::new(500, 400, 1000, 800);
++        let moves = [
++            (half(0), IVec2::new(-495, 0)),
++            (top, IVec2::new(0, 0)),
++            (bottom, IVec2::new(0, 400)),
++        ];
++        assert_eq!(move_waves(&moves, &[SCREEN]), vec![vec![1, 2], vec![0]]);
++    }
++
++    #[test]
++    fn a_window_on_another_display_counts_as_visible() {
++        let other = IRect::new(1000, 0, 2000, 800);
++        let moves = [(half(1200), IVec2::new(1100, 0))];
++        assert_eq!(move_waves(&moves, &[SCREEN, other]), vec![vec![0]]);
++    }
++}
