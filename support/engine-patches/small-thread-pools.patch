@@ -9,14 +9,15 @@ diff --git a/src/ecs.rs b/src/ecs.rs
  use bevy::app::App as BevyApp;
  use bevy::app::{First, Last, PostUpdate, PreUpdate, Startup};
  use bevy::ecs::hierarchy::ChildOf;
-@@ -679,6 +680,25 @@ pub(crate) fn rewatch_configs(
+@@ -679,6 +680,28 @@ pub(crate) fn rewatch_configs(
  /// Runs the Bevy schedule loop with each tick wrapped in an Objective-C
  /// `NSAutoreleasePool`.
  ///
 +/// Bevy sizes its pools to the CPU core count, which gave a window manager two
-+/// dozen mostly idle threads. The schedules run single threaded, so compute only
-+/// serves the odd `par_iter_mut`, and async compute keeps a few threads so the
-+/// startup window scans of several apps still overlap.
++/// dozen mostly idle threads. Async compute keeps a few threads so the startup
++/// window scans of several apps still overlap. Compute runs the `par_iter_mut`
++/// that moves and resizes windows. Each move blocks on the window's app, so the
++/// pool needs a thread per window on screen, or a strip lands in waves.
 +fn small_task_pools() -> TaskPoolOptions {
 +    let defaults = TaskPoolOptions::default();
 +    TaskPoolOptions {
@@ -24,8 +25,10 @@ diff --git a/src/ecs.rs b/src/ecs.rs
 +            max_threads: 3,
 +            ..defaults.async_compute
 +        },
++        // Bevy caps compute at the free core count, so the floor is what sets it.
 +        compute: TaskPoolThreadAssignmentPolicy {
-+            max_threads: 2,
++            min_threads: 12,
++            max_threads: 12,
 +            ..defaults.compute
 +        },
 +        ..defaults
