@@ -22,7 +22,13 @@ struct EngineConfigSwipe {
     ]
     let modifier =
       preferences.scrollGestureEnabled ? Self.scrollModifier : Self.disabledScrollModifier
-    return ["[swipe]", "sensitivity = \(TomlNumber.decimal(sensitivity))"] + [""] + gesture + [""]
+    // Paneru's continuous mode lets the strip scroll past its ends, and it also
+    // turns off the rule that keeps the first and last columns against the
+    // screen edges. One column at a time only needs the edges.
+    return [
+      "[swipe]", "sensitivity = \(TomlNumber.decimal(sensitivity))",
+      "continuous = \(preferences.swipeStep == .free)",
+    ] + [""] + gesture + [""]
       + ["[swipe.scroll]", "modifier = \(TomlString.quoted(modifier))"]
   }
 }

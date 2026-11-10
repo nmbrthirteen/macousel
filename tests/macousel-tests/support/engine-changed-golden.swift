@@ -19,6 +19,7 @@ enum EngineChangedGolden {
 
     [swipe]
     sensitivity = 0.7
+    continuous = true
 
     [swipe.gesture]
     fingers_count = 3
