@@ -1,0 +1,171 @@
+diff --git a/src/config.rs b/src/config.rs
+index 265a5e1..c731e2d 100644
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -790,6 +790,12 @@ impl Config {
+         self.options().auto_center.is_some_and(|center| center)
+     }
+ 
++    /// Returns `true` when a focused window that cannot share the screen with
++    /// its neighbour is centered. `auto_center` takes precedence.
++    pub fn center_on_overflow(&self) -> bool {
++        self.options().center_on_overflow.is_some_and(|center| center)
++    }
++
+     pub fn horizontal_mouse_warp(&self) -> Option<i16> {
+         self.options().horizontal_mouse_warp
+     }
+@@ -1211,6 +1217,9 @@ pub struct MainOptions {
+     pub animation_speed: Option<f64>,
+     /// Automatically center the window when switching focus with keyboard.
+     pub auto_center: Option<bool>,
++    /// Center the focused window only when it does not fit on screen beside
++    /// the neighbour it came from. A window already on screen stays put.
++    pub center_on_overflow: Option<bool>,
+     /// Height of off-screen window slivers as a ratio (0.0–1.0) of the display height.
+     /// Lower values hide the window's corner radius at screen edges.
+     /// Default: 1.0 (full height).
+diff --git a/src/ecs/focus.rs b/src/ecs/focus.rs
+index e4667ea..6b13aeb 100644
+--- a/src/ecs/focus.rs
++++ b/src/ecs/focus.rs
+@@ -21,7 +21,7 @@ use crate::ecs::layout::LayoutStrip;
+ use crate::ecs::params::{ActiveDisplay, GlobalState, WindowCtx, Windows};
+ use crate::ecs::workspace::RestoreFocusMarker;
+ use crate::ecs::{
+-    ActiveWorkspaceMarker, Bounds, Position, RaiseWindow, ResizeMarker, Scrolling,
++    ActiveWorkspaceMarker, Bounds, Position, RaiseWindow, RepositionMarker, ResizeMarker, Scrolling,
+     SendMessageTrigger, SpawnCommandsExt, StrayFocusEvent,
+ };
+ use crate::events::Event;
+@@ -313,6 +313,7 @@ fn autocenter_window_on_focus(
+     restored: Query<&RestoreFocusMarker>,
+     global_state: GlobalState,
+     active_display: ActiveDisplay,
++    strips: Query<(&Position, Option<&RepositionMarker>), With<LayoutStrip>>,
+     mut ctx: WindowCtx,
+ ) {
+     let entity = *focused;
+@@ -330,7 +331,18 @@ fn autocenter_window_on_focus(
+     if active_display.active_strip().tabbed(entity) {
+         return;
+     }
+-    if ctx.config.auto_center()
++    let overflows = || {
++        ctx.config.center_on_overflow()
++            && overflows_beside_neighbour(
++                entity,
++                active_display.active_strip(),
++                active_display.active_strip_entity(),
++                &ctx.windows,
++                &strips,
++                active_display.actual_bounds(&ctx.config),
++            )
++    };
++    if (ctx.config.auto_center() || overflows())
+         && let Some((_, _, None)) = ctx.windows.get_managed(entity)
+         && let Some(size) = ctx.windows.size(entity)
+         && let Some(mut origin) = ctx.windows.origin(entity)
+@@ -342,6 +354,48 @@ fn autocenter_window_on_focus(
+     ctx.commands.reshuffle_around(entity);
+ }
+ 
++/// `true` when the focused window, at its place in the strip, is cut off by the
++/// viewport and does not fit on screen beside the neighbour on the side facing
++/// the screen. Scrolling it to the edge would then cut that neighbour off, so
++/// the window is centered instead. Reads the strip's target offset, because a
++/// window scrolled off screen is parked as a sliver and its frame says nothing
++/// about where the strip holds it.
++fn overflows_beside_neighbour(
++    entity: Entity,
++    strip: &LayoutStrip,
++    strip_entity: Entity,
++    windows: &Windows,
++    strips: &Query<(&Position, Option<&RepositionMarker>), With<LayoutStrip>>,
++    viewport: IRect,
++) -> bool {
++    let Ok((position, reposition)) = strips.get(strip_entity) else {
++        return false;
++    };
++    let offset = reposition.map_or(position.0, |reposition| reposition.0);
++    let span = |entity: Entity| -> Option<(i32, i32)> {
++        let min = windows.layout_position(entity)?.0.x + offset.x;
++        Some((min, min + windows.moving_frame(entity)?.width()))
++    };
++    let Some(focused) = span(entity) else {
++        return false;
++    };
++    let neighbour = if focused.1 > viewport.max.x {
++        strip.left_neighbour(entity)
++    } else {
++        strip.right_neighbour(entity)
++    };
++    needs_centering(focused, neighbour.and_then(span), (viewport.min.x, viewport.max.x))
++}
++
++/// The decision behind [`overflows_beside_neighbour`], on horizontal spans.
++fn needs_centering(focused: (i32, i32), neighbour: Option<(i32, i32)>, viewport: (i32, i32)) -> bool {
++    if focused.0 >= viewport.0 && focused.1 <= viewport.1 {
++        return false;
++    }
++    let neighbour_width = neighbour.map_or(0, |(min, max)| max - min);
++    (focused.1 - focused.0) + neighbour_width > viewport.1 - viewport.0
++}
++
+ #[instrument(level = Level::DEBUG, skip_all, fields(trigger))]
+ fn mouse_follows_focus(
+     focused: Single<Entity, Added<FocusedMarker>>,
+@@ -765,3 +819,33 @@ mod tests {
+         assert!(world.get::<VerifyFocus>(second).is_some());
+     }
+ }
++
++#[cfg(test)]
++mod overflow_tests {
++    use super::needs_centering;
++
++    const SCREEN: (i32, i32) = (0, 1000);
++
++    #[test]
++    fn a_window_on_screen_stays_put() {
++        assert!(!needs_centering((500, 1000), Some((0, 500)), SCREEN));
++        assert!(!needs_centering((0, 1000), None, SCREEN));
++    }
++
++    #[test]
++    fn a_half_beside_a_half_scrolls_to_the_edge() {
++        assert!(!needs_centering((1000, 1500), Some((500, 1000)), SCREEN));
++        assert!(!needs_centering((-500, 0), Some((0, 500)), SCREEN));
++    }
++
++    #[test]
++    fn a_window_that_cannot_share_the_screen_is_centered() {
++        assert!(needs_centering((1000, 1750), Some((250, 1000)), SCREEN));
++        assert!(needs_centering((-800, -50), Some((-50, 600)), SCREEN));
++    }
++
++    #[test]
++    fn a_window_wider_than_the_screen_is_centered() {
++        assert!(needs_centering((900, 2100), None, SCREEN));
++    }
++}
+diff --git a/src/lua/api.rs b/src/lua/api.rs
+index ce6e08d..ead96ed 100644
+--- a/src/lua/api.rs
++++ b/src/lua/api.rs
+@@ -646,6 +646,7 @@ fn config_to_lua_table(lua: &Lua, config: &Config) -> mlua::Result<Table> {
+         preset_stack_heights: _,
+         animation_speed,
+         auto_center: _,
++        center_on_overflow: _,
+         sliver_height: _,
+         sliver_width: _,
+         padding_top: _,
+@@ -686,6 +687,7 @@ fn config_to_lua_table(lua: &Lua, config: &Config) -> mlua::Result<Table> {
+     options.set("preset_stack_heights", config.preset_stack_heights())?;
+     options.set("animation_speed", *animation_speed)?;
+     options.set("auto_center", config.auto_center())?;
++    options.set("center_on_overflow", config.center_on_overflow())?;
+     options.set("sliver_height", config.sliver_height())?;
+     options.set("sliver_width", config.sliver_width())?;
+     options.set(
