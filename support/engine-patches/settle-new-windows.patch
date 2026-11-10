@@ -1,0 +1,70 @@
+diff --git a/src/ecs.rs b/src/ecs.rs
+index 6c6baeb..5c6215e 100644
+--- a/src/ecs.rs
++++ b/src/ecs.rs
+@@ -191,7 +191,11 @@ pub fn register_systems(app: &mut bevy::app::App) {
+                 .chain(),
+             (
+                 systems::animate_resize_entities,
+-                systems::commit_window_size.run_if(not(resource_exists::<Initializing>)),
++                // After the move, so a window that grows does it at its final
++                // origin and macOS does not clip it against the display edge.
++                systems::commit_window_size
++                    .after(systems::commit_window_position)
++                    .run_if(not(resource_exists::<Initializing>)),
+             )
+                 .chain(),
+             (
+diff --git a/src/ecs/triggers.rs b/src/ecs/triggers.rs
+index 9b9dd46..d0d2791 100644
+--- a/src/ecs/triggers.rs
++++ b/src/ecs/triggers.rs
+@@ -1172,8 +1172,9 @@ pub(super) fn apply_window_defaults(
+ 
+         let initializing = initializing.is_some();
+ 
+-        // Do not add padding to floating windows.
+-        if properties.floating() {
++        // Do not add padding to floating windows. A window the app keeps above
++        // the rest is floated by `apply_window_positions`, so leave its size be.
++        if properties.floating() || window.is_above_normal_level() {
+             // Skip grid_ratios during init: we don't know this window's display.
+             if !initializing && let Some((rx, ry, rw, rh)) = properties.grid_ratios() {
+                 let bounds = active_display.actual_bounds(&config);
+@@ -1199,19 +1200,14 @@ pub(super) fn apply_window_defaults(
+ 
+         // Apply configured width AFTER update_frame so it isn't overwritten.
+         // WidthRatio and commit_window_size use the display's raw bounds.
+-        // Safe during init: this only resizes, it doesn't reposition, so a
+-        // window on an inactive display stays put.
++        // Only the target is recorded here: resizing the window in place made
++        // it grow at the app's origin, then jump into its slot and grow again.
++        // `commit_window_size` applies width and height in one call once the
++        // layout has placed the window.
+         if let Some(width) = properties.width_ratio(focused_ratio) {
+             let new_width = round_px(display_width * width);
+-            let height = window.frame().height();
+-            window.resize(Size::new(new_width, height));
+-            // Re-read the actual OS size: the app may enforce a minimum width
+-            // that differs from our request.
+-            if let Ok(frame) = window.update_frame().inspect_err(|err| error!("{err}")) {
+-                position.0 = frame.min;
+-                bounds.bypass_change_detection().0 = frame.size();
+-                width_ratio.0 = f64::from(frame.width()) / display_width;
+-            }
++            bounds.0 = Size::new(new_width, bounds.0.y);
++            width_ratio.0 = f64::from(new_width) / display_width;
+         }
+     }
+ }
+@@ -1321,6 +1317,10 @@ pub(super) fn apply_window_positions(
+                     ctx.commands.focus_entity(prev, true);
+                 }
+             } else {
++                // Scrolled now, in the frame the window joins the strip. Waiting
++                // for the focus event showed it parked as a sliver first, and
++                // that event is dropped while the app still reports its old window.
++                ctx.commands.ensure_visible(entity);
+                 debug!("Synthesizing WindowFocused for newly spawned window {entity}");
+                 ctx.commands
+                     .trigger(SendMessageTrigger(Event::WindowFocused {
