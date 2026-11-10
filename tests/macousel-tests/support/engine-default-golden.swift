@@ -8,6 +8,7 @@ enum EngineDefaultGolden {
     preset_column_widths = [0.25, 0.33333, 0.5, 0.66667, 0.75]
     animation_speed = 20.0
     auto_center = false
+    center_on_overflow = false
     disable_native_tabs = false
 
     [padding]

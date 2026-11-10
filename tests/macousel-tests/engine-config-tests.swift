@@ -58,10 +58,16 @@ struct EngineConfigTests {
     #expect(render { $0.animationSpeed = .relaxed }.contains("animation_speed = 8.0"))
   }
 
-  @Test func centersOnlyWhenTheModeIsNotNever() {
-    #expect(render { $0.layout.centerMode = .never }.contains("auto_center = false"))
-    #expect(render { $0.layout.centerMode = .onOverflow }.contains("auto_center = true"))
-    #expect(render { $0.layout.centerMode = .always }.contains("auto_center = true"))
+  @Test func mapsEachCenterModeToItsOwnOption() {
+    let never = render { $0.layout.centerMode = .never }
+    #expect(never.contains("auto_center = false"))
+    #expect(never.contains("center_on_overflow = false"))
+    let overflow = render { $0.layout.centerMode = .onOverflow }
+    #expect(overflow.contains("auto_center = false"))
+    #expect(overflow.contains("center_on_overflow = true"))
+    let always = render { $0.layout.centerMode = .always }
+    #expect(always.contains("auto_center = true"))
+    #expect(always.contains("center_on_overflow = false"))
   }
 
   @Test func scalesAndClampsTheSwipeSensitivity() {

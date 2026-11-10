@@ -47,7 +47,7 @@ extension PaneruEngine {
       settler: EngineSettler(commands: commands, sleep: { try await world.awaitEvent(upTo: $0) }),
       centering: EngineCentering(
         commands: commands, pointer: pointer, displays: displays,
-        isEnabled: { store.preferences.layout.centerMode != .never },
+        isEnabled: { store.preferences.layout.centerMode == .always },
         sleep: { try await Task.sleep(for: $0) }),
       isSuppressed: { overview.isOpen })
     return PaneruEngine(

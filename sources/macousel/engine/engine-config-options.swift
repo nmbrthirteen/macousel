@@ -11,7 +11,8 @@ struct EngineConfigOptions {
     if let speed = preferences.animationSpeed.paneruSpeed {
       lines.append("animation_speed = \(TomlNumber.decimal(speed))")
     }
-    lines.append("auto_center = \(preferences.layout.centerMode != .never)")
+    lines.append("auto_center = \(preferences.layout.centerMode == .always)")
+    lines.append("center_on_overflow = \(preferences.layout.centerMode == .onOverflow)")
     lines.append("disable_native_tabs = \(!preferences.groupsNativeTabs)")
     return lines
   }
