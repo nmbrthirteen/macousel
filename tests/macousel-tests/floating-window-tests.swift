@@ -82,6 +82,21 @@ struct FloatingWindowTests {
     #expect(scenario.fixture.environment.isInFront(of: 10, 2))
   }
 
+  @Test func aFloatingWindowOfTheFocusedAppIsNotRaised() throws {
+    let scenario = try FloatingScenario()
+    scenario.coverTheScreen()
+    let sameApp = FakeApp(
+      pid: FakeApp.editor.pid, bundleIdentifier: FakeApp.floater.bundleIdentifier, name: "Player")
+    let player = scenario.fixture.open(11, app: sameApp)
+    scenario.fixture.source.userMoved(player, to: scenario.coveringFrame)
+
+    scenario.fixture.manager.perform(.focusRight)
+    scenario.letRaiseDelayPass()
+
+    #expect(player.raiseCount == 0)
+    #expect(scenario.floater.raiseCount == 1)
+  }
+
   @Test func theEchoOfACommandFocusDoesNotRaiseASecondTime() throws {
     let scenario = try FloatingScenario()
     scenario.coverTheScreen()

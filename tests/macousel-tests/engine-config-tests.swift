@@ -70,6 +70,11 @@ struct EngineConfigTests {
     #expect(always.contains("center_on_overflow = false"))
   }
 
+  @Test func keepsTheStripAgainstTheEdgesWhenSwipingOneColumnAtATime() {
+    #expect(render { $0.swipeStep = .column }.contains("continuous = false"))
+    #expect(render { $0.swipeStep = .free }.contains("continuous = true"))
+  }
+
   @Test func scalesAndClampsTheSwipeSensitivity() {
     #expect(render { $0.swipeSensitivity = 1.0 }.contains("sensitivity = 0.35"))
     #expect(render { $0.swipeSensitivity = 0.5 }.contains("sensitivity = 0.175"))

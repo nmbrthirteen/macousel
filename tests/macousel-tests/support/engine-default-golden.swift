@@ -19,6 +19,7 @@ enum EngineDefaultGolden {
 
     [swipe]
     sensitivity = 0.35
+    continuous = false
 
     [swipe.gesture]
     direction = "Natural"

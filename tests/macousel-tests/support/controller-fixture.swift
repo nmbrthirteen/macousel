@@ -91,8 +91,10 @@ final class ControllerFixture {
     return window
   }
 
-  func openRow(_ count: CGWindowID) -> [FakeWindow] {
-    (1...count).map { open($0, atX: CGFloat($0) * 200, activating: $0 == 1) }
+  func openRow(_ count: CGWindowID, apps: [CGWindowID: FakeApp] = [:]) -> [FakeWindow] {
+    (1...count).map {
+      open($0, app: apps[$0] ?? .editor, atX: CGFloat($0) * 200, activating: $0 == 1)
+    }
   }
 
   func frames(of windows: [FakeWindow]) -> [CGWindowID: CGRect] {

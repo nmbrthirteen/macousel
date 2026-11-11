@@ -1,0 +1,64 @@
+diff --git a/src/ecs/focus.rs b/src/ecs/focus.rs
+--- a/src/ecs/focus.rs
++++ b/src/ecs/focus.rs
+@@ -235,6 +235,7 @@
+ fn detect_focus_rejection(
+     pending: Populated<(Entity, &Window, &ChildOf, &Timeout), With<VerifyFocus>>,
+     apps: Query<&Application>,
++    unmanaged: Query<&Unmanaged>,
+     mut workspaces: Query<(Entity, &mut LayoutStrip)>,
+     windows: Windows,
+     mut commands: Commands,
+@@ -283,6 +284,16 @@
+         if shares_a_tab_group(&workspaces, &windows, target_entity, actual_entity) {
+             debug!(
+                 "focus landed on tab sibling {actual_entity} of {target_entity}; not a rejection.",
++            );
++            continue;
++        }
++
++        // A browser's picture-in-picture player is a floating window of the same
++        // app. Raising it to keep it on top makes the app name it as focused, and
++        // that says nothing about whether the tiled window accepts focus.
++        if matches!(unmanaged.get(actual_entity), Ok(Unmanaged::Floating)) {
++            debug!(
++                "focus landed on floating sibling {actual_entity} of {target_entity}; not a rejection.",
+             );
+             continue;
+         }
+@@ -760,6 +771,35 @@
+             strips.single(&world).expect("one strip").contains(target),
+             "and must not take it out of the layout"
+         );
++    }
++
++    /// Regression: a browser floated its own tiled window once raising its
++    /// picture-in-picture player made the app report the player as focused.
++    #[test]
++    fn focus_landing_on_a_floating_sibling_is_not_a_rejection() {
++        let mut world = World::new();
++        let app = spawn_app(&mut world, true, 2);
++        let target = spawn_window(&mut world, app, 1);
++        let player = spawn_window(&mut world, app, 2);
++        world.entity_mut(player).insert((
++            Position(bevy::math::IVec2::new(800, 0)),
++            Unmanaged::Floating,
++        ));
++
++        let mut strip = LayoutStrip::default();
++        strip.append(target);
++        world.spawn(strip);
++
++        world
++            .entity_mut(target)
++            .insert((FocusedMarker, VerifyFocus, expired_verify_timeout()));
++
++        let system_id = world.register_system(detect_focus_rejection);
++        _ = world.run_system(system_id);
++
++        assert!(world.get::<Unmanaged>(target).is_none());
++        let mut strips = world.query::<&LayoutStrip>();
++        assert!(strips.single(&world).expect("one strip").contains(target));
+     }
+ 
+     #[test]

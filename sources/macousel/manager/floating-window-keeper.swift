@@ -75,8 +75,12 @@ final class FloatingWindowKeeper {
       let key = state.activeKey(containing: window),
       let target = state.settledLayout(for: key)?[window]?.frame
     else { return [] }
+    // Raising a window of the focused app makes it that app's focused window, so a browser's
+    // picture-in-picture player would take the keyboard from the page.
+    let app = source.window(window.rawValue)?.pid
     return floatingWindows().filter { id in
-      frames.frame(of: id).map { Self.overlaps($0, target) } ?? false
+      source.window(id)?.pid != app
+        && (frames.frame(of: id).map { Self.overlaps($0, target) } ?? false)
     }
   }
 

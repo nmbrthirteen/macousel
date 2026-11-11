@@ -1,0 +1,97 @@
+diff --git a/src/ecs/triggers.rs b/src/ecs/triggers.rs
+index d0d2791..6615161 100644
+--- a/src/ecs/triggers.rs
++++ b/src/ecs/triggers.rs
+@@ -784,6 +784,8 @@ pub(super) fn window_managed_trigger(
+         Without<Window>,
+     >,
+     previous_strips: Query<&PreviousManagedStrip>,
++    // Still readable: a `Remove` observer runs before the component goes.
++    unmanaged: Query<&Unmanaged>,
+     initializing: Option<Res<Initializing>>,
+     mut ctx: WindowCtx,
+ ) {
+@@ -820,7 +822,12 @@ pub(super) fn window_managed_trigger(
+ 
+         // Re-managing an existing window (e.g. after un-floating it) retains
+         // its width under the dynamic rule. Fixed rules keep their old behavior.
+-        if let Some(width_ratio) = properties.fixed_width_ratio() {
++        // A window coming back from hidden or minimized keeps the width it left
++        // with: the rule is its starting width, and applying it again undid
++        // every resize each time the app was hidden and shown.
++        if matches!(unmanaged.get(entity), Ok(Unmanaged::Floating))
++            && let Some(width_ratio) = properties.fixed_width_ratio()
++        {
+             let (_, pad_right, _, pad_left) = ctx.config.edge_padding();
+             let padded_width = display_bounds.width() - pad_left - pad_right;
+             let width = round_px(f64::from(padded_width) * width_ratio);
+diff --git a/src/tests/interaction.rs b/src/tests/interaction.rs
+index 8e551a0..c16ce84 100644
+--- a/src/tests/interaction.rs
++++ b/src/tests/interaction.rs
+@@ -3420,3 +3420,65 @@ fn test_virtual_move_number_recreates_missing_baseline_row() {
+         "the moved window should land on a single recreated row 0"
+     );
+ }
++
++/// A width the user set survives the app hiding and showing its window. The
++/// catch-all width rule is only the starting width, so bringing the window
++/// back must not apply it again.
++#[test]
++fn test_hidden_window_keeps_its_width_when_shown_again() {
++    let config = Config::try_from(
++        r#"
++[options]
++
++[windows.all]
++title = ".*"
++width = 0.5
++
++[bindings]
++"#,
++    )
++    .expect("config should parse");
++    let commands = vec![
++        Event::WindowFocused { window_id: 0 },
++        Event::Command {
++            command: Command::Window(Operation::SetWidth(0.25)),
++        },
++        Event::Command {
++            command: Command::PrintState,
++        },
++        Event::ApplicationHidden {
++            pid: TEST_PROCESS_ID,
++        },
++        Event::Command {
++            command: Command::PrintState,
++        },
++        Event::ApplicationVisible {
++            pid: TEST_PROCESS_ID,
++        },
++        Event::WindowFocused { window_id: 0 },
++        Event::Command {
++            command: Command::PrintState,
++        },
++    ];
++    let width_of = |world: &mut World| {
++        let mut query = world.query::<&Window>();
++        let window = query.iter(world).find(|w| w.id() == 0).expect("window 0");
++        window.frame().width()
++    };
++
++    TestHarness::new()
++        .with_config(config)
++        .with_windows(1)
++        .on_iteration(2, move |world, _state| {
++            assert_eq!(width_of(world), TEST_DISPLAY_WIDTH / 4);
++        })
++        .on_iteration(4, |world, _state| {
++            let mut query = world.query::<(&Window, Option<&crate::ecs::Unmanaged>)>();
++            let (_, unmanaged) = query.iter(world).find(|(w, _)| w.id() == 0).expect("window 0");
++            assert!(matches!(unmanaged, Some(crate::ecs::Unmanaged::Hidden)));
++        })
++        .on_iteration(7, move |world, _state| {
++            assert_eq!(width_of(world), TEST_DISPLAY_WIDTH / 4);
++        })
++        .run(commands);
++}
