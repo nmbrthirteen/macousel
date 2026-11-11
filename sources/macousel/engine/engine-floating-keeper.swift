@@ -53,16 +53,23 @@ final class EngineFloatingKeeper {
   static func covering(
     _ window: Int32, in snapshot: EngineSnapshot, frontToBack order: [CGWindowID]
   ) -> [CGWindowID] {
-    guard let target = snapshot.visibleWindows.first(where: { $0.windowId == window })?.frame?.rect
+    guard let focused = snapshot.visibleWindows.first(where: { $0.windowId == window }),
+      let target = focused.frame?.rect
     else { return [] }
     let covering = snapshot.floatingWindows.compactMap { floating -> CGWindowID? in
-      guard let frame = floating.frame?.rect, FloatingWindowKeeper.overlaps(frame, target) else {
-        return nil
-      }
+      guard let frame = floating.frame?.rect, FloatingWindowKeeper.overlaps(frame, target),
+        !Self.sharesApp(floating, focused)
+      else { return nil }
       return CGWindowID(exactly: floating.windowId)
     }
     let rank = Dictionary(
       order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
     return covering.sorted { (rank[$0] ?? Int.max) < (rank[$1] ?? Int.max) }
+  }
+
+  // Raising a window of the focused app makes it that app's focused window, so a browser's
+  // picture-in-picture player would take the keyboard from the page.
+  private static func sharesApp(_ first: EngineWindow, _ second: EngineWindow) -> Bool {
+    !first.bundleId.isEmpty && first.bundleId == second.bundleId
   }
 }

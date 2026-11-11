@@ -74,7 +74,7 @@ struct FloatingWindowSuppressionTests {
   }
 
   @Test func theShownScratchpadWindowIsRaisedWhenItCoversTheFocusedWindow() throws {
-    let scenario = try FloatingScenario()
+    let scenario = try FloatingScenario(rowApps: [1: .terminal])
     scenario.fixture.manager.perform(.sendToScratchpad)
     scenario.fixture.manager.perform(.toggleScratchpad)
 

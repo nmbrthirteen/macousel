@@ -41,6 +41,17 @@ struct EngineFloatingKeeperTests {
     #expect(EngineFloatingKeeper.covering(2, in: snapshot, frontToBack: []) == [20])
   }
 
+  @Test func aFloatingWindowOfTheFocusedAppIsLeftAlone() {
+    var player = Self.floater(10, x: 600)
+    player.bundleId = "test.browser"
+    var page = Self.tile(2, x: 500, focused: true)
+    page.bundleId = "test.browser"
+    let snapshot = EngineFixtures.snapshot(
+      of: [Self.tile(1, x: 0), page, player, Self.floater(20, x: 650)])
+
+    #expect(EngineFloatingKeeper.covering(2, in: snapshot, frontToBack: []) == [20])
+  }
+
   @Test func aFloatingWindowThatOnlyGrazesTheFocusedWindowIsLeftAlone() {
     let grazing = Int(FloatingWindowKeeper.minimumOverlap / 2)
     let snapshot = Self.snapshot(focusing: 2, floaters: [Self.floater(10, x: 300 + grazing)])

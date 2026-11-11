@@ -8,12 +8,15 @@ struct FloatingScenario {
   let row: [FakeWindow]
   let floater: FakeWindow
 
-  init(keepsFloatingWindowsOnTop: Bool = true, rowCount: CGWindowID = 3) throws {
+  init(
+    keepsFloatingWindowsOnTop: Bool = true, rowCount: CGWindowID = 3,
+    rowApps: [CGWindowID: FakeApp] = [:]
+  ) throws {
     fixture = try ControllerFixture {
       $0.appRules = [AppRule(bundleIdentifier: FakeApp.floater.bundleIdentifier, behavior: .float)]
       $0.keepsFloatingWindowsOnTop = keepsFloatingWindowsOnTop
     }
-    row = fixture.openRow(rowCount)
+    row = fixture.openRow(rowCount, apps: rowApps)
     floater = fixture.open(10, app: .floater)
     fixture.environment.stack(frontToBack: [10] + (1...rowCount).map { $0 })
     fixture.launch()
